@@ -1,0 +1,127 @@
+/* === Своя Игра — глобальные стили === */
+:root {
+  --si-bg-1: #3838ff;
+  --si-bg-2: #000091;
+  --si-gold: #ffc000;
+  --si-white: #ffffff;
+  --si-mute: #cfd0ff;
+  --si-cell-bg: rgba(0, 0, 80, 0.45);
+  --si-cell-border: rgba(255, 255, 255, 0.18);
+  --si-cell-played: rgba(255, 255, 255, 0.06);
+  --font-title: 'Lustria', 'PT Serif', 'Times New Roman', serif;
+  --font-body: 'PT Serif', 'Times New Roman', Times, serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #app {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background: linear-gradient(180deg, var(--si-bg-1) 0%, var(--si-bg-2) 100%);
+  background-attachment: fixed;
+  color: var(--si-white);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--si-gold); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+button, input, textarea, select {
+  font-family: inherit;
+}
+
+/* Reusable building blocks */
+.si-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.si-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  width: 100%;
+}
+
+.si-title {
+  font-family: var(--font-title);
+  color: var(--si-gold);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.si-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--si-cell-border);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--si-white);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  text-decoration: none;
+}
+.si-button:hover { background: rgba(255, 255, 255, 0.16); }
+.si-button:active { transform: translateY(1px); }
+.si-button.primary {
+  background: var(--si-gold);
+  color: #1a1a4a;
+  border-color: var(--si-gold);
+}
+.si-button.primary:hover { background: #ffd13a; }
+.si-button.danger {
+  background: rgba(220, 60, 60, 0.18);
+  border-color: rgba(220, 60, 60, 0.5);
+}
+.si-button.danger:hover { background: rgba(220, 60, 60, 0.32); }
+.si-button.ghost {
+  background: transparent;
+}
+
+.si-input, .si-textarea, .si-select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--si-cell-border);
+  background: rgba(0, 0, 80, 0.35);
+  color: var(--si-white);
+  font-size: 15px;
+  outline: none;
+}
+.si-input:focus, .si-textarea:focus, .si-select:focus {
+  border-color: var(--si-gold);
+}
+.si-textarea { min-height: 90px; resize: vertical; }
+
+.si-card {
+  background: rgba(0, 0, 80, 0.35);
+  border: 1px solid var(--si-cell-border);
+  border-radius: 12px;
+  padding: 18px;
+}
+
+.si-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--si-mute);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.si-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.si-spacer { flex: 1; }
