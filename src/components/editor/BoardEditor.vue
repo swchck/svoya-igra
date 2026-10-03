@@ -4,16 +4,15 @@ import { useI18n } from 'vue-i18n'
 import { Cat, Gavel, GripVertical, Image as ImageIcon, Music, Plus, Trash2 } from '@lucide/vue'
 import type { Question, Round } from '@/types'
 import IconButton from '@/components/IconButton.vue'
+import { markdownToPlain } from '@/lib/markdown'
 import { isQuestionReady, makeEmptyQuestion, makeEmptyTheme, moveItemTo } from '@/game/model'
 
 const { t } = useI18n()
 const round = defineModel<Round>('round', { required: true })
-/** Id of the question open in the inspector. */
+/** Id of the question open in the dialog. */
 const selected = defineModel<string | null>('selected', { required: true })
-const emit = defineEmits<{
+defineEmits<{
   (e: 'remove-theme', index: number): void
-  /** The user clicked a cell, as opposed to the selection changing on its own. */
-  (e: 'picked'): void
 }>()
 
 const columns = computed(() => Math.max(1, ...round.value.themes.map((t) => t.questions.length)))
@@ -121,10 +120,10 @@ function dropOnTheme(index: number) {
           'drop-cell': over === q.id,
         }"
         draggable="true"
-        :aria-pressed="selected === q.id"
+        aria-haspopup="dialog"
         :aria-label="`${theme.name}, ${q.value}${isQuestionReady(q) ? '' : t('editor.board.notFilled')}`"
-        :title="q.text || t('editor.board.emptyQuestion')"
-        @click="((selected = q.id), emit('picked'))"
+        :title="markdownToPlain(q.text) || t('editor.board.emptyQuestion')"
+        @click="selected = q.id"
         @dragstart="startQuestion($event, ti, i)"
         @dragend="end"
         @dragover.prevent.stop="drag?.kind === 'question' && (over = q.id)"

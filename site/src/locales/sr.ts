@@ -55,12 +55,12 @@ export default {
     title: 'Šta aplikacija ume',
     editor: {
       title: 'Uređivač u obliku table',
-      text: 'Igra se pravi na istoj tabli koju će videti igrači. Kliknite na polje i pored njega se otvara pitanje: tekst, odgovor, slike, zvuk i video. Teme i pitanja se prevlače mišem, a izmene se odmah čuvaju.',
+      text: 'Igra se pravi na istoj tabli koju će videti igrači. Kliknite na polje i otvara se prozor pitanja: levo pitanje, desno odgovor, svako sa formatiranim tekstom, slikama, zvukom i videom. Runde, teme i pitanja se prevlače mišem, a izmene se odmah čuvaju.',
       alt: 'Uređivač sa tablom runde i otvorenim pitanjem',
     },
     board: {
       title: 'Scena za publiku',
-      text: 'Tabla se širi preko celog ekrana ili projektora. Izabrano polje se otvara u pitanje, a rezultati igrača na dnu se menjaju čim voditelj prizna odgovor.',
+      text: 'Tabla se širi preko celog ekrana ili projektora. Izabrano polje se otvara u pitanje, a rezultati igrača na dnu se menjaju čim voditelj prizna odgovor. Zvučni efekti prate izbor pitanja, odgovore i poene, a mogu se isključiti.',
       alt: 'Tabla runde sa rezultatima igrača',
     },
     question: {

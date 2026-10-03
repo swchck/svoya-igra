@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SoundToggle from '@/components/SoundToggle.vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -16,6 +17,7 @@ import CatPanel from '@/components/play/CatPanel.vue'
 import VerdictPanel from '@/components/play/VerdictPanel.vue'
 import FinalBetsPanel from '@/components/play/FinalBetsPanel.vue'
 import FinalVerdictPanel from '@/components/play/FinalVerdictPanel.vue'
+import MarkdownView from '@/components/MarkdownView.vue'
 import HostMediaControls from '@/components/play/HostMediaControls.vue'
 
 const props = defineProps<{ id: string }>()
@@ -105,6 +107,7 @@ onUnmounted(() => {
       <span class="brand">{{ t('host.brand') }}</span>
       <span class="game">{{ game.title }}</span>
       <span class="flex-1" />
+      <SoundToggle />
       <span v-if="connected" class="phase"><span class="dot" />{{ phaseLabel[state.phase] }}</span>
       <span v-else class="phase off">{{ t('host.offline') }}</span>
     </header>
@@ -137,10 +140,10 @@ onUnmounted(() => {
             <span v-else-if="activeQuestion.kind === 'cat-in-bag'" class="kind">{{ t('host.catInBag') }}</span>
             <span class="amount">{{ activeValue }}</span>
           </div>
-          <p class="q-text">{{ activeQuestion.text }}</p>
+          <MarkdownView class="q-text rich" :source="activeQuestion.text" />
           <div class="answer">
             <span class="answer-label"><Eye class="size-4" />{{ t('host.answer') }}</span>
-            <span class="answer-text">{{ activeQuestion.answer }}</span>
+            <MarkdownView class="answer-text rich" :source="activeQuestion.answer" />
           </div>
           <HostMediaControls v-if="stageMedia.length" :items="stageMedia" :status="mediaStatus" @action="mediaAction" />
 
@@ -171,10 +174,10 @@ onUnmounted(() => {
 
         <div v-else-if="game.finalRound && isFinalPhase" class="question">
           <div class="plate"><span>{{ t('host.final') }}</span><span class="kind">{{ game.finalRound.theme }}</span></div>
-          <p class="q-text">{{ game.finalRound.text }}</p>
+          <MarkdownView class="q-text rich" :source="game.finalRound.text" />
           <div class="answer">
             <span class="answer-label"><Eye class="size-4" />{{ t('host.answer') }}</span>
-            <span class="answer-text">{{ game.finalRound.answer }}</span>
+            <MarkdownView class="answer-text rich" :source="game.finalRound.answer" />
           </div>
           <HostMediaControls v-if="stageMedia.length" :items="stageMedia" :status="mediaStatus" @action="mediaAction" />
           <FinalBetsPanel
@@ -353,7 +356,34 @@ onUnmounted(() => {
   font-size: 22px;
   font-weight: 700;
   line-height: 1.3;
-  white-space: pre-wrap;
+}
+.rich :deep(> :first-child) {
+  margin-top: 0;
+}
+.rich :deep(> :last-child) {
+  margin-bottom: 0;
+}
+.rich :deep(p),
+.rich :deep(ul),
+.rich :deep(ol),
+.rich :deep(blockquote),
+.rich :deep(pre) {
+  margin: 0.35em 0;
+}
+.rich :deep(ul) {
+  list-style: disc;
+  padding-left: 1.3em;
+}
+.rich :deep(ol) {
+  list-style: decimal;
+  padding-left: 1.3em;
+}
+.rich :deep(blockquote) {
+  padding-left: 0.7em;
+  border-left: 0.12em solid currentColor;
+}
+.rich :deep(code) {
+  font-size: 0.85em;
 }
 .answer {
   display: grid;

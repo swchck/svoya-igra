@@ -12,6 +12,8 @@ import { HOST_COMMANDS, HOST_PING_MS, openHostWindow, openPlayChannel, type Play
 import { createMediaRegistry, MEDIA_REGISTRY } from '@/play/mediaControl'
 import { plainCopy } from '@/lib/plain'
 import { prefersReducedMotion } from '@/lib/motion'
+import { useStageSounds } from '@/play/sounds'
+import SoundToggle from '@/components/SoundToggle.vue'
 import StageBackdrop from './StageBackdrop.vue'
 import PlayerPodiums from './PlayerPodiums.vue'
 import PlayerSetup from './PlayerSetup.vue'
@@ -35,6 +37,8 @@ const session = usePlaySession(
   props.restored,
 )
 const { state, players, round, activeQuestion, activeValue, ranking, inProgress } = session
+
+useStageSounds(() => state.phase, players)
 
 const media = createMediaRegistry()
 provide(MEDIA_REGISTRY, media)
@@ -229,6 +233,7 @@ onUnmounted(() => {
       <Button variant="ghost" @click="home"><ArrowLeft />{{ t('play.stage.leave') }}</Button>
       <span v-if="hostConnected" class="host-on"><span class="dot" />{{ t('play.stage.hostConnected') }}</span>
       <div class="flex-1" />
+      <SoundToggle />
       <Button variant="ghost" @click="openHostWindow(game.id, game.title)"><MonitorSmartphone />{{ t('play.stage.hostWindow') }}</Button>
       <Button variant="ghost" @click="toggleFullscreen">
         <template v-if="isFullscreen"><Minimize />{{ t('play.stage.exitFullscreen') }}</template>

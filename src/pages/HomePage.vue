@@ -28,7 +28,8 @@ const { t } = useI18n()
 const store = useGamesStore()
 const fileInput = ref<HTMLInputElement | null>(null)
 const busy = ref(false)
-const SAMPLE_TITLE = 'Своя игра — 1996 и не только'
+// the titles in assets/sample/content.mjs plus the pre-translation sample, so older copies get replaced
+const SAMPLE_TITLES = ['Пример: всего понемногу', 'Sample: a bit of everything', 'Primer: od svega po malo', 'Своя игра — 1996 и не только']
 const version = ref('')
 
 onMounted(async () => {
@@ -79,7 +80,7 @@ async function exportAs(g: Game, format: GameFileFormat) {
 async function loadSample() {
   busy.value = true
   try {
-    const previous = store.games.filter((g) => g.title === SAMPLE_TITLE)
+    const previous = store.games.filter((g) => SAMPLE_TITLES.includes(g.title))
     // save before removing: removal prunes media, and the new copy's files must be referenced by then
     await store.save(await importSampleGame())
     for (const old of previous) await store.remove(old.id)

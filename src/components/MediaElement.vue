@@ -16,7 +16,10 @@ const props = defineProps<{
   autoplay?: boolean
   /** Editor preview: native controls, and YouTube stays a thumbnail until clicked. */
   preview?: boolean
+  /** With `preview`: load the YouTube player right away instead of a thumbnail. */
+  eager?: boolean
 }>()
+const emit = defineEmits<{ (e: 'duration', seconds: number): void }>()
 
 const src = ref<string | null>(null)
 watchEffect(async (onCleanup) => {
@@ -30,6 +33,12 @@ watchEffect(async (onCleanup) => {
 const segment = computed(() => segmentOf(props.item))
 const youtube = computed(() => (props.item.kind === 'youtube' ? parseYoutubeUrl(props.item.url) : null))
 const playerRequested = ref(false)
+
+// natural aspect ratio, so MediaView can scale the picture to fill its cell
+const ar = ref<number>()
+function measure(w: number, h: number) {
+  if (w && h) ar.value = w / h
+}
 
 const media = ref<HTMLMediaElement | null>(null)
 const youtubePlayer = ref<InstanceType<typeof YouTubeEmbed> | null>(null)
@@ -64,6 +73,8 @@ function onMetadata() {
   if (!el) return
   const { start, end } = segment.value
   clipLength.value = Math.max(0, (end ?? el.duration) - start)
+  if (Number.isFinite(el.duration)) emit('duration', el.duration)
+  if (el instanceof HTMLVideoElement) measure(el.videoWidth, el.videoHeight)
   el.currentTime = start
   // the autoplay attribute would start at 0 before the seek lands, so start by hand
   if (props.autoplay && !props.preview) playNative()
@@ -85,6 +96,8 @@ function onPlay() {
   if (el && (el.currentTime < start - 0.25 || (end !== undefined && el.currentTime >= end))) el.currentTime = start
 }
 
+defineExpose({ run })
+
 const registry = props.preview ? undefined : inject(MEDIA_REGISTRY, undefined)
 const playable = computed(() => props.item.kind !== 'image')
 let unregister: (() => void) | undefined
@@ -103,7 +116,7 @@ onBeforeUnmount(() => unregister?.())
 <template>
   <template v-if="item.kind === 'youtube'">
     <button
-      v-if="preview && youtube && !playerRequested"
+      v-if="preview && !eager && youtube && !playerRequested"
       class="yt-facade"
       :style="{ backgroundImage: `url(https://i.ytimg.com/vi/${youtube.id}/hqdefault.jpg)` }"
       :aria-label="t('media.player.loadYoutube')"
@@ -120,10 +133,18 @@ onBeforeUnmount(() => unregister?.())
       :end="segment.end"
       :autoplay="preview ? false : autoplay"
       @status="(s) => ((playing = s.playing), (blocked = s.blocked))"
+      @duration="(d) => emit('duration', d)"
     />
   </template>
   <template v-else-if="src">
-    <img v-if="item.kind === 'image'" :src="src" alt="" class="media-img" />
+    <img
+      v-if="item.kind === 'image'"
+      :src="src"
+      alt=""
+      class="media-img"
+      :style="{ '--ar': ar }"
+      @load="(e) => measure((e.target as HTMLImageElement).naturalWidth, (e.target as HTMLImageElement).naturalHeight)"
+    />
     <template v-else-if="preview">
       <audio
         v-if="item.kind === 'audio'"
@@ -165,7 +186,7 @@ onBeforeUnmount(() => unregister?.())
         @toggle="run(playing ? 'pause' : 'play')"
       />
     </template>
-    <div v-else class="stage-video" @click="run(playing ? 'pause' : 'play')">
+    <div v-else class="stage-video" :style="{ '--ar': ar }" @click="run(playing ? 'pause' : 'play')">
       <video
         ref="media"
         :src="src"

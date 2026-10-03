@@ -55,12 +55,12 @@ export default {
     title: 'What the app does',
     editor: {
       title: 'An editor shaped like the board',
-      text: 'You build the game on the same board your players will see. Click a cell and the question opens next to it: text, answer, pictures, sound and video. Drag categories and questions to reorder them. Changes save as you type.',
+      text: 'You build the game on the same board your players will see. Click a cell to open the question window: the question on the left, the answer on the right, each with formatted text, pictures, sound and video. Drag rounds, categories and questions to reorder them. Changes save as you type.',
       alt: 'The editor with a round board and an open question',
     },
     board: {
       title: 'A stage for the audience',
-      text: 'The board fills the screen or the projector. The picked cell flies out into the question, and the scores at the bottom update as soon as the host marks an answer.',
+      text: 'The board fills the screen or the projector. The picked cell flies out into the question, and the scores at the bottom update as soon as the host marks an answer. Sound effects mark picks, answers and points, and you can turn them off.',
       alt: 'The round board with player scores',
     },
     question: {

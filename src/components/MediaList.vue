@@ -1,18 +1,11 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { toast } from 'vue-sonner'
-import { useI18n } from 'vue-i18n'
-import { ArrowDown, ArrowUp, Plus, Trash2 } from '@lucide/vue'
 import type { MediaItem } from '@/types'
-import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import IconButton from '@/components/IconButton.vue'
-import MediaPicker from '@/components/MediaPicker.vue'
-import { uid } from '@/game/model'
-import { detectKind } from '@/media/kind'
-import { putMedia } from '@/media/store'
+import MediaAddZone from '@/components/media/MediaAddZone.vue'
+import MediaCard from '@/components/media/MediaCard.vue'
+import { isWebLink, useMediaIngest } from '@/components/media/useMediaIngest'
 
-const { t } = useI18n()
 const props = defineProps<{
   label?: string
   modelValue?: MediaItem[]
@@ -22,59 +15,104 @@ const emit = defineEmits<{
   (e: 'update:modelValue', v: MediaItem[] | undefined): void
 }>()
 
+const { fromFiles, fromLink } = useMediaIngest()
 const items = computed(() => props.modelValue ?? [])
+const expandedId = ref<string>()
 
 function commit(list: MediaItem[]) {
   emit('update:modelValue', list.length ? list : undefined)
 }
 
-function add() {
-  commit([...items.value, { id: uid('mi_'), url: '', kind: 'image' }])
+function append(added: MediaItem[]) {
+  if (!added.length) return
+  commit([...items.value, ...added])
+  expandedId.value = added[0].id
 }
 
 function remove(i: number) {
   commit(items.value.filter((_, j) => j !== i))
 }
 
-function move(i: number, dir: -1 | 1) {
-  const j = i + dir
-  if (j < 0 || j >= items.value.length) return
+function moveTo(from: number, to: number) {
+  if (from === to || to < 0 || to >= items.value.length) return
   const list = [...items.value]
-  ;[list[i], list[j]] = [list[j], list[i]]
+  list.splice(to, 0, ...list.splice(from, 1))
   commit(list)
-}
-
-const dropping = ref(false)
-function hasFiles(e: DragEvent) {
-  return !!e.dataTransfer?.types.includes('Files')
-}
-function onDragOver(e: DragEvent) {
-  if (!hasFiles(e)) return
-  e.preventDefault()
-  dropping.value = true
-}
-async function onDrop(e: DragEvent) {
-  if (!hasFiles(e)) return
-  e.preventDefault()
-  dropping.value = false
-  const added: MediaItem[] = []
-  for (const file of e.dataTransfer?.files ?? []) {
-    const kind = detectKind({ file })
-    if (!kind) {
-      toast.error(t('media.list.rejected', { name: file.name }), { description: t('media.picker.unsupportedHint') })
-      continue
-    }
-    try {
-      added.push({ id: uid('mi_'), url: await putMedia(file), kind })
-    } catch (err) {
-      toast.error(t('media.list.saveFailed', { name: file.name }), { description: (err as Error).message })
-    }
-  }
-  if (added.length) commit([...items.value, ...added])
 }
 
 function replace(i: number, item: MediaItem) {
   commit(items.value.map((it, j) => (j === i ? item : it)))
+}
+
+async function addFiles(files: Iterable<File>) {
+  append(await fromFiles(files))
+}
+
+function addLink(url: string) {
+  const item = fromLink(url)
+  if (item) append([item])
+}
+
+const dropping = ref(false)
+const dragId = ref<string>()
+// slot between cards a dragged card would land in: 0 is before the first, length is after the last
+const dropAt = ref<number>()
+
+function hasFiles(e: DragEvent) {
+  return !!e.dataTransfer?.types.includes('Files')
+}
+function onDragOver(e: DragEvent) {
+  if (dragId.value) {
+    e.preventDefault()
+    return
+  }
+  if (!hasFiles(e)) return
+  e.preventDefault()
+  dropping.value = true
+}
+function onItemDragOver(e: DragEvent, i: number) {
+  if (!dragId.value) return
+  const box = (e.currentTarget as HTMLElement).getBoundingClientRect()
+  dropAt.value = e.clientY < box.top + box.height / 2 ? i : i + 1
+}
+function onDragLeave(e: DragEvent) {
+  if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node | null)) {
+    dropping.value = false
+    dropAt.value = undefined
+  }
+}
+function onDrop(e: DragEvent) {
+  if (dragId.value) {
+    e.preventDefault()
+    const from = items.value.findIndex((it) => it.id === dragId.value)
+    const slot = dropAt.value
+    endDrag()
+    if (from >= 0 && slot !== undefined) moveTo(from, slot > from ? slot - 1 : slot)
+    return
+  }
+  if (!hasFiles(e)) return
+  e.preventDefault()
+  dropping.value = false
+  void addFiles(e.dataTransfer?.files ?? [])
+}
+function endDrag() {
+  dragId.value = undefined
+  dropAt.value = undefined
+}
+
+function onPaste(e: ClipboardEvent) {
+  const target = e.target as HTMLElement
+  // typing fields keep their own paste
+  if (target.closest('input, textarea, [contenteditable]')) return
+  const files = [...(e.clipboardData?.files ?? [])]
+  const text = e.clipboardData?.getData('text/plain').trim() ?? ''
+  if (files.length) {
+    e.preventDefault()
+    void addFiles(files)
+  } else if (isWebLink(text)) {
+    e.preventDefault()
+    addLink(text)
+  }
 }
 </script>
 
@@ -82,28 +120,37 @@ function replace(i: number, item: MediaItem) {
   <section
     class="media-list"
     :class="{ dropping }"
+    :aria-label="label"
     @dragover="onDragOver"
-    @dragleave.self="dropping = false"
+    @dragleave="onDragLeave"
     @drop="onDrop"
+    @paste="onPaste"
   >
-    <div class="flex items-center justify-between gap-2">
-      <Label v-if="label">{{ label }}</Label>
-      <Button variant="ghost" size="sm" @click="add"><Plus />{{ t('media.list.add') }}</Button>
-    </div>
-    <p v-if="!items.length" class="drop-hint" @click="add">
-      {{ t('media.list.dropHint') }}
-    </p>
-    <article v-for="(it, i) in items" :key="it.id" class="m-item">
-      <header class="flex items-center gap-1">
-        <span class="mr-auto font-display text-sm text-gold">{{ i + 1 }}</span>
-        <IconButton :label="t('media.list.moveUp')" size="icon-xs" :disabled="i === 0" @click="move(i, -1)"><ArrowUp /></IconButton>
-        <IconButton :label="t('media.list.moveDown')" size="icon-xs" :disabled="i === items.length - 1" @click="move(i, 1)">
-          <ArrowDown />
-        </IconButton>
-        <IconButton :label="t('media.list.remove')" size="icon-xs" @click="remove(i)"><Trash2 /></IconButton>
-      </header>
-      <MediaPicker :model-value="it" @update:model-value="(v) => replace(i, v)" />
-    </article>
+    <Label v-if="label">{{ label }}</Label>
+    <ul v-if="items.length" class="flex flex-col gap-2" :data-dragging="dragId ? '' : undefined">
+      <li
+        v-for="(it, i) in items"
+        :key="it.id"
+        class="slot"
+        :class="{ before: dropAt === i, after: dropAt === i + 1 && i === items.length - 1 }"
+        @dragover="onItemDragOver($event, i)"
+      >
+        <MediaCard
+          :item="it"
+          :index="i"
+          :count="items.length"
+          :expanded="expandedId === it.id"
+          :class="{ dragging: dragId === it.id }"
+          @update="(v) => replace(i, v)"
+          @toggle="expandedId = expandedId === it.id ? undefined : it.id"
+          @remove="remove(i)"
+          @move="(dir) => moveTo(i, i + dir)"
+          @dragstart="dragId = it.id"
+          @dragend="endDrag"
+        />
+      </li>
+    </ul>
+    <MediaAddZone :dropping="dropping" @files="addFiles" @link="addLink" />
   </section>
 </template>
 
@@ -112,6 +159,8 @@ function replace(i: number, item: MediaItem) {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  padding: 2px;
+  margin: -2px;
   border-radius: 16px;
   transition: box-shadow 0.15s ease, background 0.15s ease;
 }
@@ -119,27 +168,21 @@ function replace(i: number, item: MediaItem) {
   background: color-mix(in oklch, var(--cyan) 10%, transparent);
   box-shadow: 0 0 0 2px var(--cyan);
 }
-.drop-hint {
-  margin: 0;
-  padding: 18px;
-  border-radius: 14px;
-  border: 1px dashed oklch(1 0 0 / 0.22);
-  color: var(--muted-foreground);
-  font-size: 13px;
-  text-align: center;
-  cursor: pointer;
+.slot {
+  position: relative;
 }
-.drop-hint:hover {
-  border-color: var(--gold);
-  color: var(--foreground);
+.slot.before::before,
+.slot.after::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--gold);
+  box-shadow: 0 0 10px var(--gold);
 }
-.m-item {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 12px;
-  border-radius: 14px;
-  border: 1px solid oklch(1 0 0 / 0.1);
-  background: oklch(0.14 0.1 274 / 0.55);
-}
+.slot.before::before { top: -6px; }
+.slot.after::after { bottom: -6px; }
+.slot :deep(.dragging) { opacity: 0.4; }
 </style>

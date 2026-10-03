@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
-import { ArrowLeft, ArrowRight, Download, FileJson, Loader2, MoreHorizontal, MousePointerClick, Package, Play, Plus, Trash2, Trophy } from '@lucide/vue'
+import { ArrowLeft, ArrowRight, Download, FileJson, Loader2, MoreHorizontal, Package, Play, Plus, Trash2, Trophy } from '@lucide/vue'
 import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import type { Game } from '@/types'
@@ -16,12 +16,12 @@ import {
 import { confirmAction } from '@/composables/useConfirm'
 import { useGamesStore } from '@/stores/games'
 import { getGame } from '@/storage'
-import { makeEmptyFinal, makeEmptyRound, moveItem } from '@/game/model'
+import { makeEmptyFinal, makeEmptyRound, moveItem, moveItemTo } from '@/game/model'
 import { exportGameFile, type GameFileFormat } from '@/io/gameFile'
 import { useAutosave } from '@/composables/useAutosave'
 import RoundStrip from '@/components/editor/RoundStrip.vue'
 import BoardEditor from '@/components/editor/BoardEditor.vue'
-import QuestionInspector from '@/components/editor/QuestionInspector.vue'
+import QuestionDialog from '@/components/editor/QuestionDialog.vue'
 import FinalForm from '@/components/editor/FinalForm.vue'
 import StagePreview from '@/components/editor/StagePreview.vue'
 
@@ -38,7 +38,6 @@ const previewOpen = ref(false)
 getGame(props.id).then((g) => {
   if (!g) return router.replace({ name: 'home' })
   game.value = g
-  selectedId.value = g.rounds[0]?.themes[0]?.questions[0]?.id ?? null
 })
 
 const { status: saveStatus, error: saveError, flush: flushSave } = useAutosave(game, (g) => store.save(g))
@@ -63,14 +62,16 @@ const at = computed(() => order.value.findIndex((x) => x.q.id === selectedId.val
 const current = computed(() => order.value[at.value])
 
 watch(tab, () => {
-  selectedId.value = order.value[0]?.q.id ?? null
+  selectedId.value = null
 })
 
-// in the one-column layout the inspector sits under the board, out of sight
-const inspector = ref<HTMLElement | null>(null)
-function revealInspector() {
-  if (matchMedia('(max-width: 1100px)').matches) inspector.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-}
+// the dialog is open exactly while a question is selected
+const dialogOpen = computed({
+  get: () => !!current.value,
+  set: (open) => {
+    if (!open) selectedId.value = null
+  },
+})
 
 function step(offset: -1 | 1) {
   const next = order.value[at.value + offset]
@@ -81,6 +82,17 @@ function addRound() {
   if (!game.value) return
   game.value.rounds.push(makeEmptyRound(t('editor.strip.defaultRound', { n: game.value.rounds.length + 1 })))
   tab.value = game.value.rounds.length - 1
+}
+
+function reorderRound(from: number, to: number) {
+  if (!game.value) return
+  const openRound = tab.value
+  moveItemTo(game.value.rounds, from, to)
+  if (typeof openRound !== 'number') return
+  // the open round keeps its identity while the others shift around it
+  if (openRound === from) tab.value = to
+  else if (from < openRound && to >= openRound) tab.value = openRound - 1
+  else if (from > openRound && to <= openRound) tab.value = openRound + 1
 }
 
 function moveRound(offset: -1 | 1) {
@@ -198,9 +210,9 @@ async function exportAs(format: GameFileFormat) {
     </header>
 
     <div class="body">
-      <RoundStrip v-model="tab" :rounds="game.rounds" :final="game.finalRound" @add="addRound" />
+      <RoundStrip v-model="tab" :rounds="game.rounds" :final="game.finalRound" @add="addRound" @reorder="reorderRound" />
 
-      <div v-if="round" class="workspace">
+      <template v-if="round">
         <section class="board-pane">
           <div class="round-head">
             <input v-model="round.name" class="round-name" :placeholder="t('editor.page.roundName')" :aria-label="t('editor.page.roundName')" />
@@ -216,32 +228,26 @@ async function exportAs(format: GameFileFormat) {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-          <BoardEditor v-model:round="round" v-model:selected="selectedId" @remove-theme="removeTheme" @picked="revealInspector" />
+          <BoardEditor v-model:round="round" v-model:selected="selectedId" @remove-theme="removeTheme" />
           <p class="tip">{{ t('editor.page.tip') }}</p>
         </section>
 
-        <aside ref="inspector" class="glass inspector-pane">
-          <QuestionInspector
-            v-if="current"
-            :key="current.q.id"
-            v-model="current.t.questions[current.qi]"
-            :theme-name="current.t.name"
-            :has-prev="at > 0"
-            :has-next="at < order.length - 1"
-            :first="current.qi === 0"
-            :last="current.qi === current.t.questions.length - 1"
-            @prev="step(-1)"
-            @next="step(1)"
-            @move="moveQuestion"
-            @remove="removeQuestion"
-            @preview="previewOpen = true"
-          />
-          <div v-else class="empty">
-            <MousePointerClick class="size-10 text-gold" />
-            <p>{{ t('editor.page.pickQuestion') }}</p>
-          </div>
-        </aside>
-      </div>
+        <QuestionDialog
+          v-if="current"
+          v-model="current.t.questions[current.qi]"
+          v-model:open="dialogOpen"
+          :theme-name="current.t.name"
+          :has-prev="at > 0"
+          :has-next="at < order.length - 1"
+          :first="current.qi === 0"
+          :last="current.qi === current.t.questions.length - 1"
+          @prev="step(-1)"
+          @next="step(1)"
+          @move="moveQuestion"
+          @remove="removeQuestion"
+          @preview="previewOpen = true"
+        />
+      </template>
 
       <section v-else-if="tab === 'final'" class="final-pane glass">
         <template v-if="game.finalRound">
@@ -363,15 +369,6 @@ async function exportAs(format: GameFileFormat) {
   margin: 0 auto;
   padding: 16px 20px 32px;
 }
-.workspace {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(380px, 460px);
-  gap: 18px;
-  align-items: start;
-}
-@media (max-width: 1100px) {
-  .workspace { grid-template-columns: 1fr; }
-}
 .board-pane {
   display: flex;
   flex-direction: column;
@@ -396,14 +393,6 @@ async function exportAs(format: GameFileFormat) {
   margin: 0;
   font-size: 13px;
   color: var(--muted-foreground);
-}
-.inspector-pane {
-  position: sticky;
-  top: 84px;
-  max-height: calc(100dvh - 100px);
-  overflow-y: auto;
-  padding: 18px;
-  border-radius: 20px;
 }
 .final-pane {
   width: min(820px, 100%);

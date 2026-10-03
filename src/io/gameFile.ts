@@ -1,5 +1,5 @@
 import type { Game } from '../types'
-import { t } from '../i18n'
+import { currentLocale, t } from '../i18n'
 import { mediaItems, withFreshIds } from '../game/model'
 import { parseGame } from '../game/parse'
 import { plainCopy } from '../lib/plain'
@@ -51,9 +51,9 @@ export async function exportGameFile(game: Game, format: GameFileFormat): Promis
   return saveFile(blob, `${fileSlug(game.title)}.${format}`)
 }
 
-/** Loads the bundled sample game. */
+/** Loads the bundled sample game in the current interface language. */
 export async function importSampleGame(): Promise<Game> {
-  const res = await fetch(`${import.meta.env.BASE_URL}samples/sample-1996.gamezip`)
+  const res = await fetch(`${import.meta.env.BASE_URL}samples/sample-${currentLocale()}.gamezip`)
   if (!res.ok) throw new Error(t('system.errors.sampleFailed', { status: res.status }))
   return importGameZip(await res.blob())
 }

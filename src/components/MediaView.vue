@@ -34,9 +34,20 @@ defineProps<{
   --fit-w: calc(100cqh * 16 / 9);
 }
 .m-cell :deep(img),
+.m-cell :deep(.stage-video) {
+  /* scale up or down to the largest size that fits the cell, so equal shapes look equal */
+  width: min(100cqw, 100cqh * var(--ar, 1.5));
+  height: auto;
+  max-width: none;
+  max-height: none;
+}
+.m-cell :deep(.stage-video video) {
+  width: 100%;
+  max-width: none;
+  max-height: none;
+}
+.m-cell :deep(img),
 .m-cell :deep(video) {
-  max-width: 100cqw;
-  max-height: 100cqh;
   box-shadow: 0 30px 80px -30px oklch(0.05 0.1 280 / 0.9);
 }
 </style>
