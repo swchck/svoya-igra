@@ -125,3 +125,27 @@ button, input, textarea, select {
 }
 
 .si-spacer { flex: 1; }
+
+.si-button.big { padding: 14px 28px; font-size: 18px; }
+
+.slide {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 32px;
+  gap: 24px;
+}
+.huge {
+  font-size: clamp(48px, 10vw, 140px);
+  margin: 0;
+  line-height: 1;
+}
+.subtitle {
+  color: var(--si-mute);
+  font-style: italic;
+  font-size: 22px;
+  margin: 0;
+}

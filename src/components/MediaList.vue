@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { MediaItem } from '../types'
-import { uid } from '../storage'
+import { uid } from '../game/model'
 import MediaPicker from './MediaPicker.vue'
 
 const props = defineProps<{

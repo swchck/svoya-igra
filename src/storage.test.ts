@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { reactive } from 'vue'
 import { dbPut } from './db'
-import { getGame, makeEmptyGame, upsertGame } from './storage'
+import { getGame, upsertGame } from './storage'
+import { makeEmptyGame } from './game/model'
 
 describe('upsertGame', () => {
   it('persists a reactive game', async () => {

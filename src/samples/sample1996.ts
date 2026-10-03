@@ -1,52 +1,24 @@
 import sampleJson from './sample-1996.json'
-import type { Game, MediaItem } from '../types'
+import type { Game } from '../types'
+import { mediaItems } from '../game/model'
+import { parseGame } from '../game/parse'
 
-// Vite glob: импортирует все картинки как URL'ы. С большим assetsInlineLimit
-// они станут data-URL'ами и попадут прямо в бандл — портативная сборка
-// не зависит от сторонних файлов.
-const imageUrls = import.meta.glob('../assets/sample-1996/*.{png,jpg,jpeg,gif,webp}', {
+// eager glob turns every picture into a bundled asset URL; the portable build inlines
+// them as data URLs, so the sample works without any files next to the page
+const imageUrls = import.meta.glob<string>('../assets/sample-1996/*.{png,jpg,jpeg,gif,webp}', {
   eager: true,
   query: '?url',
   import: 'default',
-}) as Record<string, string>
-
-const byName: Record<string, string> = {}
-for (const [key, url] of Object.entries(imageUrls)) {
-  const name = key.split('/').pop()!
-  byName[name] = url
-}
+})
 
 const PREFIX = 'images/sample-1996/'
-function resolveUrl(u: string | undefined): string | undefined {
-  if (!u) return u
-  if (!u.startsWith(PREFIX)) return u
-  const name = u.slice(PREFIX.length)
-  return byName[name] ?? u
-}
+const urlByName = new Map(Object.entries(imageUrls).map(([path, url]) => [path.split('/').pop()!, url]))
 
-function fixItems(items: MediaItem[] | undefined) {
-  if (!items) return
-  for (const it of items) {
-    const r = resolveUrl(it.url)
-    if (r) it.url = r
-  }
-}
-
+/** Returns a fresh copy of the bundled sample game with resolved picture URLs. */
 export function getSampleGame(): Game {
-  const g = JSON.parse(JSON.stringify(sampleJson)) as Game
-  for (const r of g.rounds) {
-    for (const t of r.themes) {
-      for (const q of t.questions) {
-        q.mediaUrl = resolveUrl(q.mediaUrl)
-        q.answerMediaUrl = resolveUrl(q.answerMediaUrl)
-        fixItems(q.media)
-        fixItems(q.answerMedia)
-      }
-    }
+  const game = parseGame(structuredClone(sampleJson))
+  for (const item of mediaItems(game)) {
+    if (item.url.startsWith(PREFIX)) item.url = urlByName.get(item.url.slice(PREFIX.length)) ?? item.url
   }
-  if (g.finalRound) {
-    g.finalRound.mediaUrl = resolveUrl(g.finalRound.mediaUrl)
-    fixItems(g.finalRound.media)
-  }
-  return g
+  return game
 }

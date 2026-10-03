@@ -1,339 +1,157 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import type { Game } from '../types'
 import { useGamesStore } from '../stores/games'
-import { getGame, makeEmptyQuestion, makeEmptyRound, makeEmptyTheme, uid } from '../storage'
-import type { Game, Question, Round, Theme } from '../types'
-import MediaList from '../components/MediaList.vue'
-import { exportGameZip } from '../archive'
-import { exportGameJson } from '../storage'
+import { getGame } from '../storage'
+import { makeEmptyFinal, makeEmptyRound, makeEmptyTheme } from '../game/model'
+import { exportGameFile, type GameFileFormat } from '../io/gameFile'
 import { useAutosave } from '../composables/useAutosave'
-
-function fileSlug(t: string): string {
-  const s = (t || 'svoya-igra').trim().toLowerCase().replace(/[^a-zа-яё0-9-]+/gi, '-').replace(/^-+|-+$/g, '')
-  return s || 'svoya-igra'
-}
-function trigger(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url; a.download = filename
-  document.body.appendChild(a); a.click(); a.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 500)
-}
+import RoundTabs from '../components/editor/RoundTabs.vue'
+import ThemeCard from '../components/editor/ThemeCard.vue'
+import QuestionForm from '../components/editor/QuestionForm.vue'
+import FinalForm from '../components/editor/FinalForm.vue'
 
 const props = defineProps<{ id: string }>()
 const router = useRouter()
 const store = useGamesStore()
 
 const game = ref<Game | null>(null)
-const activeRoundIndex = ref(0)
-/** Selected question editor coordinates */
-const selected = ref<{ tIdx: number; qIdx: number } | null>(null)
+const roundIndex = ref(0)
+const selected = ref<{ theme: number; question: number } | null>(null)
 
-;(async () => {
-  const g = await getGame(props.id)
-  if (!g) {
-    router.replace({ name: 'home' })
-    return
-  }
-  game.value = g
-})()
-
-const currentRound = computed<Round | undefined>(() => game.value?.rounds[activeRoundIndex.value])
-const selectedQuestion = computed<Question | null>(() => {
-  if (!selected.value || !currentRound.value) return null
-  const t = currentRound.value.themes[selected.value.tIdx]
-  return t?.questions[selected.value.qIdx] ?? null
+getGame(props.id).then((g) => {
+  if (g) game.value = g
+  else router.replace({ name: 'home' })
 })
 
 const { status: saveStatus, error: saveError, flush: flushSave } = useAutosave(game, (g) => store.save(g))
-const saveLabel = computed(() => {
-  switch (saveStatus.value) {
-    case 'pending':
-    case 'saving':
-      return 'Сохранение…'
-    case 'saved':
-      return 'Сохранено'
-    case 'error':
-      return 'Не сохранено'
-    default:
-      return ''
-  }
-})
+const saveLabel = computed(
+  () =>
+    ({ idle: '', pending: 'Сохранение…', saving: 'Сохранение…', saved: 'Сохранено', error: 'Не сохранено' })[
+      saveStatus.value
+    ],
+)
+
+const round = computed(() => game.value?.rounds[roundIndex.value])
+const selectedTheme = computed(() => (selected.value ? round.value?.themes[selected.value.theme] : undefined))
+
+function selectRound(i: number) {
+  roundIndex.value = i
+  selected.value = null
+}
 
 function addRound() {
   if (!game.value) return
-  const n = game.value.rounds.length + 1
-  game.value.rounds.push(makeEmptyRound(`РАУНД ${n}`))
-  activeRoundIndex.value = game.value.rounds.length - 1
+  game.value.rounds.push(makeEmptyRound(`РАУНД ${game.value.rounds.length + 1}`))
+  selectRound(game.value.rounds.length - 1)
 }
 
-function removeRound(i: number) {
-  if (!game.value || game.value.rounds.length <= 1) return
-  if (!confirm('Удалить раунд?')) return
-  game.value.rounds.splice(i, 1)
-  activeRoundIndex.value = Math.max(0, Math.min(activeRoundIndex.value, game.value.rounds.length - 1))
-  selected.value = null
+function removeRound() {
+  if (!game.value || game.value.rounds.length <= 1 || !confirm('Удалить раунд?')) return
+  game.value.rounds.splice(roundIndex.value, 1)
+  selectRound(Math.min(roundIndex.value, game.value.rounds.length - 1))
 }
 
 function addTheme() {
-  if (!currentRound.value) return
-  currentRound.value.themes.push(makeEmptyTheme(`Тема ${currentRound.value.themes.length + 1}`))
+  round.value?.themes.push(makeEmptyTheme(`Тема ${round.value.themes.length + 1}`))
 }
 
 function removeTheme(i: number) {
-  if (!currentRound.value) return
-  if (!confirm('Удалить тему?')) return
-  currentRound.value.themes.splice(i, 1)
+  if (!round.value || !confirm('Удалить тему?')) return
+  round.value.themes.splice(i, 1)
   selected.value = null
 }
 
-function addQuestion(theme: Theme) {
-  const last = theme.questions[theme.questions.length - 1]
-  const value = last ? last.value + 100 : 100
-  theme.questions.push(makeEmptyQuestion(value))
-}
-
-function removeQuestion(theme: Theme, qIdx: number) {
-  theme.questions.splice(qIdx, 1)
+function removeQuestion() {
+  if (!selected.value || !selectedTheme.value || !confirm('Удалить вопрос?')) return
+  selectedTheme.value.questions.splice(selected.value.question, 1)
   selected.value = null
 }
 
-function selectQuestion(tIdx: number, qIdx: number) {
-  selected.value = { tIdx, qIdx }
-}
-
-function back() {
-  router.push({ name: 'home' })
+function removeFinal() {
+  if (game.value && confirm('Удалить финал?')) game.value.finalRound = undefined
 }
 
 async function play() {
   if (!game.value) return
   await flushSave()
-  if (saveStatus.value === 'error') return
-  router.push({ name: 'play', params: { id: game.value.id } })
-}
-
-function ensureFinal() {
-  if (!game.value) return
-  if (!game.value.finalRound) {
-    game.value.finalRound = { id: uid('f_'), theme: 'Финал', text: '', answer: '' }
-  }
-}
-
-function removeFinal() {
-  if (!game.value) return
-  if (window.confirm('Удалить финал?')) game.value.finalRound = undefined
+  if (saveStatus.value !== 'error') router.push({ name: 'play', params: { id: game.value.id } })
 }
 
 const exporting = ref(false)
-async function saveGamezip() {
+async function exportAs(format: GameFileFormat) {
   if (!game.value || exporting.value) return
   exporting.value = true
   try {
-    const blob = await exportGameZip(game.value)
-    trigger(blob, `${fileSlug(game.value.title)}.gamezip`)
+    await exportGameFile(game.value, format)
   } catch (err) {
     alert('Ошибка экспорта: ' + (err as Error).message)
   } finally {
     exporting.value = false
   }
 }
-function saveJson() {
-  if (!game.value) return
-  const blob = new Blob([exportGameJson(game.value)], { type: 'application/json' })
-  trigger(blob, `${fileSlug(game.value.title)}.json`)
-}
-
 </script>
 
 <template>
   <div v-if="game" class="si-page editor">
     <header class="editor-head">
-      <button class="si-button ghost" @click="back">← К списку</button>
-      <input v-model="game.title" class="si-input title-input" placeholder="Название игры" />
-      <div class="si-spacer" />
-      <span
-        class="save-status"
-        :class="saveStatus"
-        :title="saveError?.message"
-        role="status"
-      >{{ saveLabel }}</span>
-      <button class="si-button" title="Сохранить как .json" @click="saveJson">JSON</button>
-      <button class="si-button" :disabled="exporting" title="Сохранить как .gamezip" @click="saveGamezip">
+      <button class="si-button ghost" @click="router.push({ name: 'home' })">← К списку</button>
+      <div class="titles">
+        <input v-model="game.title" class="si-input title-input" placeholder="Название игры" />
+        <input v-model="game.subtitle" class="si-input subtitle-input" placeholder="Подзаголовок (необязательно)" />
+      </div>
+      <span class="save-status" :class="saveStatus" :title="saveError?.message" role="status">{{ saveLabel }}</span>
+      <button class="si-button" :disabled="exporting" title="Сохранить как .json" @click="exportAs('json')">JSON</button>
+      <button class="si-button" :disabled="exporting" title="Сохранить как .gamezip" @click="exportAs('gamezip')">
         {{ exporting ? '⏳ Упаковка…' : '📦 .gamezip' }}
       </button>
       <button class="si-button primary" @click="play">▶ Играть</button>
     </header>
 
-    <section class="round-tabs">
-      <button
-        v-for="(r, i) in game.rounds"
-        :key="r.id"
-        class="round-tab"
-        :class="{ active: i === activeRoundIndex }"
-        @click="activeRoundIndex = i; selected = null"
-      >
-        {{ r.name || `РАУНД ${i + 1}` }}
-      </button>
-      <button class="round-tab add" @click="addRound">+ раунд</button>
-    </section>
+    <RoundTabs :model-value="roundIndex" :rounds="game.rounds" @update:model-value="selectRound" @add="addRound" />
 
-    <div v-if="currentRound" class="editor-grid">
-      <!-- Left: round/theme/question structure -->
+    <div v-if="round" class="editor-grid">
       <section class="structure">
-        <div class="si-row">
-          <input
-            v-model="currentRound.name"
-            class="si-input"
-            placeholder="Название раунда"
-          />
-          <button
-            v-if="game.rounds.length > 1"
-            class="si-button danger"
-            @click="removeRound(activeRoundIndex)"
-          >
-            Удалить раунд
-          </button>
+        <div class="si-row round-row">
+          <input v-model="round.name" class="si-input" placeholder="Название раунда" />
+          <button v-if="game.rounds.length > 1" class="si-button danger" @click="removeRound">Удалить раунд</button>
         </div>
-
-        <div class="theme-list">
-          <article v-for="(theme, tIdx) in currentRound.themes" :key="theme.id" class="theme-card si-card">
-            <div class="si-row">
-              <input
-                v-model="theme.name"
-                class="si-input theme-name"
-                placeholder="Название темы"
-              />
-              <button class="si-button danger ghost" @click="removeTheme(tIdx)">×</button>
-            </div>
-            <div class="q-row">
-              <button
-                v-for="(q, qIdx) in theme.questions"
-                :key="q.id"
-                class="q-cell"
-                :class="{
-                  active: selected?.tIdx === tIdx && selected.qIdx === qIdx,
-                  empty: !q.text,
-                  auction: q.kind === 'auction',
-                  bag: q.kind === 'cat-in-bag',
-                }"
-                :title="q.text || 'Пустой вопрос'"
-                @click="selectQuestion(tIdx, qIdx)"
-              >
-                {{ q.value }}
-              </button>
-              <button class="q-cell add" @click="addQuestion(theme)">+</button>
-            </div>
-          </article>
-          <button class="si-button" @click="addTheme">+ Тема</button>
-        </div>
+        <ThemeCard
+          v-for="(theme, tIdx) in round.themes"
+          :key="theme.id"
+          v-model="round.themes[tIdx]"
+          :selected="selected?.theme === tIdx ? selected.question : null"
+          @select="(qIdx) => (selected = { theme: tIdx, question: qIdx })"
+          @remove="removeTheme(tIdx)"
+        />
+        <button class="si-button" @click="addTheme">+ Тема</button>
       </section>
 
-      <!-- Right: question editor -->
       <section class="q-editor si-card">
-        <div v-if="!selectedQuestion" class="q-placeholder">
-          Выберите ячейку, чтобы отредактировать вопрос.
-        </div>
-        <div v-else class="q-form">
-          <div class="si-row">
-            <div style="flex:1;">
-              <label class="si-label">Стоимость</label>
-              <input
-                v-model.number="selectedQuestion.value"
-                type="number"
-                class="si-input"
-                min="0"
-                step="100"
-              />
-            </div>
-            <div style="flex:1;">
-              <label class="si-label">Тип</label>
-              <select v-model="selectedQuestion.kind" class="si-select">
-                <option value="normal">Обычный</option>
-                <option value="auction">Вопрос-аукцион</option>
-                <option value="cat-in-bag">Кот в мешке</option>
-              </select>
-            </div>
-            <div v-if="selectedQuestion.kind === 'cat-in-bag'" style="flex:1;">
-              <label class="si-label">Цена «кота»</label>
-              <input
-                v-model.number="selectedQuestion.catValue"
-                type="number"
-                class="si-input"
-                min="0"
-                step="100"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label class="si-label">Вопрос</label>
-            <textarea v-model="selectedQuestion.text" class="si-textarea" placeholder="Текст вопроса..." />
-          </div>
-
-          <MediaList
-            v-model="selectedQuestion.media"
-            label="Медиа к вопросу (можно несколько)"
-          />
-
-          <div>
-            <label class="si-label">Ответ</label>
-            <textarea v-model="selectedQuestion.answer" class="si-textarea" placeholder="Правильный ответ..." />
-          </div>
-
-          <MediaList
-            v-model="selectedQuestion.answerMedia"
-            label="Медиа к ответу (можно несколько)"
-          />
-
-          <div class="si-row">
-            <button
-              class="si-button danger"
-              @click="
-                () => {
-                  if (selected && currentRound) {
-                    removeQuestion(currentRound.themes[selected.tIdx], selected.qIdx)
-                  }
-                }
-              "
-            >
-              Удалить вопрос
-            </button>
-          </div>
-        </div>
+        <QuestionForm
+          v-if="selected && selectedTheme?.questions[selected.question]"
+          :key="selectedTheme.questions[selected.question].id"
+          v-model="selectedTheme.questions[selected.question]"
+          @remove="removeQuestion"
+        />
+        <p v-else class="q-placeholder">Выберите ячейку, чтобы отредактировать вопрос.</p>
       </section>
     </div>
 
-    <!-- Final round -->
     <section class="si-card final-section">
-      <div class="si-row" style="margin-bottom: 12px">
+      <div class="si-row final-head">
         <h2 class="si-title final-title">ФИНАЛ</h2>
-        <button v-if="!game.finalRound" class="si-button" @click="ensureFinal">+ Добавить финал</button>
+        <button v-if="!game.finalRound" class="si-button" @click="game.finalRound = makeEmptyFinal()">
+          + Добавить финал
+        </button>
       </div>
-      <div v-if="game.finalRound" class="final-form">
-        <div>
-          <label class="si-label">Тема финала</label>
-          <input v-model="game.finalRound.theme" class="si-input" placeholder="Тема" />
-        </div>
-        <div>
-          <label class="si-label">Вопрос</label>
-          <textarea v-model="game.finalRound.text" class="si-textarea" placeholder="Финальный вопрос..." />
-        </div>
-        <MediaList v-model="game.finalRound.media" label="Медиа к финалу (можно несколько)" />
-        <div>
-          <label class="si-label">Ответ</label>
-          <textarea v-model="game.finalRound.answer" class="si-textarea" placeholder="Ответ..." />
-        </div>
-        <button class="si-button danger" @click="removeFinal">Удалить финал</button>
-      </div>
+      <FinalForm v-if="game.finalRound" v-model="game.finalRound" @remove="removeFinal" />
     </section>
   </div>
 </template>
 
 <style scoped>
-.save-status { color: var(--si-mute); font-size: 14px; font-style: italic; }
-.save-status.error { color: #ff8a8a; font-style: normal; font-weight: 700; }
 .editor-head {
   display: flex;
   gap: 12px;
@@ -341,38 +159,21 @@ function saveJson() {
   margin-bottom: 16px;
   flex-wrap: wrap;
 }
-.title-input {
+.titles {
   flex: 1;
   min-width: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.title-input {
   font-family: var(--font-title);
   font-size: 22px;
   color: var(--si-gold);
 }
-
-.round-tabs {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-bottom: 16px;
-}
-.round-tab {
-  padding: 8px 16px;
-  border-radius: 8px 8px 0 0;
-  border: 1px solid var(--si-cell-border);
-  border-bottom: none;
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--si-mute);
-  cursor: pointer;
-  font-family: var(--font-title);
-  font-size: 14px;
-  letter-spacing: 0.05em;
-}
-.round-tab.active {
-  background: rgba(255, 192, 0, 0.18);
-  color: var(--si-gold);
-  border-color: var(--si-gold);
-}
-.round-tab.add { color: var(--si-mute); }
+.subtitle-input { font-size: 14px; padding: 6px 12px; }
+.save-status { color: var(--si-mute); font-size: 14px; font-style: italic; }
+.save-status.error { color: #ff8a8a; font-style: normal; font-weight: 700; }
 
 .editor-grid {
   display: grid;
@@ -382,70 +183,21 @@ function saveJson() {
 @media (max-width: 900px) {
   .editor-grid { grid-template-columns: 1fr; }
 }
-
 .structure {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.theme-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
-
-.theme-card {
-  padding: 12px;
-}
-.theme-name { font-family: var(--font-title); }
-
-.q-row {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 10px;
-}
-.q-cell {
-  width: 64px;
-  height: 56px;
-  border-radius: 8px;
-  border: 1px solid var(--si-cell-border);
-  background: var(--si-cell-bg);
-  color: var(--si-gold);
-  font-family: var(--font-body);
-  font-weight: 700;
-  font-size: 18px;
-  cursor: pointer;
-  transition: transform 0.1s, background 0.15s;
-}
-.q-cell:hover { transform: translateY(-1px); }
-.q-cell.active {
-  outline: 2px solid var(--si-gold);
-  outline-offset: 2px;
-}
-.q-cell.empty {
-  color: rgba(255, 192, 0, 0.4);
-  font-style: italic;
-}
-.q-cell.auction { background: rgba(255, 192, 0, 0.18); }
-.q-cell.bag { background: rgba(160, 80, 220, 0.25); }
-.q-cell.add {
-  width: 44px;
-  color: var(--si-mute);
-  font-size: 22px;
-}
-
-.q-editor { min-height: 200px; }
+.round-row { flex-wrap: nowrap; }
+.q-editor { min-height: 200px; align-self: start; }
 .q-placeholder {
   color: var(--si-mute);
   font-style: italic;
   text-align: center;
   padding: 40px 12px;
+  margin: 0;
 }
-.q-form { display: flex; flex-direction: column; gap: 14px; }
-
 .final-section { margin-top: 24px; }
-.final-title { color: var(--si-gold); font-size: 28px; margin: 0; }
-.final-form { display: flex; flex-direction: column; gap: 14px; }
+.final-head { margin-bottom: 12px; }
+.final-title { font-size: 28px; margin: 0; }
 </style>

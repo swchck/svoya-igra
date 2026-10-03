@@ -21,7 +21,7 @@ describe('MediaPicker', () => {
   it('switches YouTube links to video mode by default', async () => {
     const w = mount(MediaPicker, { props: { modelValue: item() } })
 
-    await w.find('input.si-input').setValue('https://youtu.be/abc')
+    await w.find('input.si-input').setValue('https://youtu.be/O4SacSbp-Rc')
 
     expect(w.emitted('update:modelValue')![0][0]).toMatchObject({ kind: 'youtube', mode: 'video' })
   })

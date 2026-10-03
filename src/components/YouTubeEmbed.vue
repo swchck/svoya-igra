@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { parseYoutubeUrl } from '../game/youtube'
 import { youtubeEmbedUrl } from '../platform'
 
 const props = defineProps<{
@@ -27,27 +28,8 @@ function armTimer() {
 watch(() => [props.duration, props.url], () => armTimer())
 onBeforeUnmount(() => { if (stopTimer) clearTimeout(stopTimer) })
 
-function parseId(u: string): { id: string; start: number } | null {
-  try {
-    const url = new URL(u)
-    let id = ''
-    if (url.hostname === 'youtu.be') id = url.pathname.replace('/', '')
-    else if (url.hostname.includes('youtube.com')) {
-      if (url.pathname.startsWith('/embed/')) id = url.pathname.split('/')[2]
-      else if (url.pathname.startsWith('/shorts/')) id = url.pathname.split('/')[2]
-      else id = url.searchParams.get('v') || ''
-    }
-    if (!id) return null
-    const tRaw = url.searchParams.get('t') || url.searchParams.get('start') || '0'
-    const start = parseInt(tRaw.replace(/[^\d]/g, ''), 10) || 0
-    return { id, start }
-  } catch {
-    return null
-  }
-}
-
 const embed = computed(() => {
-  const parsed = parseId(props.url)
+  const parsed = parseYoutubeUrl(props.url)
   if (!parsed) return null
   const params = new URLSearchParams({
     autoplay: props.autoplay === false ? '0' : '1',

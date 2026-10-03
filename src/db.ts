@@ -55,7 +55,3 @@ export async function dbPut<T extends { id: string }>(value: T): Promise<void> {
 export async function dbDelete(id: string): Promise<void> {
   await tx<undefined>('readwrite', (s) => s.delete(id) as IDBRequest<undefined>)
 }
-
-export async function dbClear(): Promise<void> {
-  await tx<undefined>('readwrite', (s) => s.clear() as IDBRequest<undefined>)
-}

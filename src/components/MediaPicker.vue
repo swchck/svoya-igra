@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type { MediaItem, MediaKind, MediaMode } from '../types'
+import { parseYoutubeUrl } from '../game/youtube'
 import YouTubeEmbed from './YouTubeEmbed.vue'
 
 const props = defineProps<{ modelValue: MediaItem }>()
@@ -17,12 +18,8 @@ function patch(p: Partial<MediaItem>) {
 
 function pick() { fileInput.value?.click() }
 
-function isYoutubeUrl(u: string): boolean {
-  return /(?:^|\.)youtube\.com|youtu\.be/.test(u)
-}
-
 function detectKind(input: { file?: File; url?: string }): MediaKind | undefined {
-  if (input.url && isYoutubeUrl(input.url)) return 'youtube'
+  if (input.url && parseYoutubeUrl(input.url)) return 'youtube'
   if (input.file) {
     if (input.file.type.startsWith('image/')) return 'image'
     if (input.file.type.startsWith('audio/')) return 'audio'
@@ -88,7 +85,7 @@ const url = computed(() => props.modelValue.url)
 const kind = computed(() => props.modelValue.kind)
 const mode = computed(() => props.modelValue.mode)
 const duration = computed(() => props.modelValue.duration)
-const isYoutube = computed(() => kind.value === 'youtube' || isYoutubeUrl(url.value))
+const isYoutube = computed(() => kind.value === 'youtube' || parseYoutubeUrl(url.value) !== null)
 </script>
 
 <template>

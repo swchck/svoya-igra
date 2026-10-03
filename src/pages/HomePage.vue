@@ -1,16 +1,14 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useGamesStore } from '../stores/games'
-import { exportGameJson, importGameJson, makeEmptyGame } from '../storage'
-import { exportGameZip, importGameZip } from '../archive'
 import type { Game } from '../types'
+import { useGamesStore } from '../stores/games'
+import { makeEmptyGame, withFreshIds } from '../game/model'
+import { exportGameFile, GAME_FILE_ACCEPT, importGameFile, type GameFileFormat } from '../io/gameFile'
 
 const router = useRouter()
 const store = useGamesStore()
-
 const fileInput = ref<HTMLInputElement | null>(null)
-
 
 async function createNew() {
   try {
@@ -19,14 +17,6 @@ async function createNew() {
   } catch (err) {
     alert('Не удалось создать игру: ' + (err as Error).message)
   }
-}
-
-function play(id: string) {
-  router.push({ name: 'play', params: { id } })
-}
-
-function edit(id: string) {
-  router.push({ name: 'editor', params: { id } })
 }
 
 async function remove(g: Game) {
@@ -38,48 +28,19 @@ async function remove(g: Game) {
   }
 }
 
-function downloadJson(g: Game) {
-  const blob = new Blob([exportGameJson(g)], { type: 'application/json' })
-  trigger(blob, `${slug(g.title)}.json`)
-}
-
-async function downloadGamezip(g: Game) {
+async function exportAs(g: Game, format: GameFileFormat) {
   try {
-    const blob = await exportGameZip(g)
-    trigger(blob, `${slug(g.title)}.gamezip`)
+    await exportGameFile(g, format)
   } catch (err) {
     alert('Ошибка экспорта: ' + (err as Error).message)
   }
 }
 
-function slug(t: string): string {
-  const s = (t || 'svoya-igra').trim().toLowerCase().replace(/[^a-zа-яё0-9-]+/gi, '-').replace(/^-+|-+$/g, '')
-  return s || 'svoya-igra'
-}
-
-function trigger(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 500)
-}
-
-function pickFile() {
-  fileInput.value?.click()
-}
-
 async function loadSample() {
   try {
-    // Динамический import — образец и его картинки попадают в бандл (или inline-бандл портативной сборки).
-    const mod = await import('../samples/sample1996')
-    const game = importGameJson(JSON.stringify(mod.getSampleGame()))
-    for (const g of store.games.filter((g) => g.title === game.title)) {
-      await store.remove(g.id)
-    }
+    const { getSampleGame } = await import('../samples/sample1996')
+    const game = withFreshIds(getSampleGame())
+    for (const old of store.games.filter((g) => g.title === game.title)) await store.remove(old.id)
     await store.save(game)
     alert('Образец игры загружен (предыдущая копия заменена)')
   } catch (err) {
@@ -90,22 +51,13 @@ async function loadSample() {
 async function onFile(e: Event) {
   const input = e.target as HTMLInputElement
   const file = input.files?.[0]
+  input.value = ''
   if (!file) return
   try {
-    const isZip = file.name.toLowerCase().endsWith('.gamezip') || file.name.toLowerCase().endsWith('.zip')
-    let game: Game
-    if (isZip) {
-      game = await importGameZip(file)
-    } else {
-      const text = await file.text()
-      game = importGameJson(text)
-    }
-    await store.save(game)
+    await store.save(await importGameFile(file))
     alert('Игра импортирована')
   } catch (err) {
     alert('Не удалось импортировать: ' + (err as Error).message)
-  } finally {
-    input.value = ''
   }
 }
 
@@ -123,12 +75,12 @@ function fmtDate(ts: number) {
 
     <section class="actions">
       <button class="si-button primary" @click="createNew">+ Новая игра</button>
-      <button class="si-button" @click="pickFile">Импорт (JSON / .gamezip)</button>
+      <button class="si-button" @click="fileInput?.click()">Импорт (JSON / .gamezip)</button>
       <button class="si-button ghost" @click="loadSample">Загрузить пример (1996)</button>
       <input
         ref="fileInput"
         type="file"
-        accept=".json,.gamezip,.zip,application/json,application/zip,application/x-svoya-igra+zip"
+        :accept="GAME_FILE_ACCEPT"
         style="display:none"
         @change="onFile"
       />
@@ -152,10 +104,10 @@ function fmtDate(ts: number) {
           </p>
         </div>
         <div class="game-actions">
-          <button class="si-button primary" @click="play(g.id)">Играть</button>
-          <button class="si-button" @click="edit(g.id)">Редактировать</button>
-          <button class="si-button ghost" @click="downloadGamezip(g)">📦 .gamezip</button>
-          <button class="si-button ghost" @click="downloadJson(g)">JSON</button>
+          <button class="si-button primary" @click="router.push({ name: 'play', params: { id: g.id } })">Играть</button>
+          <button class="si-button" @click="router.push({ name: 'editor', params: { id: g.id } })">Редактировать</button>
+          <button class="si-button ghost" @click="exportAs(g, 'gamezip')">📦 .gamezip</button>
+          <button class="si-button ghost" @click="exportAs(g, 'json')">JSON</button>
           <button class="si-button danger" @click="remove(g)">Удалить</button>
         </div>
       </article>
