@@ -8,7 +8,11 @@ import {
 } from '@/components/ui/number-field'
 
 const model = defineModel<number | undefined>()
-withDefaults(defineProps<{ min?: number; step?: number; placeholder?: string }>(), { min: 0, step: 1, placeholder: undefined })
+withDefaults(defineProps<{ min?: number; step?: number; placeholder?: string; disabled?: boolean }>(), {
+  min: 0,
+  step: 1,
+  placeholder: undefined,
+})
 </script>
 
 <template>
@@ -16,6 +20,7 @@ withDefaults(defineProps<{ min?: number; step?: number; placeholder?: string }>(
     :model-value="model ?? null"
     :min="min"
     :step="step"
+    :disabled="disabled"
     :format-options="{ useGrouping: false }"
     @update:model-value="(v) => (model = Number.isFinite(v) ? v : undefined)"
   >

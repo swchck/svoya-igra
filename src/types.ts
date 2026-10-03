@@ -44,6 +44,7 @@ export interface FinalQuestion {
   text: string
   media?: MediaItem[]
   answer: string
+  answerMedia?: MediaItem[]
 }
 
 export interface Game {

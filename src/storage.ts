@@ -1,6 +1,7 @@
 import type { Game } from './types'
 import { dbDelete, dbGet, dbGetAll, dbPut } from './db'
 import { parseGame } from './game/parse'
+import { plainCopy } from './lib/plain'
 import { mediaItems } from './game/model'
 import { deleteUnreferencedMedia } from './media/store'
 
@@ -43,17 +44,12 @@ export async function getGame(id: string): Promise<Game | undefined> {
   return g === undefined ? undefined : parseGame(g)
 }
 
-/** Plain deep copy: IndexedDB can't structured-clone Vue proxies (DataCloneError). */
-function toPlain<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value)) as T
-}
-
 /**
  * Persists a snapshot of the game and returns it. The argument is left untouched,
  * so saving a reactive game never re-triggers watchers on it.
  */
 export async function upsertGame(game: Game): Promise<Game> {
-  const snapshot = { ...toPlain(game), updatedAt: Date.now() }
+  const snapshot = { ...plainCopy(game), updatedAt: Date.now() }
   await dbPut(snapshot)
   return snapshot
 }

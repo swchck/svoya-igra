@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Trash2 } from '@lucide/vue'
+import { ArrowLeft, ArrowRight, Trash2 } from '@lucide/vue'
 import type { Question } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -9,7 +9,8 @@ import NumberInput from '@/components/NumberInput.vue'
 import MediaList from '@/components/MediaList.vue'
 
 const question = defineModel<Question>({ required: true })
-defineEmits<{ (e: 'remove'): void }>()
+defineProps<{ first?: boolean; last?: boolean }>()
+defineEmits<{ (e: 'remove'): void; (e: 'move', offset: -1 | 1): void }>()
 </script>
 
 <template>
@@ -48,7 +49,10 @@ defineEmits<{ (e: 'remove'): void }>()
     </div>
     <MediaList v-model="question.answerMedia" label="Медиа к ответу" />
 
-    <div>
+    <div class="flex flex-wrap gap-2">
+      <Button variant="outline" :disabled="first" @click="$emit('move', -1)"><ArrowLeft />Левее</Button>
+      <Button variant="outline" :disabled="last" @click="$emit('move', 1)">Правее<ArrowRight /></Button>
+      <div class="flex-1" />
       <Button variant="destructive" @click="$emit('remove')"><Trash2 />Удалить вопрос</Button>
     </div>
   </div>

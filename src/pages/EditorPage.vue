@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { toast } from 'vue-sonner'
-import { ArrowLeft, FileJson, Loader2, Package, Play, Plus, Trash2 } from '@lucide/vue'
+import { ArrowLeft, ArrowRight, FileJson, Loader2, Package, Play, Plus, Trash2 } from '@lucide/vue'
 import { useRouter } from 'vue-router'
 import type { Game } from '@/types'
 import { Button } from '@/components/ui/button'
@@ -11,7 +11,8 @@ import { Separator } from '@/components/ui/separator'
 import { confirmAction } from '@/composables/useConfirm'
 import { useGamesStore } from '@/stores/games'
 import { getGame } from '@/storage'
-import { makeEmptyFinal, makeEmptyRound, makeEmptyTheme } from '@/game/model'
+import { makeEmptyFinal, makeEmptyRound, makeEmptyTheme, moveItem } from '@/game/model'
+import IconButton from '@/components/IconButton.vue'
 import { exportGameFile, type GameFileFormat } from '@/io/gameFile'
 import { useAutosave } from '@/composables/useAutosave'
 import RoundTabs from '@/components/editor/RoundTabs.vue'
@@ -52,6 +53,22 @@ function addRound() {
   if (!game.value) return
   game.value.rounds.push(makeEmptyRound(`РАУНД ${game.value.rounds.length + 1}`))
   selectRound(game.value.rounds.length - 1)
+}
+
+function moveRound(offset: -1 | 1) {
+  if (game.value) roundIndex.value = moveItem(game.value.rounds, roundIndex.value, offset)
+}
+
+function moveTheme(index: number, offset: -1 | 1) {
+  if (!round.value) return
+  const target = moveItem(round.value.themes, index, offset)
+  if (selected.value?.theme === index) selected.value = { ...selected.value, theme: target }
+  else if (selected.value?.theme === target) selected.value = { ...selected.value, theme: index }
+}
+
+function moveQuestion(offset: -1 | 1) {
+  if (!selected.value || !selectedTheme.value) return
+  selected.value = { ...selected.value, question: moveItem(selectedTheme.value.questions, selected.value.question, offset) }
 }
 
 async function removeRound() {
@@ -144,6 +161,10 @@ async function exportAs(format: GameFileFormat) {
       <section class="flex flex-col gap-3">
         <div class="flex items-center gap-2">
           <Input v-model="round.name" class="font-display tracking-wide uppercase" placeholder="Название раунда" aria-label="Название раунда" />
+          <IconButton label="Раунд раньше" :disabled="roundIndex === 0" @click="moveRound(-1)"><ArrowLeft /></IconButton>
+          <IconButton label="Раунд позже" :disabled="roundIndex === game.rounds.length - 1" @click="moveRound(1)">
+            <ArrowRight />
+          </IconButton>
           <Button v-if="game.rounds.length > 1" variant="destructive" @click="removeRound"><Trash2 />Раунд</Button>
         </div>
         <ThemeCard
@@ -151,6 +172,9 @@ async function exportAs(format: GameFileFormat) {
           :key="theme.id"
           v-model="round.themes[tIdx]"
           :selected="selected?.theme === tIdx ? selected.question : null"
+          :first="tIdx === 0"
+          :last="tIdx === round.themes.length - 1"
+          @move="(offset) => moveTheme(tIdx, offset)"
           @select="(qIdx) => (selected = { theme: tIdx, question: qIdx })"
           @remove="removeTheme(tIdx)"
         />
@@ -162,6 +186,9 @@ async function exportAs(format: GameFileFormat) {
           v-if="selected && selectedTheme?.questions[selected.question]"
           :key="selectedTheme.questions[selected.question].id"
           v-model="selectedTheme.questions[selected.question]"
+          :first="selected.question === 0"
+          :last="selected.question === selectedTheme.questions.length - 1"
+          @move="moveQuestion"
           @remove="removeQuestion"
         />
         <p v-else class="py-10 text-center text-muted-foreground italic">Выберите ячейку, чтобы отредактировать вопрос.</p>

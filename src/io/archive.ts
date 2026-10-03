@@ -3,6 +3,7 @@ import iconSvg from '../../assets/app-icon.svg?raw'
 import type { Game } from '../types'
 import { mediaItems, uid, withFreshIds } from '../game/model'
 import { parseGame } from '../game/parse'
+import { plainCopy } from '../lib/plain'
 import { dataUrlToBlob, extFromMime, mimeFromName } from '../media/dataUrl'
 import { isStoredMedia } from '../media/ref'
 import { getMedia, putMedia } from '../media/store'
@@ -32,7 +33,7 @@ export async function exportGameZip(
   game: Game,
   loadMedia: (url: string) => Promise<Blob | null> = getMedia,
 ): Promise<Blob> {
-  const g = JSON.parse(JSON.stringify(game)) as Game
+  const g = plainCopy(game)
   const files: Zippable = {}
   const entryByUrl = new Map<string, string>()
 

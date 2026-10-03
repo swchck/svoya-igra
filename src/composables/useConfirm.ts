@@ -5,6 +5,7 @@ export interface ConfirmOptions {
   title: string
   description?: string
   confirmLabel?: string
+  cancelLabel?: string
   /** Paints the confirm button as destructive. */
   destructive?: boolean
 }
@@ -25,6 +26,7 @@ export function confirmAction(options: ConfirmOptions): Promise<boolean> {
 
 /** State for the single dialog host mounted in App. */
 export function useConfirmHost() {
+  /** Settles the open question; later answers to the same question are ignored. */
   function answer(ok: boolean) {
     pending.value?.resolve(ok)
     pending.value = null

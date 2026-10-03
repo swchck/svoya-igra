@@ -21,6 +21,17 @@ watchEffect(async (onCleanup) => {
   if (!stale) src.value = url
 })
 
+// native players have no end time, so stop by hand once the clip is past its limit
+function enforceLimit(e: Event) {
+  const el = e.target as HTMLMediaElement
+  if (props.item.duration && el.currentTime >= props.item.duration) el.pause()
+}
+
+function restartIfDone(e: Event) {
+  const el = e.target as HTMLMediaElement
+  if (props.item.duration && el.currentTime >= props.item.duration) el.currentTime = 0
+}
+
 const youtube = computed(() => (props.item.kind === 'youtube' ? parseYoutubeUrl(props.item.url) : null))
 const playerRequested = ref(false)
 </script>
@@ -46,8 +57,22 @@ const playerRequested = ref(false)
   </template>
   <template v-else-if="src">
     <img v-if="item.kind === 'image'" :src="src" alt="" />
-    <audio v-else-if="item.kind === 'audio'" :src="src" controls :autoplay="autoplay" />
-    <video v-else-if="item.kind === 'video'" :src="src" controls :autoplay="autoplay" />
+    <audio
+      v-else-if="item.kind === 'audio'"
+      :src="src"
+      controls
+      :autoplay="autoplay"
+      @timeupdate="enforceLimit"
+      @play="restartIfDone"
+    />
+    <video
+      v-else-if="item.kind === 'video'"
+      :src="src"
+      controls
+      :autoplay="autoplay"
+      @timeupdate="enforceLimit"
+      @play="restartIfDone"
+    />
   </template>
   <span v-else-if="src === ''" class="missing">Файл не найден</span>
 </template>

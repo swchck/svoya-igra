@@ -3,7 +3,9 @@ import { Minus, Plus } from '@lucide/vue'
 import type { Player } from '@/types'
 import IconButton from '@/components/IconButton.vue'
 
-const players = defineModel<Player[]>({ required: true })
+const players = defineModel<Player[]>('players', { required: true })
+defineProps<{ step?: number }>()
+defineEmits<{ (e: 'adjust', playerId: string, delta: number): void }>()
 </script>
 
 <template>
@@ -19,9 +21,13 @@ const players = defineModel<Player[]>({ required: true })
         aria-label="Имя игрока"
       />
       <div class="flex items-center gap-2">
-        <IconButton :label="`${p.name}: −100`" size="icon-xs" @click="p.score -= 100"><Minus /></IconButton>
+        <IconButton :label="`${p.name}: −${step ?? 100}`" size="icon-xs" @click="$emit('adjust', p.id, -(step ?? 100))">
+          <Minus />
+        </IconButton>
         <span class="min-w-16 text-center font-display text-3xl font-semibold text-gold tabular-nums">{{ p.score }}</span>
-        <IconButton :label="`${p.name}: +100`" size="icon-xs" @click="p.score += 100"><Plus /></IconButton>
+        <IconButton :label="`${p.name}: +${step ?? 100}`" size="icon-xs" @click="$emit('adjust', p.id, step ?? 100)">
+          <Plus />
+        </IconButton>
       </div>
     </div>
   </section>

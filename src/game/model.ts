@@ -48,7 +48,7 @@ export function mediaItems(game: Game): MediaItem[] {
       for (const q of theme.questions) items.push(...(q.media ?? []), ...(q.answerMedia ?? []))
     }
   }
-  if (game.finalRound) items.push(...(game.finalRound.media ?? []))
+  if (game.finalRound) items.push(...(game.finalRound.media ?? []), ...(game.finalRound.answerMedia ?? []))
   return items
 }
 
@@ -71,4 +71,12 @@ export function withFreshIds(game: Game): Game {
     createdAt: game.createdAt || now,
     updatedAt: now,
   }
+}
+
+/** Swaps the item with its neighbour in place; returns the new index, or the old one at an edge. */
+export function moveItem<T>(list: T[], index: number, offset: -1 | 1): number {
+  const target = index + offset
+  if (index < 0 || target < 0 || target >= list.length) return index
+  ;[list[index], list[target]] = [list[target], list[index]]
+  return target
 }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Plus, Trash2 } from '@lucide/vue'
+import { ArrowDown, ArrowUp, Plus, Trash2 } from '@lucide/vue'
 import type { Theme } from '@/types'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -8,8 +8,12 @@ import { makeEmptyQuestion } from '@/game/model'
 import { cn } from '@/lib/utils'
 
 const theme = defineModel<Theme>({ required: true })
-defineProps<{ selected: number | null }>()
-defineEmits<{ (e: 'select', questionIndex: number): void; (e: 'remove'): void }>()
+defineProps<{ selected: number | null; first?: boolean; last?: boolean }>()
+defineEmits<{
+  (e: 'select', questionIndex: number): void
+  (e: 'remove'): void
+  (e: 'move', offset: -1 | 1): void
+}>()
 
 const KIND_CELL = {
   normal: '',
@@ -27,6 +31,8 @@ function addQuestion() {
   <Card size="sm" class="gap-3 px-3">
     <div class="flex items-center gap-2">
       <Input v-model="theme.name" class="font-display text-base tracking-wide" placeholder="Название темы" aria-label="Название темы" />
+      <IconButton label="Тему выше" :disabled="first" @click="$emit('move', -1)"><ArrowUp /></IconButton>
+      <IconButton label="Тему ниже" :disabled="last" @click="$emit('move', 1)"><ArrowDown /></IconButton>
       <IconButton label="Удалить тему" @click="$emit('remove')"><Trash2 /></IconButton>
     </div>
     <div class="flex flex-wrap gap-2">

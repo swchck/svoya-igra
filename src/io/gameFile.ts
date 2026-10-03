@@ -1,6 +1,7 @@
 import type { Game } from '../types'
 import { mediaItems, withFreshIds } from '../game/model'
 import { parseGame } from '../game/parse'
+import { plainCopy } from '../lib/plain'
 import { blobToDataUrl, dataUrlToBlob } from '../media/dataUrl'
 import { isStoredMedia } from '../media/ref'
 import { getMedia, putMedia } from '../media/store'
@@ -30,7 +31,7 @@ export async function importGameFile(file: File): Promise<Game> {
 
 /** JSON export is self-contained: stored attachments are inlined as data URLs. */
 async function toPortableJson(game: Game): Promise<string> {
-  const copy = JSON.parse(JSON.stringify(game)) as Game
+  const copy = plainCopy(game)
   for (const item of mediaItems(copy)) {
     if (!isStoredMedia(item.url)) continue
     const blob = await getMedia(item.url)

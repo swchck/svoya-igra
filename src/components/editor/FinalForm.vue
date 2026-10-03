@@ -26,6 +26,7 @@ defineEmits<{ (e: 'remove'): void }>()
       <Label for="f-answer">Ответ</Label>
       <Textarea id="f-answer" v-model="final.answer" class="min-h-20 font-serif text-base" placeholder="Ответ…" />
     </div>
+    <MediaList v-model="final.answerMedia" label="Медиа к ответу" />
     <div>
       <Button variant="destructive" @click="$emit('remove')"><Trash2 />Удалить финал</Button>
     </div>
