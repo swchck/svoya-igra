@@ -1,214 +1,199 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useGamesStore } from '../stores/games'
-import { exportGameJson, importGameJson, makeEmptyGame } from '../storage'
-import { exportGameZip, importGameZip } from '../archive'
-import type { Game } from '../types'
+import { toast } from 'vue-sonner'
+import { Download, FileJson, MoreHorizontal, Package, Pencil, Play, Plus, Sparkles, Trash2, Upload } from '@lucide/vue'
+import type { Game } from '@/types'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { useGamesStore } from '@/stores/games'
+import { confirmAction } from '@/composables/useConfirm'
+import { makeEmptyGame } from '@/game/model'
+import { exportGameFile, GAME_FILE_ACCEPT, importGameFile, importSampleGame, type GameFileFormat } from '@/io/gameFile'
+import { isDesktop, pickGameFile } from '@/platform'
 
 const router = useRouter()
 const store = useGamesStore()
-
 const fileInput = ref<HTMLInputElement | null>(null)
+const busy = ref(false)
+const SAMPLE_TITLE = 'Своя игра — 1996 и не только'
+const version = ref('')
 
-const sortedGames = computed(() =>
-  [...store.games].sort((a, b) => b.updatedAt - a.updatedAt),
-)
+onMounted(async () => {
+  if (isDesktop) version.value = await (await import('@tauri-apps/api/app')).getVersion()
+})
 
-function createNew() {
-  const g = makeEmptyGame('Своя Игра')
-  store.save(g)
-  router.push({ name: 'editor', params: { id: g.id } })
+onMounted(() => {
+  store.pruneMedia().catch(() => {})
+})
+
+function failed(action: string, err: unknown) {
+  toast.error(action, { description: err instanceof Error ? err.message : String(err) })
 }
 
-function play(id: string) {
-  router.push({ name: 'play', params: { id } })
-}
-
-function edit(id: string) {
-  router.push({ name: 'editor', params: { id } })
-}
-
-function remove(g: Game) {
-  if (!confirm(`Удалить игру "${g.title}"?`)) return
-  store.remove(g.id)
-}
-
-function downloadJson(g: Game) {
-  const blob = new Blob([exportGameJson(g)], { type: 'application/json' })
-  trigger(blob, `${slug(g.title)}.json`)
-}
-
-async function downloadGamezip(g: Game) {
+async function createNew() {
   try {
-    const blob = await exportGameZip(g)
-    trigger(blob, `${slug(g.title)}.gamezip`)
+    const g = await store.save(makeEmptyGame('Своя Игра'))
+    router.push({ name: 'editor', params: { id: g.id } })
   } catch (err) {
-    alert('Ошибка экспорта: ' + (err as Error).message)
+    failed('Не удалось создать игру', err)
   }
 }
 
-function slug(t: string): string {
-  const s = (t || 'svoya-igra').trim().toLowerCase().replace(/[^a-zа-яё0-9-]+/gi, '-').replace(/^-+|-+$/g, '')
-  return s || 'svoya-igra'
+async function remove(g: Game) {
+  const ok = await confirmAction({
+    title: `Удалить «${g.title || 'Без названия'}»?`,
+    description: 'Игра и все её файлы будут удалены без возможности восстановления.',
+    confirmLabel: 'Удалить',
+    destructive: true,
+  })
+  if (!ok) return
+  try {
+    await store.remove(g.id)
+    toast.success('Игра удалена')
+  } catch (err) {
+    failed('Не удалось удалить игру', err)
+  }
 }
 
-function trigger(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 500)
-}
-
-function pickFile() {
-  fileInput.value?.click()
+async function exportAs(g: Game, format: GameFileFormat) {
+  try {
+    if (await exportGameFile(g, format)) toast.success('Файл сохранён')
+  } catch (err) {
+    failed('Ошибка экспорта', err)
+  }
 }
 
 async function loadSample() {
+  busy.value = true
   try {
-    // Динамический import — образец и его картинки попадают в бандл (или inline-бандл портативной сборки).
-    const mod = await import('../samples/sample1996')
-    const game = importGameJson(JSON.stringify(mod.getSampleGame()))
-    for (const g of store.games) {
-      if (g.title === game.title) store.remove(g.id)
-    }
-    store.save(game)
-    alert('Образец игры загружен (предыдущая копия заменена)')
+    const previous = store.games.filter((g) => g.title === SAMPLE_TITLE)
+    // save before removing: removal prunes media, and the new copy's files must be referenced by then
+    await store.save(await importSampleGame())
+    for (const old of previous) await store.remove(old.id)
+    toast.success('Пример загружен', previous.length ? { description: 'Предыдущая копия заменена' } : undefined)
   } catch (err) {
-    alert('Не удалось загрузить пример: ' + (err as Error).message)
+    failed('Не удалось загрузить пример', err)
+  } finally {
+    busy.value = false
+  }
+}
+
+async function startImport() {
+  if (!isDesktop) {
+    fileInput.value?.click()
+    return
+  }
+  try {
+    const file = await pickGameFile()
+    if (file) await importFile(file)
+  } catch (err) {
+    failed('Не удалось открыть файл', err)
   }
 }
 
 async function onFile(e: Event) {
   const input = e.target as HTMLInputElement
   const file = input.files?.[0]
-  if (!file) return
+  input.value = ''
+  if (file) await importFile(file)
+}
+
+async function importFile(file: File) {
+  busy.value = true
   try {
-    const isZip = file.name.toLowerCase().endsWith('.gamezip') || file.name.toLowerCase().endsWith('.zip')
-    let game: Game
-    if (isZip) {
-      game = await importGameZip(file)
-    } else {
-      const text = await file.text()
-      game = importGameJson(text)
-    }
-    store.save(game)
-    alert('Игра импортирована')
+    const game = await store.save(await importGameFile(file))
+    toast.success('Игра импортирована', { description: game.title })
   } catch (err) {
-    alert('Не удалось импортировать: ' + (err as Error).message)
+    failed('Не удалось импортировать', err)
   } finally {
-    input.value = ''
+    busy.value = false
   }
 }
 
+function questionCount(g: Game) {
+  return g.rounds.reduce((n, r) => n + r.themes.reduce((m, t) => m + t.questions.length, 0), 0)
+}
+
+function plural(n: number, one: string, few: string, many: string) {
+  const mod10 = n % 10
+  const mod100 = n % 100
+  if (mod10 === 1 && mod100 !== 11) return one
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few
+  return many
+}
+
 function fmtDate(ts: number) {
-  return new Date(ts).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' })
+  return new Date(ts).toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' })
 }
 </script>
 
 <template>
-  <div class="si-page home">
-    <header class="hero">
-      <h1 class="si-title hero-title">СВОЯ&nbsp;ИГРА</h1>
-      <p class="hero-sub">Конструктор и проигрыватель</p>
+  <main class="mx-auto w-full max-w-5xl px-6 py-10">
+    <header class="py-12 text-center">
+      <h1 class="title-gold text-7xl leading-none sm:text-8xl">Своя игра</h1>
+      <p class="mt-4 font-serif text-lg text-muted-foreground italic">Конструктор и проигрыватель</p>
     </header>
 
-    <section class="actions">
-      <button class="si-button primary" @click="createNew">+ Новая игра</button>
-      <button class="si-button" @click="pickFile">Импорт (JSON / .gamezip)</button>
-      <button class="si-button ghost" @click="loadSample">Загрузить пример (1996)</button>
-      <input
-        ref="fileInput"
-        type="file"
-        accept=".json,.gamezip,.zip,application/json,application/zip,application/x-svoya-igra+zip"
-        style="display:none"
-        @change="onFile"
-      />
-    </section>
+    <div class="mb-8 flex flex-wrap justify-center gap-3">
+      <Button size="lg" @click="createNew"><Plus />Новая игра</Button>
+      <Button size="lg" variant="outline" :disabled="busy" @click="startImport"><Upload />Импорт</Button>
+      <Button size="lg" variant="ghost" :disabled="busy" @click="loadSample"><Sparkles />Пример (1996)</Button>
+      <input ref="fileInput" type="file" class="hidden" :accept="GAME_FILE_ACCEPT" @change="onFile" />
+    </div>
 
-    <section v-if="sortedGames.length === 0" class="empty">
-      <p>Игр пока нет. Создайте первую — нажмите «Новая игра».</p>
-    </section>
+    <Card v-if="store.loadError" class="items-center px-6 text-center text-destructive">
+      Не удалось открыть библиотеку игр: {{ store.loadError.message }}
+    </Card>
 
-    <section v-else class="game-list">
-      <article v-for="g in sortedGames" :key="g.id" class="si-card game-row">
-        <div class="game-info">
-          <h3 class="game-title">{{ g.title || 'Без названия' }}</h3>
-          <p class="game-meta">
-            {{ g.rounds.length }} раунд(а) ·
-            обновлено {{ fmtDate(g.updatedAt) }}
-          </p>
-        </div>
-        <div class="game-actions">
-          <button class="si-button primary" @click="play(g.id)">Играть</button>
-          <button class="si-button" @click="edit(g.id)">Редактировать</button>
-          <button class="si-button ghost" @click="downloadGamezip(g)">📦 .gamezip</button>
-          <button class="si-button ghost" @click="downloadJson(g)">JSON</button>
-          <button class="si-button danger" @click="remove(g)">Удалить</button>
-        </div>
-      </article>
-    </section>
-  </div>
+    <Card v-else-if="store.games.length === 0" class="items-center gap-2 px-6 py-12 text-center">
+      <p class="font-display text-2xl text-gold uppercase">Игр пока нет</p>
+      <p class="text-muted-foreground">Создайте первую или откройте пример, чтобы посмотреть, как всё устроено.</p>
+    </Card>
+
+    <ul v-else class="flex flex-col gap-3">
+      <li v-for="g in store.games" :key="g.id">
+        <Card class="flex-row flex-wrap items-center gap-4 px-5 py-4">
+          <div class="min-w-56 flex-1">
+            <h2 class="font-display text-2xl font-medium text-gold">{{ g.title || 'Без названия' }}</h2>
+            <p class="text-sm text-muted-foreground">
+              {{ g.rounds.length }} {{ plural(g.rounds.length, 'раунд', 'раунда', 'раундов') }} ·
+              {{ questionCount(g) }} {{ plural(questionCount(g), 'вопрос', 'вопроса', 'вопросов') }}
+              <template v-if="g.finalRound"> · финал</template>
+              · изменена {{ fmtDate(g.updatedAt) }}
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <Button @click="router.push({ name: 'play', params: { id: g.id } })"><Play />Играть</Button>
+            <Button variant="secondary" @click="router.push({ name: 'editor', params: { id: g.id } })">
+              <Pencil />Редактировать
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger as-child>
+                <Button variant="ghost" size="icon" aria-label="Ещё действия"><MoreHorizontal /></Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" class="min-w-52">
+                <DropdownMenuItem @select="exportAs(g, 'gamezip')"><Package />Экспорт .gamezip</DropdownMenuItem>
+                <DropdownMenuItem @select="exportAs(g, 'json')"><FileJson />Экспорт JSON</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem variant="destructive" @select="remove(g)"><Trash2 />Удалить</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </Card>
+      </li>
+    </ul>
+
+    <p class="mt-10 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+      <Download class="size-4" />Игры хранятся на этом компьютере. Для переноса используйте экспорт в .gamezip.
+    </p>
+    <p v-if="version" class="mt-2 text-center text-xs text-muted-foreground/70">Версия {{ version }}</p>
+  </main>
 </template>
-
-<style scoped>
-.hero {
-  text-align: center;
-  padding: 60px 0 40px;
-}
-.hero-title {
-  font-size: clamp(56px, 9vw, 110px);
-  margin: 0;
-  line-height: 1;
-}
-.hero-sub {
-  margin: 12px 0 0;
-  color: var(--si-mute);
-  font-style: italic;
-  font-size: 18px;
-}
-.actions {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-  margin: 16px 0 32px;
-  flex-wrap: wrap;
-}
-.empty {
-  text-align: center;
-  color: var(--si-mute);
-  padding: 40px;
-}
-.game-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.game-row {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-.game-info { flex: 1; min-width: 220px; }
-.game-title {
-  margin: 0 0 4px;
-  font-family: var(--font-title);
-  color: var(--si-gold);
-  font-size: 24px;
-}
-.game-meta {
-  margin: 0;
-  color: var(--si-mute);
-  font-size: 14px;
-}
-.game-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-</style>

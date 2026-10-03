@@ -1,7 +1,12 @@
 <script setup lang="ts">
-import type { MediaItem } from '../types'
-import { uid } from '../storage'
-import MediaPicker from './MediaPicker.vue'
+import { computed } from 'vue'
+import { ArrowDown, ArrowUp, Plus, Trash2 } from '@lucide/vue'
+import type { MediaItem } from '@/types'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import IconButton from '@/components/IconButton.vue'
+import MediaPicker from '@/components/MediaPicker.vue'
+import { uid } from '@/game/model'
 
 const props = defineProps<{
   label?: string
@@ -12,98 +17,53 @@ const emit = defineEmits<{
   (e: 'update:modelValue', v: MediaItem[] | undefined): void
 }>()
 
-function items(): MediaItem[] {
-  return props.modelValue ? [...props.modelValue] : []
-}
+const items = computed(() => props.modelValue ?? [])
 
 function commit(list: MediaItem[]) {
   emit('update:modelValue', list.length ? list : undefined)
 }
 
 function add() {
-  const list = items()
-  list.push({ id: uid('mi_'), url: '', kind: 'image' })
-  commit(list)
+  commit([...items.value, { id: uid('mi_'), url: '', kind: 'image' }])
 }
 
 function remove(i: number) {
-  const list = items()
-  list.splice(i, 1)
-  commit(list)
+  commit(items.value.filter((_, j) => j !== i))
 }
 
 function move(i: number, dir: -1 | 1) {
-  const list = items()
   const j = i + dir
-  if (j < 0 || j >= list.length) return
-  const [it] = list.splice(i, 1)
-  list.splice(j, 0, it)
+  if (j < 0 || j >= items.value.length) return
+  const list = [...items.value]
+  ;[list[i], list[j]] = [list[j], list[i]]
   commit(list)
 }
 
-function update(i: number, patch: Partial<MediaItem>) {
-  const list = items()
-  list[i] = { ...list[i], ...patch }
-  // Drop empty entries
-  if (!list[i].url) {
-    // Allow blank picker but keep entry
-  }
-  commit(list)
+function replace(i: number, item: MediaItem) {
+  commit(items.value.map((it, j) => (j === i ? item : it)))
 }
 </script>
 
 <template>
-  <div class="media-list">
-    <label v-if="label" class="si-label">{{ label }}</label>
-    <div v-if="!items().length" class="empty">
-      <button class="si-button" @click="add">+ Добавить медиа</button>
+  <section class="flex flex-col gap-3">
+    <div class="flex items-center justify-between gap-2">
+      <Label v-if="label">{{ label }}</Label>
+      <Button variant="outline" size="sm" @click="add"><Plus />Добавить медиа</Button>
     </div>
-    <template v-else>
-      <article v-for="(it, i) in items()" :key="it.id" class="m-item">
-        <header class="m-head">
-          <span class="m-num">#{{ i + 1 }}</span>
-          <button class="si-button ghost" :disabled="i === 0" @click="move(i, -1)" title="Вверх">↑</button>
-          <button class="si-button ghost" :disabled="i === items().length - 1" @click="move(i, 1)" title="Вниз">↓</button>
-          <span class="si-spacer" />
-          <button class="si-button danger ghost" @click="remove(i)" title="Удалить">×</button>
-        </header>
-        <MediaPicker
-          :url="it.url"
-          :kind="it.kind"
-          :mode="it.mode"
-          :duration="it.duration"
-          @update:url="(v) => update(i, { url: v ?? '' })"
-          @update:kind="(v) => update(i, { kind: v as any })"
-          @update:mode="(v) => update(i, { mode: v as any })"
-          @update:duration="(v) => update(i, { duration: v })"
-        />
-      </article>
-      <button class="si-button" @click="add">+ Ещё медиа</button>
-    </template>
-  </div>
+    <article
+      v-for="(it, i) in items"
+      :key="it.id"
+      class="m-item flex flex-col gap-3 rounded-lg border border-dashed border-border bg-board/40 p-3"
+    >
+      <header class="flex items-center gap-1">
+        <span class="mr-auto font-display text-sm text-gold">#{{ i + 1 }}</span>
+        <IconButton label="Выше" size="icon-xs" :disabled="i === 0" @click="move(i, -1)"><ArrowUp /></IconButton>
+        <IconButton label="Ниже" size="icon-xs" :disabled="i === items.length - 1" @click="move(i, 1)">
+          <ArrowDown />
+        </IconButton>
+        <IconButton label="Убрать медиа" size="icon-xs" @click="remove(i)"><Trash2 /></IconButton>
+      </header>
+      <MediaPicker :model-value="it" @update:model-value="(v) => replace(i, v)" />
+    </article>
+  </section>
 </template>
-
-<style scoped>
-.media-list { display: flex; flex-direction: column; gap: 12px; }
-.empty { display: flex; }
-.m-item {
-  border: 1px dashed var(--si-cell-border);
-  border-radius: 10px;
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  background: rgba(0, 0, 80, 0.18);
-}
-.m-head {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-.m-num {
-  font-family: var(--font-title);
-  color: var(--si-gold);
-  font-size: 14px;
-}
-.m-head .si-button { padding: 4px 10px; font-size: 13px; }
-</style>

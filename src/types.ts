@@ -2,13 +2,15 @@ export type QuestionKind = 'normal' | 'auction' | 'cat-in-bag'
 export type MediaKind = 'image' | 'audio' | 'video' | 'youtube'
 export type MediaMode = 'video' | 'audio'
 
+/** A picture, sound or clip attached to a question or an answer. */
 export interface MediaItem {
   id: string
+  /** data:, http(s): or same-origin URL. */
   url: string
   kind: MediaKind
-  /** For YouTube embeds */
+  /** YouTube only: show the video or play its sound behind a cover. */
   mode?: MediaMode
-  /** Auto-stop after N seconds */
+  /** Seconds of playback before stopping; unset plays to the end. */
   duration?: number
 }
 
@@ -16,23 +18,12 @@ export interface Question {
   id: string
   value: number
   kind: QuestionKind
+  /** Points at stake for a cat-in-bag question, when they differ from `value`. */
   catValue?: number
   text: string
-  /** Несколько медиа к вопросу */
   media?: MediaItem[]
   answer: string
-  /** Несколько медиа к ответу */
   answerMedia?: MediaItem[]
-
-  /* === legacy fields (для совместимости со старыми играми / JSON) === */
-  mediaUrl?: string
-  mediaKind?: MediaKind
-  mediaMode?: MediaMode
-  mediaDuration?: number
-  answerMediaUrl?: string
-  answerMediaKind?: MediaKind
-  answerMediaMode?: MediaMode
-  answerMediaDuration?: number
 }
 
 export interface Theme {
@@ -53,12 +44,7 @@ export interface FinalQuestion {
   text: string
   media?: MediaItem[]
   answer: string
-
-  /* legacy */
-  mediaUrl?: string
-  mediaKind?: MediaKind
-  mediaMode?: MediaMode
-  mediaDuration?: number
+  answerMedia?: MediaItem[]
 }
 
 export interface Game {
@@ -67,7 +53,9 @@ export interface Game {
   subtitle?: string
   rounds: Round[]
   finalRound?: FinalQuestion
+  /** Unix time, ms. */
   createdAt: number
+  /** Unix time, ms. */
   updatedAt: number
 }
 
@@ -75,16 +63,4 @@ export interface Player {
   id: string
   name: string
   score: number
-}
-
-/** Runtime state of a play-through (kept in memory) */
-export interface PlayState {
-  gameId: string
-  players: Player[]
-  currentRoundIndex: number
-  /** Set of question ids already played */
-  played: Record<string, true>
-  /** Currently picked question id, if any */
-  activeQuestionId: string | null
-  phase: 'title' | 'round-intro' | 'board' | 'question' | 'answer' | 'final-intro' | 'final-question' | 'final-answer' | 'results'
 }

@@ -2,19 +2,75 @@ name: CI
 
 on:
   push:
-    branches: [master, main]
+    branches: ['**']
     tags-ignore: ['**']
   pull_request:
-    branches: [master, main]
+    branches: [master]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  check:
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'npm'
       - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
       - run: npm run build
+      - run: npm run site:build
+
+  desktop:
+    needs: check
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: macOS-arm64
+            os: macos-latest
+            target: aarch64-apple-darwin
+          - label: macOS-x64
+            os: macos-latest
+            target: x86_64-apple-darwin
+          - label: Windows-x64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - label: Linux-x64
+            os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Linux system libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+          key: ${{ matrix.target }}
+      - run: npm ci
+      - name: Build installers
+        run: npx tauri build --target ${{ matrix.target }}
+      - name: Collect installers
+        run: node scripts/release-assets.mjs ${{ matrix.target }} ${{ matrix.label }} out
+      - uses: actions/upload-artifact@v7
+        with:
+          name: svoya-igra-${{ matrix.label }}
+          path: out/*
+          if-no-files-found: error

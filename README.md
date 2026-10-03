@@ -1,55 +1,103 @@
-# Своя Игра — конструктор + проигрыватель
+# Своя Игра
 
-Vue 3 + TypeScript + Vite. Создавайте «свои игры», экспортируйте их в портативный
-формат `.gamezip` (со всем содержимым внутри), играйте локально без интернета.
+Конструктор и проигрыватель «Своей игры» для macOS, Windows и Linux. Соберите раунды,
+темы и вопросы с картинками, звуком, видео и YouTube, выведите игру на большой экран
+и ведите её со второго окна, где видны ответы. Работает без интернета (кроме YouTube).
 
-## Быстрый запуск (без знания терминала)
+## Скачать
 
-| ОС            | Двойной клик по…   | Что делает                                         |
-| ------------- | ------------------ | -------------------------------------------------- |
-| **macOS**     | `start.command`    | проверит Node.js, при необходимости поставит через Homebrew, соберёт и запустит на `http://localhost:5173` |
-| **Windows**   | `start.bat`        | проверит Node.js, при необходимости поставит через **winget** (или **choco**), запустит локально |
-| **Linux**     | `start.sh` (в терминале) | использует `apt` / `dnf` / `pacman` / `zypper` для установки Node.js |
+| Система | Файл |
+| --- | --- |
+| macOS (Apple Silicon) | [Svoya-Igra_macOS-arm64.dmg](https://github.com/swchck/svoya-igra/releases/latest/download/Svoya-Igra_macOS-arm64.dmg) |
+| macOS (Intel) | [Svoya-Igra_macOS-x64.dmg](https://github.com/swchck/svoya-igra/releases/latest/download/Svoya-Igra_macOS-x64.dmg) |
+| Windows | [Svoya-Igra_Windows-x64-setup.exe](https://github.com/swchck/svoya-igra/releases/latest/download/Svoya-Igra_Windows-x64-setup.exe) |
+| Linux (AppImage) | [Svoya-Igra_Linux-x64.AppImage](https://github.com/swchck/svoya-igra/releases/latest/download/Svoya-Igra_Linux-x64.AppImage) |
+| Linux (deb / rpm) | [.deb](https://github.com/swchck/svoya-igra/releases/latest/download/Svoya-Igra_Linux-x64.deb) · [.rpm](https://github.com/swchck/svoya-igra/releases/latest/download/Svoya-Igra_Linux-x64.rpm) |
 
-Если Node.js уже установлен — скрипт просто запустит. Если нет — спросит разрешения
-поставить, либо предложит ссылку на <https://nodejs.org>.
+Все версии — на странице [релизов](https://github.com/swchck/svoya-igra/releases).
+Установленное приложение само предлагает обновиться, когда выходит новая версия.
 
-> При первом запуске на macOS Finder может ругаться «не удалось проверить разработчика».
-> Кликните правой кнопкой → «Открыть» → подтвердите.
+### Первый запуск
 
-## Команды для разработчиков
+Приложение не подписано сертификатами Apple и Microsoft, поэтому система один раз
+переспросит:
 
-```bash
-npm install
-npm run dev      # dev-сервер с HMR
-npm run build    # production-сборка в dist/
-npm run preview  # запустить уже собранную версию
-```
+- **macOS** — «не удалось проверить разработчика». Откройте «Системные настройки →
+  Конфиденциальность и безопасность» и нажмите «Всё равно открыть». Если macOS пишет,
+  что приложение повреждено, выполните в терминале
+  `xattr -dr com.apple.quarantine "/Applications/Своя Игра.app"`.
+- **Windows** — SmartScreen: «Подробнее» → «Выполнить в любом случае».
+- **Linux** — AppImage: `chmod +x Svoya-Igra_Linux-x64.AppImage` и запуск.
 
-## Что внутри
+## Как играть
 
-- `src/pages/HomePage.vue`   — список игр, импорт/экспорт
-- `src/pages/EditorPage.vue` — конструктор: раунды → темы → вопросы, медиа, финал
-- `src/pages/PlayPage.vue`   — проигрыватель: заставка → раунд → доска → вопрос → ответ → итоги
-- `src/components/MediaList.vue` — список медиа (несколько картинок/аудио/YouTube)
-- `src/components/YouTubeEmbed.vue` — встроенный YouTube без метаданных, режимы «видео» / «только аудио», авто-стоп по длительности
-- `src/archive.ts` — упаковка/распаковка `.gamezip`
+1. На главной — «Новая игра» или «Пример (1996)», чтобы посмотреть готовую.
+2. В редакторе: раунды → темы → вопросы. У вопроса есть стоимость, тип (обычный,
+   аукцион, кот в мешке), текст, ответ и медиа к обоим.
+3. «Играть» открывает сцену для зрителей. «Окно ведущего» — пульт с ответами и
+   управлением, его удобно держать на ноутбуке, а сцену вывести на проектор.
+4. Партия сохраняется по ходу игры: если закрыть окно, при следующем запуске её
+   можно продолжить.
+
+Пробел или Enter листают заставки и открывают ответ, Esc возвращает к табло.
 
 ## Формат `.gamezip`
 
-ZIP-архив, содержащий:
+Игры переносятся между компьютерами файлами `.gamezip` — это ZIP-архив:
 
 ```
-game.json     — описание игры (типы из src/types.ts)
-meta.json     — { app, format, version, exportedAt }
-icon.svg      — иконка формата
-media/        — все вложения (картинки/аудио/видео)
+game.json     описание игры (типы в src/types.ts); вложения — ссылки media://<файл>
+media/        картинки, звук, видео
+meta.json     { app, format, version, exportedAt }
+icon.svg      иконка формата
 ```
 
-В `game.json` ссылки на файлы из `media/` хранятся как `media://<имя>`. При импорте
-всё автоматически восстанавливается в data URL и сохраняется в браузер.
+Ссылки на YouTube и другие сайты остаются ссылками. Двойной клик по `.gamezip`
+открывает игру в приложении. JSON-экспорт тоже самодостаточен: вложения встроены
+в него как data URL.
 
-## Образец игры
+## Разработка
 
-На главной кнопка «Загрузить пример (1996)» подгружает игру по мотивам
-прилагаемой презентации с YouTube-ссылками, картинками и финалом.
+Нужны Node.js 22+ и Rust (stable).
+
+```bash
+npm ci
+npm run app:dev    # приложение с горячей перезагрузкой
+npm run dev        # только интерфейс в браузере, http://localhost:5173
+npm run check      # typecheck + lint + тесты
+npm run app:build  # установщики для текущей ОС в src-tauri/target/release/bundle
+npm run site:dev   # промо-сайт, http://localhost:5174
+```
+
+Устройство:
+
+- `src/game` — модель игры: фабрики, обход медиа, разбор YouTube-ссылок, приведение
+  старых форматов;
+- `src/io` — `.gamezip` и JSON;
+- `src/media` — вложения как Blob в IndexedDB;
+- `src/composables/usePlaySession.ts` — правила партии; `src/play` — сохранение партии
+  и связь сцены с окном ведущего;
+- `src/components/ui` — компоненты shadcn-vue, остальное в `src/components`;
+- `site` — промо-сайт для GitHub Pages; тема и компоненты общие с приложением,
+  кнопки скачивания ведут на последний релиз (workflow `Site`);
+- `src-tauri` — оболочка: открытие файлов из ОС, локальный мост для YouTube
+  (`youtube_bridge.rs` — почему он нужен, написано в начале файла).
+
+## Выпуск версии
+
+```bash
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+Workflow `Release` соберёт установщики на всех платформах и опубликует релиз.
+Номер версии берётся из тега.
+
+Чтобы работало автообновление, сборки должны быть подписаны. Один раз добавьте
+в секреты репозитория приватный ключ (публичный уже лежит в `src-tauri/tauri.conf.json`):
+
+```bash
+gh secret set TAURI_SIGNING_PRIVATE_KEY < ~/.tauri/svoya-igra.key
+```
+
+Без секрета релиз всё равно соберётся, но без файлов обновления.

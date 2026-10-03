@@ -1,0 +1,25 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html,body,iframe{margin:0;width:100%;height:100%;border:0;background:#000;overflow:hidden}</style>
+</head>
+<body>
+<iframe id="player" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe>
+<script>
+  const PLAYER_ORIGIN = 'https://www.youtube-nocookie.com'
+  const query = new URLSearchParams(location.search)
+  const id = query.get('id') || ''
+  const params = new URLSearchParams(query)
+  params.delete('id')
+  const player = document.getElementById('player')
+  player.src = PLAYER_ORIGIN + '/embed/' + encodeURIComponent(id) + '?' + params.toString()
+
+  // the app talks to the player through this page: commands go down, player events go up
+  addEventListener('message', (e) => {
+    if (e.source === parent) player.contentWindow.postMessage(e.data, PLAYER_ORIGIN)
+    else if (e.source === player.contentWindow && e.origin === PLAYER_ORIGIN) parent.postMessage(e.data, '*')
+  })
+</script>
+</body>
+</html>

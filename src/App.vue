@@ -1,9 +1,20 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import { Toaster } from '@/components/ui/sonner'
+import ConfirmHost from '@/components/ConfirmHost.vue'
+import { useDesktopIntegration } from '@/composables/useDesktopIntegration'
+import 'vue-sonner/style.css'
+
+useDesktopIntegration()
 </script>
 
 <template>
-  <div class="si-shell">
-    <RouterView />
-  </div>
+  <TooltipProvider :delay-duration="300">
+    <div class="flex min-h-screen flex-col">
+      <RouterView />
+    </div>
+    <ConfirmHost />
+    <Toaster position="bottom-right" rich-colors close-button />
+  </TooltipProvider>
 </template>

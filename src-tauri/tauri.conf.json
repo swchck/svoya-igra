@@ -1,0 +1,97 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Своя Игра",
+  "version": "0.2.0",
+  "identifier": "io.github.swchck.svoyaigra",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Своя Игра",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 960,
+        "minHeight": 640,
+        "center": true,
+        "resizable": true,
+        "backgroundColor": "#1a1aa8"
+      }
+    ],
+    "security": {
+      "csp": {
+        "default-src": "'self'",
+        "script-src": "'self'",
+        "style-src": "'self' 'unsafe-inline'",
+        "font-src": "'self'",
+        "img-src": "'self' data: blob: https:",
+        "media-src": "'self' data: blob: https:",
+        "frame-src": "http://127.0.0.1:* https://www.youtube-nocookie.com",
+        "connect-src": "'self' ipc: http://ipc.localhost"
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "app",
+      "dmg",
+      "nsis",
+      "deb",
+      "rpm",
+      "appimage"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "category": "Game",
+    "shortDescription": "Конструктор и проигрыватель «Своей игры»",
+    "copyright": "© 2026",
+    "macOS": {
+      "signingIdentity": "-",
+      "minimumSystemVersion": "11.0"
+    },
+    "windows": {
+      "nsis": {
+        "languages": [
+          "Russian"
+        ],
+        "displayLanguageSelector": false,
+        "installMode": "currentUser"
+      }
+    },
+    "createUpdaterArtifacts": false,
+    "fileAssociations": [
+      {
+        "ext": [
+          "gamezip"
+        ],
+        "name": "Своя игра",
+        "description": "Игра для «Своей игры»",
+        "role": "Editor",
+        "mimeType": "application/x-svoya-igra+zip"
+      }
+    ]
+  },
+  "mainBinaryName": "svoya-igra",
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDBGM0REQUE0OEJGQUZFNkIKUldSci92cUxwTm85RDZaY1pKRGdMQnFPcm1EaXNhQldWY2Z3VTNBQjdCOVJwSEZiSzltblZJVzcK",
+      "endpoints": [
+        "https://github.com/swchck/svoya-igra/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}

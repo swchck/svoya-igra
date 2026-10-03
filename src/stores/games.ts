@@ -1,35 +1,32 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { Game } from '../types'
-import { deleteGame, loadGames, upsertGame } from '../storage'
+import { deleteGame, loadGames, pruneMedia, upsertGame } from '../storage'
 
 export const useGamesStore = defineStore('games', () => {
   const games = ref<Game[]>([])
-  const loaded = ref(false)
-  const loading = ref(false)
+  const loadError = ref<Error | null>(null)
 
   async function refresh() {
-    loading.value = true
-    try {
-      games.value = await loadGames()
-      loaded.value = true
-    } finally {
-      loading.value = false
-    }
+    games.value = await loadGames()
   }
 
-  async function save(game: Game) {
-    await upsertGame(game)
-    await refresh()
+  async function save(game: Game): Promise<Game> {
+    await ready
+    const saved = await upsertGame(game)
+    games.value = [saved, ...games.value.filter((g) => g.id !== saved.id)]
+    return saved
   }
 
   async function remove(id: string) {
+    await ready
     await deleteGame(id)
-    await refresh()
+    games.value = games.value.filter((g) => g.id !== id)
+    await pruneMedia()
   }
 
-  // первичная загрузка
-  refresh()
+  // a save landing before the initial load would otherwise be overwritten by its result
+  const ready = refresh().catch((err: Error) => { loadError.value = err })
 
-  return { games, loaded, loading, refresh, save, remove }
+  return { games, loadError, refresh, save, remove, pruneMedia: () => ready.then(pruneMedia) }
 })

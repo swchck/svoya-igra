@@ -1,127 +1,97 @@
-/* === Своя Игра — глобальные стили === */
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* The app has one look, the TV studio: deep blue with gold. <html> carries .dark so
+ * shadcn components pick their variants meant for dark backgrounds. */
 :root {
-  --si-bg-1: #3838ff;
-  --si-bg-2: #000091;
-  --si-gold: #ffc000;
-  --si-white: #ffffff;
-  --si-mute: #cfd0ff;
-  --si-cell-bg: rgba(0, 0, 80, 0.45);
-  --si-cell-border: rgba(255, 255, 255, 0.18);
-  --si-cell-played: rgba(255, 255, 255, 0.06);
-  --font-title: 'Lustria', 'PT Serif', 'Times New Roman', serif;
-  --font-body: 'PT Serif', 'Times New Roman', Times, serif;
+  --radius: 0.75rem;
+
+  --background: oklch(0.24 0.17 268);
+  --foreground: oklch(0.985 0.005 270);
+  --card: oklch(0.2 0.14 268 / 0.55);
+  --card-foreground: var(--foreground);
+  --popover: oklch(0.22 0.15 268);
+  --popover-foreground: var(--foreground);
+  --primary: oklch(0.84 0.17 84);
+  --primary-foreground: oklch(0.2 0.12 268);
+  --secondary: oklch(1 0 0 / 0.1);
+  --secondary-foreground: var(--foreground);
+  --muted: oklch(1 0 0 / 0.08);
+  --muted-foreground: oklch(0.85 0.06 278);
+  --accent: oklch(0.84 0.17 84 / 0.16);
+  --accent-foreground: oklch(0.9 0.14 88);
+  --destructive: oklch(0.7 0.19 25);
+  --border: oklch(1 0 0 / 0.16);
+  --input: oklch(1 0 0 / 0.2);
+  --ring: oklch(0.84 0.17 84);
+
+  /* game surfaces */
+  --gold: oklch(0.84 0.17 84);
+  --board: oklch(0.2 0.15 268 / 0.6);
+  --board-played: oklch(1 0 0 / 0.05);
+  --stage-top: oklch(0.47 0.27 268);
+  --stage-bottom: oklch(0.2 0.17 268);
 }
 
-* { box-sizing: border-box; }
+@theme inline {
+  --font-sans: 'Golos Text Variable', system-ui, sans-serif;
+  --font-display: 'Oswald Variable', 'Arial Narrow', sans-serif;
+  --font-serif: 'PT Serif', Georgia, serif;
+  --font-heading: var(--font-display);
 
-html, body, #app {
-  margin: 0;
-  padding: 0;
-  min-height: 100vh;
-  background: linear-gradient(180deg, var(--si-bg-1) 0%, var(--si-bg-2) 100%);
-  background-attachment: fixed;
-  color: var(--si-white);
-  font-family: var(--font-body);
-  -webkit-font-smoothing: antialiased;
-}
+  --color-gold: var(--gold);
+  --color-board: var(--board);
+  --color-board-played: var(--board-played);
 
-a { color: var(--si-gold); text-decoration: none; }
-a:hover { text-decoration: underline; }
-
-button, input, textarea, select {
-  font-family: inherit;
-}
-
-/* Reusable building blocks */
-.si-shell {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-.si-page {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 32px 24px;
-  width: 100%;
-}
-
-.si-title {
-  font-family: var(--font-title);
-  color: var(--si-gold);
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  text-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 }
 
-.si-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 18px;
-  border-radius: 8px;
-  border: 1px solid var(--si-cell-border);
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--si-white);
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s, transform 0.1s;
-  text-decoration: none;
-}
-.si-button:hover { background: rgba(255, 255, 255, 0.16); }
-.si-button:active { transform: translateY(1px); }
-.si-button.primary {
-  background: var(--si-gold);
-  color: #1a1a4a;
-  border-color: var(--si-gold);
-}
-.si-button.primary:hover { background: #ffd13a; }
-.si-button.danger {
-  background: rgba(220, 60, 60, 0.18);
-  border-color: rgba(220, 60, 60, 0.5);
-}
-.si-button.danger:hover { background: rgba(220, 60, 60, 0.32); }
-.si-button.ghost {
-  background: transparent;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    color-scheme: dark;
+  }
+  body {
+    @apply min-h-screen font-sans text-foreground antialiased;
+    background:
+      radial-gradient(1200px 640px at 50% -12%, oklch(0.55 0.25 268 / 0.55), transparent 65%),
+      linear-gradient(180deg, var(--stage-top) 0%, var(--stage-bottom) 100%) fixed;
+    background-color: var(--stage-bottom);
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-ring;
+  }
 }
 
-.si-input, .si-textarea, .si-select {
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--si-cell-border);
-  background: rgba(0, 0, 80, 0.35);
-  color: var(--si-white);
-  font-size: 15px;
-  outline: none;
+@layer components {
+  /* gold display lettering of the show: titles, round names, board values */
+  .title-gold {
+    @apply font-display font-semibold tracking-wide text-gold uppercase;
+    text-shadow: 0 4px 18px oklch(0.15 0.1 268 / 0.6);
+  }
 }
-.si-input:focus, .si-textarea:focus, .si-select:focus {
-  border-color: var(--si-gold);
-}
-.si-textarea { min-height: 90px; resize: vertical; }
-
-.si-card {
-  background: rgba(0, 0, 80, 0.35);
-  border: 1px solid var(--si-cell-border);
-  border-radius: 12px;
-  padding: 18px;
-}
-
-.si-label {
-  display: block;
-  margin-bottom: 6px;
-  color: var(--si-mute);
-  font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.si-row {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.si-spacer { flex: 1; }
