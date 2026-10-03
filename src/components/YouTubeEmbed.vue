@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { youtubeEmbedUrl } from '../platform'
 
 const props = defineProps<{
   url: string
@@ -60,7 +61,7 @@ const embed = computed(() => {
     enablejsapi: '1',
   })
   if (parsed.start) params.set('start', String(parsed.start))
-  return `https://www.youtube-nocookie.com/embed/${parsed.id}?${params.toString()}`
+  return youtubeEmbedUrl(parsed.id, params)
 })
 
 const isAudio = computed(() => props.mode === 'audio')
