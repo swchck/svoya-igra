@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { MediaMode } from '@/types'
 import { parseYoutubeUrl } from '@/game/youtube'
 import type { MediaAction } from '@/play/mediaControl'
 import { youtubeEmbedUrl } from '@/platform'
 import SoundCard from './SoundCard.vue'
 
+const { t } = useI18n()
 const props = defineProps<{
   url: string
   /** `video` shows the player; `audio` keeps it running under a sound card. */
@@ -104,7 +106,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="yt-wrap" :class="mode === 'audio' ? 'audio' : 'video'">
-    <div v-if="!embed" class="yt-error">Ссылка на YouTube не распознана.</div>
+    <div v-if="!embed" class="yt-error">{{ t('media.player.youtubeInvalid') }}</div>
     <template v-else>
       <div class="yt-frame-holder">
         <iframe
@@ -116,7 +118,7 @@ onBeforeUnmount(() => {
           frameborder="0"
           @load="onLoad"
         />
-        <div v-if="blocked && mode !== 'audio'" class="yt-blocked">Нажмите на видео, чтобы запустить</div>
+        <div v-if="blocked && mode !== 'audio'" class="yt-blocked">{{ t('media.player.tapVideoToStart') }}</div>
       </div>
       <!-- clicks pass through the card to the player, which counts as the click YouTube waits for -->
       <SoundCard
@@ -127,7 +129,7 @@ onBeforeUnmount(() => {
         :blocked="blocked"
         :elapsed="elapsed"
         :length="length"
-        label="Звук с YouTube"
+        :label="t('media.player.youtubeAudio')"
       />
     </template>
   </div>

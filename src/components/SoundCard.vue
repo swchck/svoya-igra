@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Pause, Play } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 import { formatTime } from '@/media/segment'
 
+const { t } = useI18n()
 const props = defineProps<{
   playing: boolean
   blocked?: boolean
@@ -24,7 +26,7 @@ const progress = computed(() => (props.length > 0 ? Math.min(1, props.elapsed / 
     :is="passive ? 'div' : 'button'"
     class="sound-card"
     :class="{ playing, passive }"
-    :aria-label="passive ? undefined : playing ? 'Пауза' : 'Воспроизвести'"
+    :aria-label="passive ? undefined : playing ? t('media.player.pause') : t('media.player.play')"
     @click="passive || $emit('toggle')"
   >
     <span class="sound-button" aria-hidden="true">
@@ -36,7 +38,7 @@ const progress = computed(() => (props.length > 0 ? Math.min(1, props.elapsed / 
         <span v-for="i in BARS" :key="i" class="bar" :style="{ '--i': i, '--h': 0.35 + ((i * 37) % 11) / 16 }" />
       </span>
       <span class="sound-meta">
-        <span class="sound-label">{{ blocked ? 'Нажмите, чтобы включить звук' : label }}</span>
+        <span class="sound-label">{{ blocked ? t('media.player.tapToUnmute') : label }}</span>
         <span v-if="length" class="sound-time">{{ formatTime(elapsed) }} / {{ formatTime(length) }}</span>
       </span>
       <span class="sound-track" aria-hidden="true"><span class="sound-fill" :style="{ width: `${progress * 100}%` }" /></span>

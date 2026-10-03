@@ -1,4 +1,5 @@
 import type { FinalQuestion, Game, MediaItem, Question, Round, Theme } from '../types'
+import { t } from '../i18n'
 
 /** Returns a short random id with an optional prefix. */
 export function uid(prefix = ''): string {
@@ -11,29 +12,29 @@ export function makeEmptyQuestion(value: number): Question {
   return { id: uid('q_'), value, kind: 'normal', text: '', answer: '' }
 }
 
-export function makeEmptyTheme(name = 'Тема'): Theme {
+export function makeEmptyTheme(name = t('system.defaults.theme')): Theme {
   return { id: uid('t_'), name, questions: DEFAULT_VALUES.map(makeEmptyQuestion) }
 }
 
-export function makeEmptyRound(name = 'Раунд 1', themeCount = 5): Round {
+export function makeEmptyRound(name = t('system.defaults.round', { n: 1 }), themeCount = 5): Round {
   return {
     id: uid('r_'),
     name,
-    themes: Array.from({ length: themeCount }, (_, i) => makeEmptyTheme(`Тема ${i + 1}`)),
+    themes: Array.from({ length: themeCount }, (_, i) => makeEmptyTheme(t('system.defaults.themeN', { n: i + 1 }))),
   }
 }
 
 export function makeEmptyFinal(): FinalQuestion {
-  return { id: uid('f_'), theme: 'Финал', text: '', answer: '' }
+  return { id: uid('f_'), theme: t('system.defaults.final'), text: '', answer: '' }
 }
 
-export function makeEmptyGame(title = 'Новая игра'): Game {
+export function makeEmptyGame(title = t('system.defaults.game')): Game {
   const now = Date.now()
   return {
     id: uid('g_'),
     title,
     subtitle: '',
-    rounds: [makeEmptyRound('Раунд 1'), makeEmptyRound('Раунд 2')],
+    rounds: [makeEmptyRound(t('system.defaults.round', { n: 1 })), makeEmptyRound(t('system.defaults.round', { n: 2 }))],
     finalRound: makeEmptyFinal(),
     createdAt: now,
     updatedAt: now,

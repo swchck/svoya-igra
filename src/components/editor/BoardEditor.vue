@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Cat, Gavel, GripVertical, Image as ImageIcon, Music, Plus, Trash2 } from '@lucide/vue'
 import type { Question, Round } from '@/types'
 import IconButton from '@/components/IconButton.vue'
 import { isQuestionReady, makeEmptyQuestion, makeEmptyTheme, moveItemTo } from '@/game/model'
 
+const { t } = useI18n()
 const round = defineModel<Round>('round', { required: true })
 /** Id of the question open in the inspector. */
 const selected = defineModel<string | null>('selected', { required: true })
@@ -32,7 +34,7 @@ function addQuestion(themeIndex: number) {
 }
 
 function addTheme() {
-  const theme = makeEmptyTheme(`Тема ${round.value.themes.length + 1}`)
+  const theme = makeEmptyTheme(t('editor.board.defaultTheme', { n: round.value.themes.length + 1 }))
   theme.questions.splice(columns.value)
   round.value.themes.push(theme)
 }
@@ -83,28 +85,28 @@ function dropOnTheme(index: number) {
 <template>
   <div class="board-editor" :class="{ dragging: !!drag }" :style="{ '--cols': columns }">
     <div
-      v-for="(theme, t) in round.themes"
+      v-for="(theme, ti) in round.themes"
       :key="theme.id"
       class="row"
       :class="{ 'drop-row': over === theme.id }"
       @dragover.prevent="drag && (over = theme.id)"
       @dragleave="over === theme.id && (over = null)"
-      @drop.prevent="dropOnTheme(t)"
+      @drop.prevent="dropOnTheme(ti)"
     >
       <div class="theme">
-        <span class="grip" draggable="true" title="Перетащите, чтобы переставить тему" @dragstart="startTheme($event, t)" @dragend="end">
+        <span class="grip" draggable="true" :title="t('editor.board.dragTheme')" @dragstart="startTheme($event, ti)" @dragend="end">
           <GripVertical class="size-4" />
         </span>
         <textarea
           v-model="theme.name"
           class="theme-input"
           rows="2"
-          placeholder="Название темы"
-          aria-label="Название темы"
+          :placeholder="t('editor.board.themeName')"
+          :aria-label="t('editor.board.themeName')"
           @keydown.enter.prevent="($event.target as HTMLTextAreaElement).blur()"
         />
         <span class="theme-delete">
-          <IconButton label="Удалить тему" size="icon-xs" @click="$emit('remove-theme', t)"><Trash2 /></IconButton>
+          <IconButton :label="t('editor.board.removeTheme')" size="icon-xs" @click="$emit('remove-theme', ti)"><Trash2 /></IconButton>
         </span>
       </div>
       <button
@@ -120,13 +122,13 @@ function dropOnTheme(index: number) {
         }"
         draggable="true"
         :aria-pressed="selected === q.id"
-        :aria-label="`${theme.name}, ${q.value}${isQuestionReady(q) ? '' : ', не заполнен'}`"
-        :title="q.text || 'Вопрос ещё не заполнен'"
+        :aria-label="`${theme.name}, ${q.value}${isQuestionReady(q) ? '' : t('editor.board.notFilled')}`"
+        :title="q.text || t('editor.board.emptyQuestion')"
         @click="((selected = q.id), emit('picked'))"
-        @dragstart="startQuestion($event, t, i)"
+        @dragstart="startQuestion($event, ti, i)"
         @dragend="end"
         @dragover.prevent.stop="drag?.kind === 'question' && (over = q.id)"
-        @drop.prevent.stop="dropOnQuestion(t, i)"
+        @drop.prevent.stop="dropOnQuestion(ti, i)"
       >
         <span class="value">{{ q.value }}</span>
         <span class="marks" aria-hidden="true">
@@ -137,9 +139,9 @@ function dropOnTheme(index: number) {
         </span>
       </button>
       <span v-for="i in columns - theme.questions.length" :key="`pad-${i}`" class="pad" />
-      <span class="add-q"><IconButton label="Добавить вопрос в тему" variant="ghost" @click="addQuestion(t)"><Plus /></IconButton></span>
+      <span class="add-q"><IconButton :label="t('editor.board.addQuestion')" variant="ghost" @click="addQuestion(ti)"><Plus /></IconButton></span>
     </div>
-    <button class="add-theme" @click="addTheme"><Plus class="size-4" />Тема</button>
+    <button class="add-theme" @click="addTheme"><Plus class="size-4" />{{ t('editor.board.addTheme') }}</button>
   </div>
 </template>
 

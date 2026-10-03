@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { Plus, Trophy } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 import type { FinalQuestion, Round } from '@/types'
 import { isQuestionReady } from '@/game/model'
 
+const { t } = useI18n()
 defineProps<{ rounds: Round[]; final?: FinalQuestion }>()
 /** Index of the open round, or 'final'. */
 const active = defineModel<number | 'final'>({ required: true })
@@ -15,7 +17,7 @@ function progress(r: Round) {
 </script>
 
 <template>
-  <nav class="strip" aria-label="Раунды">
+  <nav class="strip" :aria-label="t('editor.strip.label')">
     <button
       v-for="(r, i) in rounds"
       :key="r.id"
@@ -24,13 +26,13 @@ function progress(r: Round) {
       :aria-current="active === i ? 'page' : undefined"
       @click="active = i"
     >
-      <span class="name">{{ r.name || `Раунд ${i + 1}` }}</span>
+      <span class="name">{{ r.name || t('editor.strip.defaultRound', { n: i + 1 }) }}</span>
       <span class="count">{{ progress(r).ready }}/{{ progress(r).total }}</span>
       <span class="bar" aria-hidden="true">
         <span :style="{ width: `${progress(r).total ? (progress(r).ready / progress(r).total) * 100 : 0}%` }" />
       </span>
     </button>
-    <button class="pill add" @click="$emit('add')"><Plus class="size-4" />Раунд</button>
+    <button class="pill add" @click="$emit('add')"><Plus class="size-4" />{{ t('editor.strip.addRound') }}</button>
     <span class="flex-1" />
     <button
       class="pill final"
@@ -38,7 +40,7 @@ function progress(r: Round) {
       :aria-current="active === 'final' ? 'page' : undefined"
       @click="active = 'final'"
     >
-      <Trophy class="size-4" /><span class="name">Финал</span>
+      <Trophy class="size-4" /><span class="name">{{ t('editor.strip.final') }}</span>
     </button>
   </nav>
 </template>

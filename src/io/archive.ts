@@ -1,4 +1,5 @@
 import { strFromU8, strToU8, unzip, zip, type Unzipped, type Zippable } from 'fflate'
+import { t } from '../i18n'
 import iconSvg from '../../assets/app-icon.svg?raw'
 import type { Game } from '../types'
 import { mediaItems, uid, withFreshIds } from '../game/model'
@@ -68,7 +69,7 @@ export async function importGameZip(
 ): Promise<Game> {
   const entries = await unzipAsync(new Uint8Array(await file.arrayBuffer()))
   const json = entries['game.json']
-  if (!json) throw new Error('В архиве нет описания игры (game.json)')
+  if (!json) throw new Error(t('system.errors.noGameJson'))
   const game = parseGame(JSON.parse(strFromU8(json)))
 
   const urlByEntry = new Map<string, string>()

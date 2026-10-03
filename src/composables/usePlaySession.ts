@@ -2,6 +2,7 @@ import { computed, reactive, ref, type Ref } from 'vue'
 import type { Game, Player, Question, Round } from '../types'
 import { uid } from '../game/model'
 import { plainCopy } from '../lib/plain'
+import { t } from '../i18n'
 
 export type Phase =
   | 'title'
@@ -52,8 +53,8 @@ function initialSnapshot(): SessionSnapshot {
     finalBets: {},
     finalVerdicts: {},
     players: [
-      { id: uid('p_'), name: 'Игрок 1', score: 0 },
-      { id: uid('p_'), name: 'Игрок 2', score: 0 },
+      { id: uid('p_'), name: t('play.setup.defaultName', { n: 1 }), score: 0 },
+      { id: uid('p_'), name: t('play.setup.defaultName', { n: 2 }), score: 0 },
     ],
   }
 }
@@ -205,7 +206,7 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
   }
 
   function addPlayer() {
-    players.value.push({ id: uid('p_'), name: `Игрок ${players.value.length + 1}`, score: 0 })
+    players.value.push({ id: uid('p_'), name: t('play.setup.defaultName', { n: players.value.length + 1 }), score: 0 })
   }
 
   function removePlayer(playerId: string) {

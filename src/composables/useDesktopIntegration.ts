@@ -1,6 +1,7 @@
 import { onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
+import { t } from '@/i18n'
 import { useGamesStore } from '@/stores/games'
 import { importGameFile } from '@/io/gameFile'
 import { findUpdate, isDesktop, isMainWindow, onOpenedFiles } from '@/platform'
@@ -17,12 +18,12 @@ export function useDesktopIntegration() {
     for (const file of files) {
       try {
         const game = await store.save(await importGameFile(file))
-        toast.success('Игра открыта', {
+        toast.success(t('system.desktop.gameOpened'), {
           description: game.title,
-          action: { label: 'Редактировать', onClick: () => router.push({ name: 'editor', params: { id: game.id } }) },
+          action: { label: t('system.desktop.edit'), onClick: () => router.push({ name: 'editor', params: { id: game.id } }) },
         })
       } catch (err) {
-        toast.error(`Не удалось открыть ${file.name}`, { description: (err as Error).message })
+        toast.error(t('system.desktop.openFailed', { name: file.name }), { description: (err as Error).message })
       }
     }
   }
@@ -31,12 +32,12 @@ export function useDesktopIntegration() {
     stop = await onOpenedFiles(importOpened)
     const update = await findUpdate()
     if (update) {
-      toast.info(`Вышла версия ${update.version}`, {
+      toast.info(t('system.desktop.updateAvailable', { version: update.version }), {
         duration: Infinity,
         action: {
-          label: 'Обновить',
+          label: t('system.desktop.update'),
           onClick: () => {
-            toast.promise(update.install(), { loading: 'Скачиваем обновление…', error: 'Не удалось обновить' })
+            toast.promise(update.install(), { loading: t('system.desktop.downloading'), error: t('system.desktop.updateFailed') })
           },
         },
       })

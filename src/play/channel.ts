@@ -1,4 +1,5 @@
 import { isTauri } from '@tauri-apps/api/core'
+import { t } from '@/i18n'
 import type { Phase, SessionSnapshot } from '@/composables/usePlaySession'
 import type { MediaAction, MediaStatus } from './mediaControl'
 
@@ -70,7 +71,7 @@ export async function openHostWindow(gameId: string, title: string): Promise<voi
     }
     new WebviewWindow(label, {
       url: `index.html${route}`,
-      title: `Ведущий · ${title}`,
+      title: t('system.hostWindowTitle', { title }),
       width: 960,
       height: 780,
       minWidth: 720,

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, provide, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ArrowLeft, Cat, Gavel, Maximize, Minimize, MonitorSmartphone, SkipForward } from '@lucide/vue'
 import type { Game } from '@/types'
 import { Button } from '@/components/ui/button'
@@ -27,6 +28,7 @@ import FinalVerdictPanel from './FinalVerdictPanel.vue'
 
 const props = defineProps<{ game: Game; restored?: SessionSnapshot }>()
 const router = useRouter()
+const { t } = useI18n()
 
 const session = usePlaySession(
   computed(() => props.game),
@@ -41,8 +43,8 @@ const theme = computed(() => round.value?.themes.find((t) => t.questions.some((q
 const stakeHolder = computed(() => (state.stake ? session.player(state.stake.playerId) : undefined))
 const topic = computed(() => {
   const kind = activeQuestion.value?.kind
-  if (kind === 'auction') return 'Аукцион'
-  if (kind === 'cat-in-bag') return 'Кот в мешке'
+  if (kind === 'auction') return t('play.stage.auction')
+  if (kind === 'cat-in-bag') return t('play.stage.catInBag')
   return theme.value?.name
 })
 
@@ -146,18 +148,18 @@ async function home() {
   const ok =
     !inProgress.value ||
     (await confirmAction({
-      title: 'Выйти из игры?',
-      description: 'Счёт сохранится, партию можно будет продолжить позже.',
-      confirmLabel: 'Выйти',
+      title: t('play.stage.leaveConfirm.title'),
+      description: t('play.stage.leaveConfirm.description'),
+      confirmLabel: t('play.stage.leaveConfirm.confirm'),
     }))
   if (ok) router.push({ name: 'home' })
 }
 
 async function skipRound() {
   const ok = await confirmAction({
-    title: 'Пропустить раунд?',
-    description: 'Оставшиеся вопросы этого раунда сыграны не будут.',
-    confirmLabel: 'Пропустить',
+    title: t('play.stage.skipConfirm.title'),
+    description: t('play.stage.skipConfirm.description'),
+    confirmLabel: t('play.stage.skipConfirm.confirm'),
   })
   if (ok) session.nextRound()
 }
@@ -224,23 +226,23 @@ onUnmounted(() => {
     <StageBackdrop :dim="state.phase === 'question' || state.phase === 'answer'" />
 
     <header class="chrome">
-      <Button variant="ghost" @click="home"><ArrowLeft />Выйти</Button>
-      <span v-if="hostConnected" class="host-on"><span class="dot" />Пульт ведущего подключён</span>
+      <Button variant="ghost" @click="home"><ArrowLeft />{{ t('play.stage.leave') }}</Button>
+      <span v-if="hostConnected" class="host-on"><span class="dot" />{{ t('play.stage.hostConnected') }}</span>
       <div class="flex-1" />
-      <Button variant="ghost" @click="openHostWindow(game.id, game.title)"><MonitorSmartphone />Окно ведущего</Button>
+      <Button variant="ghost" @click="openHostWindow(game.id, game.title)"><MonitorSmartphone />{{ t('play.stage.hostWindow') }}</Button>
       <Button variant="ghost" @click="toggleFullscreen">
-        <template v-if="isFullscreen"><Minimize />Свернуть</template>
-        <template v-else><Maximize />На весь экран</template>
+        <template v-if="isFullscreen"><Minimize />{{ t('play.stage.exitFullscreen') }}</template>
+        <template v-else><Maximize />{{ t('play.stage.fullscreen') }}</template>
       </Button>
     </header>
 
     <main ref="stageMain" class="scene-area">
       <Transition name="scene" mode="out-in">
         <section v-if="state.phase === 'title'" :key="sceneKey" class="title-scene">
-          <h1 class="title-shine game-title">{{ game.title || 'Своя игра' }}</h1>
+          <h1 class="title-shine game-title">{{ game.title || t('play.stage.defaultTitle') }}</h1>
           <p v-if="game.subtitle" class="subtitle">{{ game.subtitle }}</p>
           <PlayerSetup v-model="players" @add="session.addPlayer" @remove="(p) => session.removePlayer(p.id)" />
-          <Button size="lg" class="start" @click="session.start">Начать игру</Button>
+          <Button size="lg" class="start" @click="session.start">{{ t('play.stage.start') }}</Button>
         </section>
 
         <IntroSlide
@@ -248,13 +250,13 @@ onUnmounted(() => {
           :key="sceneKey"
           :title="round?.name ?? ''"
           :themes="round?.themes.map((t) => t.name)"
-          hint="Пробел или клик: к табло"
+          :hint="t('play.stage.hintToBoard')"
           @next="session.advance"
         />
 
         <section v-else-if="state.phase === 'board' && round" :key="sceneKey" class="board-scene">
           <BoardGrid :round="round" :played="state.played" :cascade="cascadeBoard" @pick="(q) => pick(q.id)" />
-          <Button v-if="!hostConnected" variant="ghost" class="skip" @click="skipRound">Пропустить раунд<SkipForward /></Button>
+          <Button v-if="!hostConnected" variant="ghost" class="skip" @click="skipRound">{{ t('play.stage.skipRound') }}<SkipForward /></Button>
         </section>
 
         <SpecialSlide
@@ -262,7 +264,7 @@ onUnmounted(() => {
           :key="sceneKey"
           :icon="Gavel"
           motion="swing"
-          title="Аукцион"
+          :title="t('play.stage.auction')"
           :topic="theme?.name"
         >
           <div v-if="!hostConnected" class="glass dock">
@@ -275,8 +277,8 @@ onUnmounted(() => {
           :key="sceneKey"
           :icon="Cat"
           motion="wobble"
-          title="Кот в мешке"
-          text="Вопрос достаётся другому игроку"
+          :title="t('play.stage.catInBag')"
+          :text="t('play.stage.catText')"
         >
           <div v-if="!hostConnected" class="glass dock">
             <CatPanel :players="players" :value="activeQuestion.catValue ?? activeQuestion.value" @give="session.giveCat" />
@@ -293,7 +295,7 @@ onUnmounted(() => {
           :text="activeQuestion.text"
           :media="activeQuestion.media"
         >
-          <Button v-if="!hostConnected" size="lg" class="h-12 px-8 text-lg" @click="session.advance">Показать ответ</Button>
+          <Button v-if="!hostConnected" size="lg" class="h-12 px-8 text-lg" @click="session.advance">{{ t('play.stage.showAnswer') }}</Button>
         </CardSlide>
 
         <CardSlide
@@ -317,9 +319,9 @@ onUnmounted(() => {
         <IntroSlide
           v-else-if="state.phase === 'final-intro'"
           :key="sceneKey"
-          title="Финал"
+          :title="t('play.stage.final')"
           :subtitle="game.finalRound?.theme"
-          hint="Пробел или клик: к ставкам"
+          :hint="t('play.stage.hintToBets')"
           @next="session.advance"
         />
 
@@ -327,8 +329,8 @@ onUnmounted(() => {
           v-else-if="state.phase === 'final-bets' && game.finalRound"
           :key="sceneKey"
           variant="question"
-          :topic="`Финал: ${game.finalRound.theme}`"
-          text="Игроки делают ставки"
+          :topic="t('play.stage.finalTopic', { theme: game.finalRound.theme })"
+          :text="t('play.stage.finalBetsText')"
         >
           <div v-if="!hostConnected" class="glass dock">
             <FinalBetsPanel :players="players" :bets="state.finalBets" @bet="session.setFinalBet" @done="session.advance" />
@@ -342,11 +344,11 @@ onUnmounted(() => {
           v-else-if="state.phase === 'final-question' && game.finalRound"
           :key="sceneKey"
           variant="question"
-          :topic="`Финал: ${game.finalRound.theme}`"
+          :topic="t('play.stage.finalTopic', { theme: game.finalRound.theme })"
           :text="game.finalRound.text"
           :media="game.finalRound.media"
         >
-          <Button v-if="!hostConnected" size="lg" class="h-12 px-8 text-lg" @click="session.advance">Показать ответ</Button>
+          <Button v-if="!hostConnected" size="lg" class="h-12 px-8 text-lg" @click="session.advance">{{ t('play.stage.showAnswer') }}</Button>
         </CardSlide>
 
         <CardSlide

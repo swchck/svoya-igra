@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { toast } from 'vue-sonner'
+import { useI18n } from 'vue-i18n'
 import { ArrowDown, ArrowUp, Plus, Trash2 } from '@lucide/vue'
 import type { MediaItem } from '@/types'
 import { Button } from '@/components/ui/button'
@@ -11,6 +12,7 @@ import { uid } from '@/game/model'
 import { detectKind } from '@/media/kind'
 import { putMedia } from '@/media/store'
 
+const { t } = useI18n()
 const props = defineProps<{
   label?: string
   modelValue?: MediaItem[]
@@ -59,13 +61,13 @@ async function onDrop(e: DragEvent) {
   for (const file of e.dataTransfer?.files ?? []) {
     const kind = detectKind({ file })
     if (!kind) {
-      toast.error(`Не подходит: ${file.name}`, { description: 'Подойдут картинки, звук и видео.' })
+      toast.error(t('media.list.rejected', { name: file.name }), { description: t('media.picker.unsupportedHint') })
       continue
     }
     try {
       added.push({ id: uid('mi_'), url: await putMedia(file), kind })
     } catch (err) {
-      toast.error(`Не удалось сохранить ${file.name}`, { description: (err as Error).message })
+      toast.error(t('media.list.saveFailed', { name: file.name }), { description: (err as Error).message })
     }
   }
   if (added.length) commit([...items.value, ...added])
@@ -86,19 +88,19 @@ function replace(i: number, item: MediaItem) {
   >
     <div class="flex items-center justify-between gap-2">
       <Label v-if="label">{{ label }}</Label>
-      <Button variant="ghost" size="sm" @click="add"><Plus />Добавить</Button>
+      <Button variant="ghost" size="sm" @click="add"><Plus />{{ t('media.list.add') }}</Button>
     </div>
     <p v-if="!items.length" class="drop-hint" @click="add">
-      Перетащите сюда картинку, звук или видео, или нажмите, чтобы вставить ссылку
+      {{ t('media.list.dropHint') }}
     </p>
     <article v-for="(it, i) in items" :key="it.id" class="m-item">
       <header class="flex items-center gap-1">
         <span class="mr-auto font-display text-sm text-gold">{{ i + 1 }}</span>
-        <IconButton label="Выше" size="icon-xs" :disabled="i === 0" @click="move(i, -1)"><ArrowUp /></IconButton>
-        <IconButton label="Ниже" size="icon-xs" :disabled="i === items.length - 1" @click="move(i, 1)">
+        <IconButton :label="t('media.list.moveUp')" size="icon-xs" :disabled="i === 0" @click="move(i, -1)"><ArrowUp /></IconButton>
+        <IconButton :label="t('media.list.moveDown')" size="icon-xs" :disabled="i === items.length - 1" @click="move(i, 1)">
           <ArrowDown />
         </IconButton>
-        <IconButton label="Убрать медиа" size="icon-xs" @click="remove(i)"><Trash2 /></IconButton>
+        <IconButton :label="t('media.list.remove')" size="icon-xs" @click="remove(i)"><Trash2 /></IconButton>
       </header>
       <MediaPicker :model-value="it" @update:model-value="(v) => replace(i, v)" />
     </article>

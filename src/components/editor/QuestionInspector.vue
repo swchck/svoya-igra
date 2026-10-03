@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ArrowLeft, ArrowRight, Cat, ChevronLeft, ChevronRight, CircleHelp, Gavel, MonitorPlay, Trash2 } from '@lucide/vue'
 import type { Question, QuestionKind } from '@/types'
 import { Button } from '@/components/ui/button'
@@ -9,6 +10,7 @@ import IconButton from '@/components/IconButton.vue'
 import NumberInput from '@/components/NumberInput.vue'
 import MediaList from '@/components/MediaList.vue'
 
+const { t } = useI18n()
 const question = defineModel<Question>({ required: true })
 defineProps<{
   themeName: string
@@ -26,27 +28,30 @@ defineEmits<{
   (e: 'preview'): void
 }>()
 
-const KINDS: { value: QuestionKind; label: string; icon: typeof Gavel; hint: string }[] = [
-  { value: 'normal', label: 'Обычный', icon: CircleHelp, hint: 'Отвечает тот, кто первым нажал на кнопку.' },
-  { value: 'auction', label: 'Аукцион', icon: Gavel, hint: 'Игроки торгуются. Ставка от стоимости вопроса до всего счёта.' },
-  { value: 'cat-in-bag', label: 'Кот в мешке', icon: Cat, hint: 'Ведущий отдаёт вопрос другому игроку по своей цене.' },
+const KINDS: { value: QuestionKind; key: string; icon: typeof Gavel }[] = [
+  { value: 'normal', key: 'normal', icon: CircleHelp },
+  { value: 'auction', key: 'auction', icon: Gavel },
+  { value: 'cat-in-bag', key: 'catInBag', icon: Cat },
 ]
 const PRESETS = [100, 200, 300, 400, 500, 1000]
-const kindHint = computed(() => KINDS.find((k) => k.value === question.value.kind)?.hint)
+const kindHint = computed(() => {
+  const k = KINDS.find((k) => k.value === question.value.kind)
+  return k && t(`editor.inspector.kinds.${k.key}.hint`)
+})
 </script>
 
 <template>
   <div class="inspector">
     <header class="head">
-      <IconButton label="Предыдущий вопрос" :disabled="!hasPrev" @click="$emit('prev')"><ChevronLeft /></IconButton>
+      <IconButton :label="t('editor.inspector.prev')" :disabled="!hasPrev" @click="$emit('prev')"><ChevronLeft /></IconButton>
       <div class="title">
-        <span class="theme">{{ themeName || 'Тема без названия' }}</span>
+        <span class="theme">{{ themeName || t('editor.inspector.unnamedTheme') }}</span>
         <span class="value">{{ question.value }}</span>
       </div>
-      <IconButton label="Следующий вопрос" :disabled="!hasNext" @click="$emit('next')"><ChevronRight /></IconButton>
+      <IconButton :label="t('editor.inspector.next')" :disabled="!hasNext" @click="$emit('next')"><ChevronRight /></IconButton>
     </header>
 
-    <div class="kinds" role="radiogroup" aria-label="Тип вопроса">
+    <div class="kinds" role="radiogroup" :aria-label="t('editor.inspector.kindLabel')">
       <button
         v-for="k in KINDS"
         :key="k.value"
@@ -56,13 +61,13 @@ const kindHint = computed(() => KINDS.find((k) => k.value === question.value.kin
         :aria-checked="question.kind === k.value"
         @click="question.kind = k.value"
       >
-        <component :is="k.icon" class="size-5" />{{ k.label }}
+        <component :is="k.icon" class="size-5" />{{ t(`editor.inspector.kinds.${k.key}.label`) }}
       </button>
     </div>
     <p class="hint">{{ kindHint }}</p>
 
     <div class="grid gap-2">
-      <Label>Стоимость</Label>
+      <Label>{{ t('editor.inspector.value') }}</Label>
       <div class="flex flex-wrap items-center gap-2">
         <NumberInput v-model="question.value" class="w-36" :step="100" />
         <button
@@ -75,28 +80,28 @@ const kindHint = computed(() => KINDS.find((k) => k.value === question.value.kin
       </div>
     </div>
     <div v-if="question.kind === 'cat-in-bag'" class="grid gap-2">
-      <Label>Цена кота</Label>
+      <Label>{{ t('editor.inspector.catValue') }}</Label>
       <NumberInput v-model="question.catValue" class="w-36" :step="100" :placeholder="String(question.value)" />
     </div>
 
     <div class="grid gap-2">
-      <Label for="q-text">Вопрос</Label>
-      <Textarea id="q-text" v-model="question.text" class="field font-serif text-lg" placeholder="Что увидят и услышат игроки" />
+      <Label for="q-text">{{ t('editor.inspector.question') }}</Label>
+      <Textarea id="q-text" v-model="question.text" class="field font-serif text-lg" :placeholder="t('editor.inspector.questionPlaceholder')" />
     </div>
-    <MediaList v-model="question.media" label="Медиа к вопросу" />
+    <MediaList v-model="question.media" :label="t('editor.inspector.questionMedia')" />
 
     <div class="grid gap-2">
-      <Label for="q-answer">Ответ</Label>
-      <Textarea id="q-answer" v-model="question.answer" class="field answer font-display text-xl" placeholder="Правильный ответ" />
+      <Label for="q-answer">{{ t('editor.inspector.answer') }}</Label>
+      <Textarea id="q-answer" v-model="question.answer" class="field answer font-display text-xl" :placeholder="t('editor.inspector.answerPlaceholder')" />
     </div>
-    <MediaList v-model="question.answerMedia" label="Медиа к ответу" />
+    <MediaList v-model="question.answerMedia" :label="t('editor.inspector.answerMedia')" />
 
     <footer class="foot">
-      <Button variant="secondary" @click="$emit('preview')"><MonitorPlay />Как на экране</Button>
+      <Button variant="secondary" @click="$emit('preview')"><MonitorPlay />{{ t('editor.inspector.preview') }}</Button>
       <span class="flex-1" />
-      <IconButton label="Сдвинуть влево" :disabled="first" @click="$emit('move', -1)"><ArrowLeft /></IconButton>
-      <IconButton label="Сдвинуть вправо" :disabled="last" @click="$emit('move', 1)"><ArrowRight /></IconButton>
-      <IconButton label="Удалить вопрос" class="text-destructive" @click="$emit('remove')"><Trash2 /></IconButton>
+      <IconButton :label="t('editor.inspector.moveLeft')" :disabled="first" @click="$emit('move', -1)"><ArrowLeft /></IconButton>
+      <IconButton :label="t('editor.inspector.moveRight')" :disabled="last" @click="$emit('move', 1)"><ArrowRight /></IconButton>
+      <IconButton :label="t('editor.inspector.remove')" class="text-destructive" @click="$emit('remove')"><Trash2 /></IconButton>
     </footer>
   </div>
 </template>

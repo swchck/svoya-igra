@@ -1,22 +1,31 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Cat, Gavel, RotateCcw } from '@lucide/vue'
 import type { Question } from '@/types'
 import BoardGrid from '@/components/play/BoardGrid.vue'
 import FitText from '@/components/play/FitText.vue'
 import { prefersReducedMotion } from '@/lib/motion'
-import { DEMO_ROUND } from '~site/demo'
+import { demoRound } from '~site/demo'
+import type { Locale } from '@/i18n'
 
+const { t, locale } = useI18n()
+const round = computed(() => demoRound(locale.value as Locale))
 const played = ref<Record<string, true>>({})
 const open = ref<Question | null>(null)
 const revealed = ref(false)
 const frame = ref<HTMLElement | null>(null)
 const card = ref<HTMLElement | null>(null)
 
-const all = DEMO_ROUND.themes.flatMap((t) => t.questions)
-const themeOf = (q: Question) => DEMO_ROUND.themes.find((t) => t.questions.some((x) => x.id === q.id))?.name ?? ''
-const finished = computed(() => all.every((q) => played.value[q.id]))
-const KIND = { auction: { label: 'Аукцион', icon: Gavel }, 'cat-in-bag': { label: 'Кот в мешке', icon: Cat } } as const
+const themeOf = (q: Question) => round.value.themes.find((th) => th.questions.some((x) => x.id === q.id))?.name ?? ''
+const finished = computed(() => round.value.themes.every((th) => th.questions.every((q) => played.value[q.id])))
+const KIND = { auction: { label: 'site.board.auction', icon: Gavel }, 'cat-in-bag': { label: 'site.board.cat', icon: Cat } } as const
+
+// ids are the same in every language, so a language switch keeps which cells were played;
+// an open card follows along with its translated twin
+watch(round, (r) => {
+  if (open.value) open.value = r.themes.flatMap((th) => th.questions).find((q) => q.id === open.value?.id) ?? null
+})
 
 function cellRect(q: Question) {
   const cell = frame.value?.querySelector<HTMLElement>(`[data-question-id="${q.id}"]`)
@@ -81,17 +90,17 @@ onBeforeUnmount(stopHint)
 
 <template>
   <div ref="frame" class="live-board">
-    <BoardGrid :round="DEMO_ROUND" :played="played" cascade compact @pick="pick" />
+    <BoardGrid :round="round" :played="played" cascade compact @pick="pick" />
     <div v-if="finished && !open" class="done">
-      <p>Табло сыграно</p>
-      <button class="again" @click="reset"><RotateCcw class="size-4" />Ещё раз</button>
+      <p>{{ t('site.board.played') }}</p>
+      <button class="again" @click="reset"><RotateCcw class="size-4" />{{ t('site.board.again') }}</button>
     </div>
     <div v-if="open" ref="card" class="card" role="dialog" :aria-label="`${themeOf(open)}, ${open.value}`">
       <div class="plate">
         <span class="theme">{{ themeOf(open) }}</span>
         <span class="value">{{ open.value }}</span>
         <span v-if="open.kind !== 'normal'" class="kind" :class="open.kind">
-          <component :is="KIND[open.kind].icon" class="size-3.5" />{{ KIND[open.kind].label }}
+          <component :is="KIND[open.kind].icon" class="size-3.5" />{{ t(KIND[open.kind].label) }}
         </span>
       </div>
       <div class="body">
@@ -101,8 +110,8 @@ onBeforeUnmount(stopHint)
         </Transition>
       </div>
       <div class="actions">
-        <button v-if="!revealed" class="primary" @click="revealed = true">Показать ответ</button>
-        <button v-else class="primary" @click="close">К табло</button>
+        <button v-if="!revealed" class="primary" @click="revealed = true">{{ t('site.board.revealAnswer') }}</button>
+        <button v-else class="primary" @click="close">{{ t('site.board.backToBoard') }}</button>
       </div>
     </div>
   </div>

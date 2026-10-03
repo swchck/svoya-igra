@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 import { Download, FileJson, MoreHorizontal, Package, Pencil, Play, Plus, Sparkles, Trash2, Upload } from '@lucide/vue'
 import type { Game } from '@/types'
@@ -19,8 +20,11 @@ import { exportGameFile, GAME_FILE_ACCEPT, importGameFile, importSampleGame, typ
 import { isDesktop, pickGameFile } from '@/platform'
 import StageBackdrop from '@/components/play/StageBackdrop.vue'
 import MiniBoard from '@/components/MiniBoard.vue'
+import LocaleSwitch from '@/components/LocaleSwitch.vue'
+import { currentLocale } from '@/i18n'
 
 const router = useRouter()
+const { t } = useI18n()
 const store = useGamesStore()
 const fileInput = ref<HTMLInputElement | null>(null)
 const busy = ref(false)
@@ -44,31 +48,31 @@ async function createNew() {
     const g = await store.save(makeEmptyGame())
     router.push({ name: 'editor', params: { id: g.id } })
   } catch (err) {
-    failed('Не удалось создать игру', err)
+    failed(t('home.toast.createFailed'), err)
   }
 }
 
 async function remove(g: Game) {
   const ok = await confirmAction({
-    title: `Удалить «${g.title || 'Без названия'}»?`,
-    description: 'Игра и её файлы удалятся навсегда.',
-    confirmLabel: 'Удалить',
+    title: t('home.confirmDelete.title', { title: g.title || t('home.untitled') }),
+    description: t('home.confirmDelete.description'),
+    confirmLabel: t('home.confirmDelete.confirm'),
     destructive: true,
   })
   if (!ok) return
   try {
     await store.remove(g.id)
-    toast.success('Игра удалена')
+    toast.success(t('home.toast.deleted'))
   } catch (err) {
-    failed('Не удалось удалить игру', err)
+    failed(t('home.toast.deleteFailed'), err)
   }
 }
 
 async function exportAs(g: Game, format: GameFileFormat) {
   try {
-    if (await exportGameFile(g, format)) toast.success('Файл сохранён')
+    if (await exportGameFile(g, format)) toast.success(t('home.toast.fileSaved'))
   } catch (err) {
-    failed('Ошибка экспорта', err)
+    failed(t('home.toast.exportFailed'), err)
   }
 }
 
@@ -79,9 +83,9 @@ async function loadSample() {
     // save before removing: removal prunes media, and the new copy's files must be referenced by then
     await store.save(await importSampleGame())
     for (const old of previous) await store.remove(old.id)
-    toast.success('Пример загружен', previous.length ? { description: 'Предыдущая копия заменена' } : undefined)
+    toast.success(t('home.toast.sampleLoaded'), previous.length ? { description: t('home.toast.sampleReplaced') } : undefined)
   } catch (err) {
-    failed('Не удалось загрузить пример', err)
+    failed(t('home.toast.sampleFailed'), err)
   } finally {
     busy.value = false
   }
@@ -96,7 +100,7 @@ async function startImport() {
     const file = await pickGameFile()
     if (file) await importFile(file)
   } catch (err) {
-    failed('Не удалось открыть файл', err)
+    failed(t('home.toast.openFailed'), err)
   }
 }
 
@@ -111,28 +115,28 @@ async function importFile(file: File) {
   busy.value = true
   try {
     const game = await store.save(await importGameFile(file))
-    toast.success('Игра импортирована', { description: game.title })
+    toast.success(t('home.toast.imported'), { description: game.title })
   } catch (err) {
-    failed('Не удалось импортировать', err)
+    failed(t('home.toast.importFailed'), err)
   } finally {
     busy.value = false
   }
 }
 
 function questionCount(g: Game) {
-  return g.rounds.reduce((n, r) => n + r.themes.reduce((m, t) => m + t.questions.length, 0), 0)
+  return g.rounds.reduce((n, r) => n + r.themes.reduce((m, th) => m + th.questions.length, 0), 0)
 }
 
-function plural(n: number, one: string, few: string, many: string) {
-  const mod10 = n % 10
-  const mod100 = n % 100
-  if (mod10 === 1 && mod100 !== 11) return one
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few
-  return many
+function stats(g: Game) {
+  const rounds = t('home.card.rounds', { n: g.rounds.length }, g.rounds.length)
+  const count = questionCount(g)
+  const questions = t('home.card.questions', { n: count }, count)
+  return t(g.finalRound ? 'home.card.statsWithFinal' : 'home.card.stats', { rounds, questions })
 }
 
 function fmtDate(ts: number) {
-  return new Date(ts).toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' })
+  const locale = currentLocale() === 'sr' ? 'sr-Latn' : currentLocale()
+  return new Date(ts).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' })
 }
 </script>
 
@@ -140,51 +144,51 @@ function fmtDate(ts: number) {
   <StageBackdrop />
   <main class="home">
     <header class="hero">
-      <h1 class="title-shine hero-title">Своя игра</h1>
-      <p class="hero-sub">Конструктор и проигрыватель</p>
+      <div class="locale"><LocaleSwitch /></div>
+      <h1 class="title-shine hero-title">{{ t('system.appName') }}</h1>
+      <p class="hero-sub">{{ t('home.subtitle') }}</p>
       <div class="actions">
-        <Button size="lg" class="h-12 px-6 text-base" @click="createNew"><Plus />Новая игра</Button>
-        <Button size="lg" variant="outline" class="h-12 px-6 text-base" :disabled="busy" @click="startImport"><Upload />Импорт</Button>
-        <Button size="lg" variant="ghost" class="h-12 px-6 text-base" :disabled="busy" @click="loadSample"><Sparkles />Открыть пример</Button>
+        <Button size="lg" class="h-12 px-6 text-base" @click="createNew"><Plus />{{ t('home.newGame') }}</Button>
+        <Button size="lg" variant="outline" class="h-12 px-6 text-base" :disabled="busy" @click="startImport"><Upload />{{ t('home.import') }}</Button>
+        <Button size="lg" variant="ghost" class="h-12 px-6 text-base" :disabled="busy" @click="loadSample"><Sparkles />{{ t('home.openSample') }}</Button>
         <input ref="fileInput" type="file" class="hidden" :accept="GAME_FILE_ACCEPT" @change="onFile" />
       </div>
     </header>
 
     <section v-if="store.loadError" class="glass notice text-destructive">
-      Не удалось открыть библиотеку игр: {{ store.loadError.message }}
+      {{ t('home.libraryError', { message: store.loadError.message }) }}
     </section>
 
     <section v-else-if="store.games.length === 0" class="glass notice">
-      <p class="font-display text-2xl text-gold uppercase">Игр пока нет</p>
-      <p class="text-muted-foreground">Создайте первую или откройте пример, чтобы посмотреть, как устроена готовая игра.</p>
+      <p class="font-display text-2xl text-gold uppercase">{{ t('home.empty.title') }}</p>
+      <p class="text-muted-foreground">{{ t('home.empty.hint') }}</p>
     </section>
 
     <TransitionGroup v-else name="list" tag="ul" class="games">
       <li v-for="g in store.games" :key="g.id" class="game glass">
-        <button class="thumb" :aria-label="`Играть: ${g.title || 'Без названия'}`" @click="router.push({ name: 'play', params: { id: g.id } })">
+        <button class="thumb" :aria-label="t('home.card.playNamed', { title: g.title || t('home.untitled') })" @click="router.push({ name: 'play', params: { id: g.id } })">
           <MiniBoard :round="g.rounds[0]" />
           <span class="thumb-play"><Play class="size-7 translate-x-0.5" /></span>
         </button>
         <div class="info">
-          <h2 class="name">{{ g.title || 'Без названия' }}</h2>
+          <h2 class="name">{{ g.title || t('home.untitled') }}</h2>
           <p class="meta">
-            {{ g.rounds.length }} {{ plural(g.rounds.length, 'раунд', 'раунда', 'раундов') }},
-            {{ questionCount(g) }} {{ plural(questionCount(g), 'вопрос', 'вопроса', 'вопросов') }}<template v-if="g.finalRound"> и финал</template>
+            {{ stats(g) }}
           </p>
-          <p class="meta">Изменена {{ fmtDate(g.updatedAt) }}</p>
+          <p class="meta">{{ t('home.card.modified', { date: fmtDate(g.updatedAt) }) }}</p>
         </div>
         <div class="buttons">
-          <Button @click="router.push({ name: 'play', params: { id: g.id } })"><Play />Играть</Button>
-          <Button variant="secondary" @click="router.push({ name: 'editor', params: { id: g.id } })"><Pencil />Редактировать</Button>
+          <Button @click="router.push({ name: 'play', params: { id: g.id } })"><Play />{{ t('home.card.play') }}</Button>
+          <Button variant="secondary" @click="router.push({ name: 'editor', params: { id: g.id } })"><Pencil />{{ t('home.card.edit') }}</Button>
           <DropdownMenu>
             <DropdownMenuTrigger as-child>
-              <Button variant="ghost" size="icon" aria-label="Ещё действия"><MoreHorizontal /></Button>
+              <Button variant="ghost" size="icon" :aria-label="t('home.card.moreActions')"><MoreHorizontal /></Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" class="min-w-52">
-              <DropdownMenuItem @select="exportAs(g, 'gamezip')"><Package />Экспорт .gamezip</DropdownMenuItem>
-              <DropdownMenuItem @select="exportAs(g, 'json')"><FileJson />Экспорт JSON</DropdownMenuItem>
+              <DropdownMenuItem @select="exportAs(g, 'gamezip')"><Package />{{ t('home.card.exportGamezip') }}</DropdownMenuItem>
+              <DropdownMenuItem @select="exportAs(g, 'json')"><FileJson />{{ t('home.card.exportJson') }}</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive" @select="remove(g)"><Trash2 />Удалить</DropdownMenuItem>
+              <DropdownMenuItem variant="destructive" @select="remove(g)"><Trash2 />{{ t('home.card.delete') }}</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -192,9 +196,9 @@ function fmtDate(ts: number) {
     </TransitionGroup>
 
     <p class="footnote">
-      <Download class="size-4" />Игры хранятся на этом компьютере. Чтобы перенести игру, экспортируйте её в .gamezip.
+      <Download class="size-4" />{{ t('home.footnote') }}
     </p>
-    <p v-if="version" class="version">Версия {{ version }}</p>
+    <p v-if="version" class="version">{{ t('home.version', { version }) }}</p>
   </main>
 </template>
 
@@ -208,12 +212,18 @@ function fmtDate(ts: number) {
   padding: 0 24px 40px;
 }
 .hero {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 14px;
   padding: clamp(40px, 9vh, 96px) 0 clamp(28px, 5vh, 48px);
   text-align: center;
+}
+.locale {
+  position: absolute;
+  top: 16px;
+  right: 0;
 }
 .hero-title {
   margin: 0;

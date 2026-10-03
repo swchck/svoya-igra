@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { Component } from 'vue'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 defineProps<{ icon: Component; title: string; topic?: string; text?: string; motion: 'swing' | 'wobble' }>()
 </script>
 
@@ -8,7 +10,7 @@ defineProps<{ icon: Component; title: string; topic?: string; text?: string; mot
   <section class="special">
     <component :is="icon" class="icon" :class="motion" aria-hidden="true" />
     <h2 class="title-shine heading">{{ title }}</h2>
-    <p v-if="topic" class="topic">Тема: {{ topic }}</p>
+    <p v-if="topic" class="topic">{{ t('play.special.topic', { topic }) }}</p>
     <p v-if="text" class="text">{{ text }}</p>
     <div class="dock"><slot /></div>
   </section>

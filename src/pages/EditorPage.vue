@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import { ArrowLeft, ArrowRight, Download, FileJson, Loader2, MoreHorizontal, MousePointerClick, Package, Play, Plus, Trash2, Trophy } from '@lucide/vue'
 import { onBeforeRouteLeave, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import type { Game } from '@/types'
 import { Button } from '@/components/ui/button'
 import {
@@ -26,6 +27,7 @@ import StagePreview from '@/components/editor/StagePreview.vue'
 
 const props = defineProps<{ id: string }>()
 const router = useRouter()
+const { t } = useI18n()
 const store = useGamesStore()
 
 const game = ref<Game | null>(null)
@@ -42,16 +44,20 @@ getGame(props.id).then((g) => {
 const { status: saveStatus, error: saveError, flush: flushSave } = useAutosave(game, (g) => store.save(g))
 const saveLabel = computed(
   () =>
-    ({ idle: 'Все изменения сохранены', pending: 'Сохраняю…', saving: 'Сохраняю…', saved: 'Все изменения сохранены', error: 'Не сохранено' })[
-      saveStatus.value
-    ],
+    ({
+      idle: t('editor.page.save.saved'),
+      pending: t('editor.page.save.saving'),
+      saving: t('editor.page.save.saving'),
+      saved: t('editor.page.save.saved'),
+      error: t('editor.page.save.error'),
+    })[saveStatus.value],
 )
 
 const round = computed(() => (typeof tab.value === 'number' ? game.value?.rounds[tab.value] : undefined))
 
 /** Every question of the round in reading order, with where it sits. */
 const order = computed(() =>
-  (round.value?.themes ?? []).flatMap((t, ti) => t.questions.map((q, qi) => ({ q, t, ti, qi }))),
+  (round.value?.themes ?? []).flatMap((th, ti) => th.questions.map((q, qi) => ({ q, t: th, ti, qi }))),
 )
 const at = computed(() => order.value.findIndex((x) => x.q.id === selectedId.value))
 const current = computed(() => order.value[at.value])
@@ -73,7 +79,7 @@ function step(offset: -1 | 1) {
 
 function addRound() {
   if (!game.value) return
-  game.value.rounds.push(makeEmptyRound(`Раунд ${game.value.rounds.length + 1}`))
+  game.value.rounds.push(makeEmptyRound(t('editor.strip.defaultRound', { n: game.value.rounds.length + 1 })))
   tab.value = game.value.rounds.length - 1
 }
 
@@ -84,9 +90,9 @@ function moveRound(offset: -1 | 1) {
 async function removeRound() {
   if (!game.value || typeof tab.value !== 'number' || game.value.rounds.length <= 1) return
   const ok = await confirmAction({
-    title: `Удалить «${round.value?.name}»?`,
-    description: 'Вместе с раундом удалятся все его темы и вопросы.',
-    confirmLabel: 'Удалить',
+    title: t('editor.page.removeRoundTitle', { name: round.value?.name }),
+    description: t('editor.page.removeRoundText'),
+    confirmLabel: t('editor.page.delete'),
     destructive: true,
   })
   if (!ok) return
@@ -98,9 +104,9 @@ async function removeTheme(index: number) {
   const theme = round.value?.themes[index]
   if (!theme) return
   const ok = await confirmAction({
-    title: `Удалить тему «${theme.name || 'без названия'}»?`,
-    description: 'Вместе с темой удалятся все её вопросы.',
-    confirmLabel: 'Удалить',
+    title: t('editor.page.removeThemeTitle', { name: theme.name || t('editor.page.removeThemeUnnamed') }),
+    description: t('editor.page.removeThemeText'),
+    confirmLabel: t('editor.page.delete'),
     destructive: true,
   })
   if (!ok) return
@@ -116,7 +122,7 @@ function moveQuestion(offset: -1 | 1) {
 async function removeQuestion() {
   const c = current.value
   if (!c) return
-  if (!(await confirmAction({ title: 'Удалить вопрос?', confirmLabel: 'Удалить', destructive: true }))) return
+  if (!(await confirmAction({ title: t('editor.page.removeQuestionTitle'), confirmLabel: t('editor.page.delete'), destructive: true }))) return
   const neighbour = order.value[at.value + 1] ?? order.value[at.value - 1]
   c.t.questions.splice(c.t.questions.indexOf(c.q), 1)
   selectedId.value = neighbour && neighbour.q !== c.q ? neighbour.q.id : null
@@ -124,7 +130,7 @@ async function removeQuestion() {
 
 async function removeFinal() {
   if (!game.value) return
-  if (await confirmAction({ title: 'Удалить финал?', confirmLabel: 'Удалить', destructive: true })) {
+  if (await confirmAction({ title: t('editor.page.removeFinalTitle'), confirmLabel: t('editor.page.delete'), destructive: true })) {
     game.value.finalRound = undefined
   }
 }
@@ -134,10 +140,10 @@ onBeforeRouteLeave(async () => {
   if (saveStatus.value === 'pending' || saveStatus.value === 'saving') await flushSave()
   if (saveStatus.value !== 'error') return true
   return confirmAction({
-    title: 'Изменения не сохранены',
-    description: saveError.value?.message ?? 'Последние правки не удалось записать.',
-    confirmLabel: 'Уйти без сохранения',
-    cancelLabel: 'Остаться',
+    title: t('editor.page.leave.title'),
+    description: saveError.value?.message ?? t('editor.page.leave.fallback'),
+    confirmLabel: t('editor.page.leave.confirm'),
+    cancelLabel: t('editor.page.leave.cancel'),
     destructive: true,
   })
 })
@@ -146,7 +152,7 @@ async function play() {
   if (!game.value) return
   await flushSave()
   if (saveStatus.value === 'error') {
-    toast.error('Игра не сохранена', { description: saveError.value?.message })
+    toast.error(t('editor.page.notSaved'), { description: saveError.value?.message })
     return
   }
   router.push({ name: 'play', params: { id: game.value.id } })
@@ -157,9 +163,9 @@ async function exportAs(format: GameFileFormat) {
   if (!game.value || exporting.value) return
   exporting.value = true
   try {
-    if (await exportGameFile(game.value, format)) toast.success('Файл сохранён')
+    if (await exportGameFile(game.value, format)) toast.success(t('editor.page.exported'))
   } catch (err) {
-    toast.error('Ошибка экспорта', { description: (err as Error).message })
+    toast.error(t('editor.page.exportFailed'), { description: (err as Error).message })
   } finally {
     exporting.value = false
   }
@@ -169,10 +175,10 @@ async function exportAs(format: GameFileFormat) {
 <template>
   <div v-if="game" class="editor">
     <header class="bar">
-      <Button variant="ghost" @click="router.push({ name: 'home' })"><ArrowLeft />Игры</Button>
+      <Button variant="ghost" @click="router.push({ name: 'home' })"><ArrowLeft />{{ t('editor.page.back') }}</Button>
       <div class="names">
-        <input v-model="game.title" class="game-title" placeholder="Название игры" aria-label="Название игры" />
-        <input v-model="game.subtitle" class="game-sub" placeholder="Подзаголовок, если нужен" aria-label="Подзаголовок" />
+        <input v-model="game.title" class="game-title" :placeholder="t('editor.page.gameTitle')" :aria-label="t('editor.page.gameTitle')" />
+        <input v-model="game.subtitle" class="game-sub" :placeholder="t('editor.page.subtitlePlaceholder')" :aria-label="t('editor.page.subtitleLabel')" />
       </div>
       <span class="save" :class="saveStatus" role="status" :title="saveError?.message">
         <span class="save-dot" />{{ saveLabel }}
@@ -180,15 +186,15 @@ async function exportAs(format: GameFileFormat) {
       <DropdownMenu>
         <DropdownMenuTrigger as-child>
           <Button variant="secondary" :disabled="exporting">
-            <Loader2 v-if="exporting" class="animate-spin" /><Download v-else />Экспорт
+            <Loader2 v-if="exporting" class="animate-spin" /><Download v-else />{{ t('editor.page.export') }}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" class="min-w-52">
-          <DropdownMenuItem @select="exportAs('gamezip')"><Package />Файл .gamezip</DropdownMenuItem>
-          <DropdownMenuItem @select="exportAs('json')"><FileJson />Файл JSON</DropdownMenuItem>
+          <DropdownMenuItem @select="exportAs('gamezip')"><Package />{{ t('editor.page.exportGamezip') }}</DropdownMenuItem>
+          <DropdownMenuItem @select="exportAs('json')"><FileJson />{{ t('editor.page.exportJson') }}</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <Button size="lg" @click="play"><Play />Играть</Button>
+      <Button size="lg" @click="play"><Play />{{ t('editor.page.play') }}</Button>
     </header>
 
     <div class="body">
@@ -197,21 +203,21 @@ async function exportAs(format: GameFileFormat) {
       <div v-if="round" class="workspace">
         <section class="board-pane">
           <div class="round-head">
-            <input v-model="round.name" class="round-name" placeholder="Название раунда" aria-label="Название раунда" />
+            <input v-model="round.name" class="round-name" :placeholder="t('editor.page.roundName')" :aria-label="t('editor.page.roundName')" />
             <DropdownMenu>
               <DropdownMenuTrigger as-child>
-                <Button variant="ghost" size="icon" aria-label="Действия с раундом"><MoreHorizontal /></Button>
+                <Button variant="ghost" size="icon" :aria-label="t('editor.page.roundActions')"><MoreHorizontal /></Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" class="min-w-56">
-                <DropdownMenuItem :disabled="tab === 0" @select="moveRound(-1)"><ArrowLeft />Поставить раньше</DropdownMenuItem>
-                <DropdownMenuItem :disabled="tab === game.rounds.length - 1" @select="moveRound(1)"><ArrowRight />Поставить позже</DropdownMenuItem>
+                <DropdownMenuItem :disabled="tab === 0" @select="moveRound(-1)"><ArrowLeft />{{ t('editor.page.moveEarlier') }}</DropdownMenuItem>
+                <DropdownMenuItem :disabled="tab === game.rounds.length - 1" @select="moveRound(1)"><ArrowRight />{{ t('editor.page.moveLater') }}</DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem variant="destructive" :disabled="game.rounds.length <= 1" @select="removeRound"><Trash2 />Удалить раунд</DropdownMenuItem>
+                <DropdownMenuItem variant="destructive" :disabled="game.rounds.length <= 1" @select="removeRound"><Trash2 />{{ t('editor.page.removeRound') }}</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
           <BoardEditor v-model:round="round" v-model:selected="selectedId" @remove-theme="removeTheme" @picked="revealInspector" />
-          <p class="tip">Ячейки и темы можно перетаскивать. Пунктиром отмечены вопросы без текста или ответа.</p>
+          <p class="tip">{{ t('editor.page.tip') }}</p>
         </section>
 
         <aside ref="inspector" class="glass inspector-pane">
@@ -232,20 +238,20 @@ async function exportAs(format: GameFileFormat) {
           />
           <div v-else class="empty">
             <MousePointerClick class="size-10 text-gold" />
-            <p>Выберите вопрос на табло слева</p>
+            <p>{{ t('editor.page.pickQuestion') }}</p>
           </div>
         </aside>
       </div>
 
       <section v-else-if="tab === 'final'" class="final-pane glass">
         <template v-if="game.finalRound">
-          <h2 class="final-title"><Trophy class="size-6" />Финал</h2>
+          <h2 class="final-title"><Trophy class="size-6" />{{ t('editor.page.finalTitle') }}</h2>
           <FinalForm v-model="game.finalRound" @remove="removeFinal" @preview="previewOpen = true" />
         </template>
         <div v-else class="empty">
           <Trophy class="size-12 text-gold" />
-          <p class="text-lg">В финале каждый игрок ставит часть своих очков на один вопрос.</p>
-          <Button size="lg" @click="game.finalRound = makeEmptyFinal()"><Plus />Добавить финал</Button>
+          <p class="text-lg">{{ t('editor.page.finalIntro') }}</p>
+          <Button size="lg" @click="game.finalRound = makeEmptyFinal()"><Plus />{{ t('editor.page.addFinal') }}</Button>
         </div>
       </section>
     </div>
@@ -263,7 +269,7 @@ async function exportAs(format: GameFileFormat) {
     <StagePreview
       v-else-if="tab === 'final' && game.finalRound"
       v-model:open="previewOpen"
-      :topic="`Финал: ${game.finalRound.theme}`"
+      :topic="t('editor.page.previewFinalTopic', { theme: game.finalRound.theme })"
       :text="game.finalRound.text"
       :media="game.finalRound.media"
       :answer="game.finalRound.answer"

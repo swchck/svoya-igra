@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Crown, Home } from '@lucide/vue'
 import type { Player } from '@/types'
 import { Button } from '@/components/ui/button'
 import { confettiAt } from '@/lib/motion'
 import AnimatedNumber from './AnimatedNumber.vue'
 
+const { t } = useI18n()
 const props = defineProps<{ ranking: Player[]; showHome?: boolean }>()
 defineEmits<{ (e: 'home'): void }>()
 
@@ -27,7 +29,7 @@ onMounted(() => {
 
 <template>
   <section class="results">
-    <h1 class="title-shine heading">Итоги</h1>
+    <h1 class="title-shine heading">{{ t('play.results.title') }}</h1>
     <ol class="podium">
       <li
         v-for="(s, i) in podium"
@@ -45,7 +47,7 @@ onMounted(() => {
     <ol v-if="rest.length" class="rest" :start="4">
       <li v-for="p in rest" :key="p.id"><span>{{ p.name }}</span><span class="pts-small">{{ p.score }}</span></li>
     </ol>
-    <Button v-if="showHome" size="lg" @click="$emit('home')"><Home />На главную</Button>
+    <Button v-if="showHome" size="lg" @click="$emit('home')"><Home />{{ t('play.results.home') }}</Button>
   </section>
 </template>
 

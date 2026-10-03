@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { Crown } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 import type { Player } from '@/types'
 import { confettiAt } from '@/lib/motion'
 import AnimatedNumber from './AnimatedNumber.vue'
 
+const { t } = useI18n()
 const props = defineProps<{
   players: Player[]
   /** The player answering alone: the auction winner or the cat's recipient. */
@@ -51,7 +53,7 @@ watch(
 </script>
 
 <template>
-  <section class="podiums" aria-label="Счёт">
+  <section class="podiums" :aria-label="t('play.podiums.score')">
     <TransitionGroup name="desk">
       <div
         v-for="p in players"
@@ -61,7 +63,7 @@ watch(
         :class="{ active: p.id === activeId, leader: p.id === leaderId, shake: shaking[p.id], negative: p.score < 0 }"
         @animationend="shaking[p.id] = false"
       >
-        <Crown v-if="p.id === leaderId" class="crown" aria-label="Лидер" />
+        <Crown v-if="p.id === leaderId" class="crown" :aria-label="t('play.podiums.leader')" />
         <span class="name">{{ p.name }}</span>
         <span class="score"><AnimatedNumber :value="p.score" /></span>
         <span v-for="b in bursts[p.id]" :key="b.key" class="delta" :class="b.delta > 0 ? 'up' : 'down'">

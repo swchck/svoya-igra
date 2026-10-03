@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { MediaItem } from '@/types'
 import MediaView from '@/components/MediaView.vue'
 import FitText from './FitText.vue'
 
+const { t } = useI18n()
 const props = defineProps<{
   variant: 'question' | 'answer'
   text: string
@@ -28,7 +30,7 @@ const hasMedia = computed(() => !!props.media?.length)
       <span v-if="holder" class="holder">{{ holder }}</span>
       <span v-if="amount !== undefined" class="amount">{{ amount }}</span>
     </header>
-    <p v-if="variant === 'answer'" class="answer-label">Правильный ответ</p>
+    <p v-if="variant === 'answer'" class="answer-label">{{ t('play.card.correctAnswer') }}</p>
     <FitText
       :text="text"
       :share="hasMedia ? (variant === 'answer' ? 0.24 : 0.36) : 0.72"

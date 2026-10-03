@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, inject, onBeforeUnmount, ref, watch, watchEffect } from 'vue'
 import { Play } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 import type { MediaItem } from '../types'
 import { parseYoutubeUrl } from '../game/youtube'
 import { segmentOf } from '../media/segment'
@@ -9,6 +10,7 @@ import { MEDIA_REGISTRY, type MediaAction } from '../play/mediaControl'
 import YouTubeEmbed from './YouTubeEmbed.vue'
 import SoundCard from './SoundCard.vue'
 
+const { t } = useI18n()
 const props = defineProps<{
   item: MediaItem
   autoplay?: boolean
@@ -104,7 +106,7 @@ onBeforeUnmount(() => unregister?.())
       v-if="preview && youtube && !playerRequested"
       class="yt-facade"
       :style="{ backgroundImage: `url(https://i.ytimg.com/vi/${youtube.id}/hqdefault.jpg)` }"
-      aria-label="Загрузить плеер YouTube"
+      :aria-label="t('media.player.loadYoutube')"
       @click="playerRequested = true"
     >
       <span class="yt-facade-play"><Play class="size-6" /></span>
@@ -159,7 +161,7 @@ onBeforeUnmount(() => unregister?.())
         :blocked="blocked"
         :elapsed="elapsed"
         :length="clipLength"
-        label="Звук"
+        :label="t('media.player.audio')"
         @toggle="run(playing ? 'pause' : 'play')"
       />
     </template>
@@ -180,7 +182,7 @@ onBeforeUnmount(() => unregister?.())
       </span>
     </div>
   </template>
-  <span v-else-if="src === ''" class="missing">Файл не найден</span>
+  <span v-else-if="src === ''" class="missing">{{ t('media.player.missing') }}</span>
 </template>
 
 <style scoped>

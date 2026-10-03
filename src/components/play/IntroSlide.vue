@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const props = defineProps<{
   title: string
   subtitle?: string
@@ -26,13 +28,13 @@ const titleMs = computed(() => letters.value.length * 45 + 500)
       >{{ ch }}</span>
     </h1>
     <p v-if="subtitle" class="subtitle" :style="{ animationDelay: `${titleMs}ms` }">{{ subtitle }}</p>
-    <ul v-if="themes?.length" class="themes" aria-label="Темы раунда">
+    <ul v-if="themes?.length" class="themes" :aria-label="t('play.intro.roundThemes')">
       <li
-        v-for="(t, i) in themes"
+        v-for="(theme, i) in themes"
         :key="i"
         class="theme"
         :style="{ animationDelay: `${titleMs + i * 260}ms` }"
-      >{{ t }}</li>
+      >{{ theme }}</li>
     </ul>
     <p v-if="hint" class="hint">{{ hint }}</p>
   </section>

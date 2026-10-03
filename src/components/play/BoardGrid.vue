@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { Question, Round } from '@/types'
 
+const { t } = useI18n()
 const props = defineProps<{
   round: Round
   played: Record<string, true>
@@ -12,7 +14,7 @@ const props = defineProps<{
 }>()
 defineEmits<{ (e: 'pick', question: Question): void }>()
 
-const columns = computed(() => Math.max(1, ...props.round.themes.map((t) => t.questions.length)))
+const columns = computed(() => Math.max(1, ...props.round.themes.map((th) => th.questions.length)))
 </script>
 
 <template>
@@ -22,28 +24,28 @@ const columns = computed(() => Math.max(1, ...props.round.themes.map((t) => t.qu
       :class="{ cascade }"
       :style="{ '--cols': columns, '--rows': round.themes.length }"
     >
-      <template v-for="(t, r) in round.themes" :key="t.id">
+      <template v-for="(theme, r) in round.themes" :key="theme.id">
         <div class="theme" :style="{ '--r': r, '--c': 0 }">
-          <span>{{ t.name }}</span>
+          <span>{{ theme.name }}</span>
         </div>
         <button
-          v-for="(q, c) in t.questions"
+          v-for="(q, c) in theme.questions"
           :key="q.id"
           class="cell"
           :class="{ played: played[q.id] }"
           :style="{ '--r': r, '--c': c + 1 }"
           :data-question-id="q.id"
           :disabled="!!played[q.id]"
-          :aria-label="played[q.id] ? `${t.name}: сыгран` : `${t.name}, ${q.value}`"
+          :aria-label="played[q.id] ? t('play.board.playedAria', { theme: theme.name }) : t('play.board.cellAria', { theme: theme.name, value: q.value })"
           @click="$emit('pick', q)"
         >
           <span v-if="!played[q.id]" class="value">{{ q.value }}</span>
         </button>
         <span
-          v-for="i in columns - t.questions.length"
-          :key="`${t.id}-pad-${i}`"
+          v-for="i in columns - theme.questions.length"
+          :key="`${theme.id}-pad-${i}`"
           class="cell played"
-          :style="{ '--r': r, '--c': t.questions.length + i }"
+          :style="{ '--r': r, '--c': theme.questions.length + i }"
         />
       </template>
     </div>

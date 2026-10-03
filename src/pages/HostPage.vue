@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { Eye, Minus, Plus, SkipForward } from '@lucide/vue'
 import type { Game, MediaItem } from '@/types'
 import { Button } from '@/components/ui/button'
@@ -19,6 +20,7 @@ import HostMediaControls from '@/components/play/HostMediaControls.vue'
 
 const props = defineProps<{ id: string }>()
 const router = useRouter()
+const { t } = useI18n()
 
 const game = ref<Game | null>(null)
 const connected = ref(false)
@@ -27,20 +29,20 @@ const mirror = usePlaySession(game)
 const { state, players, round, activeQuestion, activeValue } = mirror
 const mediaStatus = ref<Record<string, MediaStatus>>({})
 
-const PHASE_LABEL: Record<Phase, string> = {
-  title: 'Заставка',
-  'round-intro': 'Начало раунда',
-  board: 'Выбор вопроса',
-  auction: 'Аукцион',
-  cat: 'Кот в мешке',
-  question: 'Вопрос',
-  answer: 'Ответ',
-  'final-intro': 'Финал',
-  'final-bets': 'Ставки финала',
-  'final-question': 'Вопрос финала',
-  'final-answer': 'Ответ финала',
-  results: 'Итоги',
-}
+const phaseLabel = computed<Record<Phase, string>>(() => ({
+  title: t('host.phase.title'),
+  'round-intro': t('host.phase.roundIntro'),
+  board: t('host.phase.board'),
+  auction: t('host.phase.auction'),
+  cat: t('host.phase.cat'),
+  question: t('host.phase.question'),
+  answer: t('host.phase.answer'),
+  'final-intro': t('host.phase.finalIntro'),
+  'final-bets': t('host.phase.finalBets'),
+  'final-question': t('host.phase.finalQuestion'),
+  'final-answer': t('host.phase.finalAnswer'),
+  results: t('host.phase.results'),
+}))
 
 const theme = computed(() => round.value?.themes.find((t) => t.questions.some((q) => q.id === state.activeQuestionId)))
 const isQuestionPhase = computed(() => ['auction', 'cat', 'question', 'answer'].includes(state.phase))
@@ -100,44 +102,44 @@ onUnmounted(() => {
 <template>
   <main v-if="game" class="host">
     <header class="top">
-      <span class="brand">Пульт</span>
+      <span class="brand">{{ t('host.brand') }}</span>
       <span class="game">{{ game.title }}</span>
       <span class="flex-1" />
-      <span v-if="connected" class="phase"><span class="dot" />{{ PHASE_LABEL[state.phase] }}</span>
-      <span v-else class="phase off">Нет связи с главным окном</span>
+      <span v-if="connected" class="phase"><span class="dot" />{{ phaseLabel[state.phase] }}</span>
+      <span v-else class="phase off">{{ t('host.offline') }}</span>
     </header>
 
     <section v-if="!connected" class="glass panel empty">
-      Откройте эту игру в главном окне, и пульт подключится сам.
+      {{ t('host.openGame') }}
     </section>
 
     <div v-else class="layout">
       <section class="glass panel main">
         <div v-if="state.phase === 'title'" class="center">
-          <p class="muted">Имена игроков вводятся на экране игры.</p>
-          <Button size="lg" class="big" @click="send('start')">Начать игру</Button>
+          <p class="muted">{{ t('host.namesHint') }}</p>
+          <Button size="lg" class="big" @click="send('start')">{{ t('host.start') }}</Button>
         </div>
 
         <div v-else-if="state.phase === 'round-intro' || state.phase === 'final-intro'" class="center">
-          <p class="title-gold text-4xl">{{ state.phase === 'final-intro' ? 'Финал' : round?.name }}</p>
-          <Button size="lg" class="big" @click="send('advance')">{{ state.phase === 'final-intro' ? 'К ставкам' : 'К табло' }}</Button>
+          <p class="title-gold text-4xl">{{ state.phase === 'final-intro' ? t('host.final') : round?.name }}</p>
+          <Button size="lg" class="big" @click="send('advance')">{{ state.phase === 'final-intro' ? t('host.toBets') : t('host.toBoard') }}</Button>
         </div>
 
         <div v-else-if="state.phase === 'board' && round" class="board-wrap">
           <BoardGrid compact :round="round" :played="state.played" @pick="(q) => send('pick', q.id)" />
-          <Button variant="ghost" class="self-center" @click="send('nextRound')">Пропустить раунд<SkipForward /></Button>
+          <Button variant="ghost" class="self-center" @click="send('nextRound')">{{ t('host.skipRound') }}<SkipForward /></Button>
         </div>
 
         <div v-else-if="activeQuestion && isQuestionPhase" class="question">
           <div class="plate">
             <span>{{ theme?.name }}</span>
-            <span v-if="activeQuestion.kind === 'auction'" class="kind">Аукцион</span>
-            <span v-else-if="activeQuestion.kind === 'cat-in-bag'" class="kind">Кот в мешке</span>
+            <span v-if="activeQuestion.kind === 'auction'" class="kind">{{ t('host.auction') }}</span>
+            <span v-else-if="activeQuestion.kind === 'cat-in-bag'" class="kind">{{ t('host.catInBag') }}</span>
             <span class="amount">{{ activeValue }}</span>
           </div>
           <p class="q-text">{{ activeQuestion.text }}</p>
           <div class="answer">
-            <span class="answer-label"><Eye class="size-4" />Ответ</span>
+            <span class="answer-label"><Eye class="size-4" />{{ t('host.answer') }}</span>
             <span class="answer-text">{{ activeQuestion.answer }}</span>
           </div>
           <HostMediaControls v-if="stageMedia.length" :items="stageMedia" :status="mediaStatus" @action="mediaAction" />
@@ -155,7 +157,7 @@ onUnmounted(() => {
             @give="(id) => send('giveCat', id)"
           />
           <Button v-else-if="state.phase === 'question'" size="lg" class="big self-center" @click="send('advance')">
-            Показать ответ на экране
+            {{ t('host.showAnswer') }}
           </Button>
           <VerdictPanel
             v-else
@@ -168,10 +170,10 @@ onUnmounted(() => {
         </div>
 
         <div v-else-if="game.finalRound && isFinalPhase" class="question">
-          <div class="plate"><span>Финал</span><span class="kind">{{ game.finalRound.theme }}</span></div>
+          <div class="plate"><span>{{ t('host.final') }}</span><span class="kind">{{ game.finalRound.theme }}</span></div>
           <p class="q-text">{{ game.finalRound.text }}</p>
           <div class="answer">
-            <span class="answer-label"><Eye class="size-4" />Ответ</span>
+            <span class="answer-label"><Eye class="size-4" />{{ t('host.answer') }}</span>
             <span class="answer-text">{{ game.finalRound.answer }}</span>
           </div>
           <HostMediaControls v-if="stageMedia.length" :items="stageMedia" :status="mediaStatus" @action="mediaAction" />
@@ -183,7 +185,7 @@ onUnmounted(() => {
             @done="send('advance')"
           />
           <Button v-else-if="state.phase === 'final-question'" size="lg" class="big self-center" @click="send('advance')">
-            Показать ответ на экране
+            {{ t('host.showAnswer') }}
           </Button>
           <FinalVerdictPanel
             v-else
@@ -196,12 +198,12 @@ onUnmounted(() => {
         </div>
 
         <div v-else-if="state.phase === 'results'" class="center">
-          <p class="title-gold text-4xl">Итоги на экране</p>
+          <p class="title-gold text-4xl">{{ t('host.resultsOnStage') }}</p>
         </div>
       </section>
 
-      <aside class="glass panel scores" aria-label="Счёт">
-        <h2 class="aside-title">Счёт</h2>
+      <aside class="glass panel scores" :aria-label="t('host.score')">
+        <h2 class="aside-title">{{ t('host.score') }}</h2>
         <TransitionGroup name="rank" tag="ol" class="rank">
           <li v-for="p in ranking" :key="p.id" :class="{ active: p.id === state.stake?.playerId }">
             <span class="who">{{ p.name }}</span>
@@ -212,7 +214,7 @@ onUnmounted(() => {
             </span>
           </li>
         </TransitionGroup>
-        <p class="hint">Кнопки меняют счёт на {{ scoreStep }}.</p>
+        <p class="hint">{{ t('host.scoreHint', { step: scoreStep }) }}</p>
       </aside>
     </div>
   </main>
