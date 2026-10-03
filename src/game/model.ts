@@ -80,3 +80,16 @@ export function moveItem<T>(list: T[], index: number, offset: -1 | 1): number {
   ;[list[index], list[target]] = [list[target], list[index]]
   return target
 }
+
+/** Moves `list[from]` so it ends up at index `to`, shifting the items in between; returns `to`. */
+export function moveItemTo<T>(list: T[], from: number, to: number): number {
+  if (from < 0 || from >= list.length || to < 0 || to >= list.length || from === to) return from
+  const [item] = list.splice(from, 1)
+  list.splice(to, 0, item)
+  return to
+}
+
+/** True when the question has something to ask and something to reveal. */
+export function isQuestionReady(q: Question): boolean {
+  return (!!q.text.trim() || !!q.media?.length) && (!!q.answer.trim() || !!q.answerMedia?.length)
+}

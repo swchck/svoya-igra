@@ -13,6 +13,7 @@ import TimeInput from '@/components/TimeInput.vue'
 import { parseYoutubeUrl } from '@/game/youtube'
 import { isStoredMedia } from '@/media/ref'
 import { putMedia } from '@/media/store'
+import { detectKind } from '@/media/kind'
 import { formatTime, segmentOf } from '@/media/segment'
 import MediaElement from '@/components/MediaElement.vue'
 
@@ -29,22 +30,6 @@ function patch(p: Partial<MediaItem>) {
 }
 
 function pick() { fileInput.value?.click() }
-
-function detectKind(input: { file?: File; url?: string }): MediaKind | undefined {
-  if (input.url && parseYoutubeUrl(input.url)) return 'youtube'
-  if (input.file) {
-    if (input.file.type.startsWith('image/')) return 'image'
-    if (input.file.type.startsWith('audio/')) return 'audio'
-    if (input.file.type.startsWith('video/')) return 'video'
-  }
-  if (input.url) {
-    const lower = input.url.toLowerCase()
-    if (/\.(png|jpe?g|gif|webp|svg)(\?|$)/.test(lower)) return 'image'
-    if (/\.(mp3|wav|ogg|m4a)(\?|$)/.test(lower)) return 'audio'
-    if (/\.(mp4|webm|mov|m4v)(\?|$)/.test(lower)) return 'video'
-  }
-  return undefined
-}
 
 function modeFor(kind: MediaKind): MediaMode | undefined {
   return kind === 'youtube' ? props.modelValue.mode ?? 'video' : undefined

@@ -14,6 +14,8 @@ const props = defineProps<{
   amount?: number
   /** Who answers alone, after an auction or a cat in the bag. */
   holder?: string
+  /** Editor preview: clips wait for a click instead of starting on their own. */
+  quiet?: boolean
 }>()
 
 const hasMedia = computed(() => !!props.media?.length)
@@ -34,7 +36,7 @@ const hasMedia = computed(() => !!props.media?.length)
       :class="variant === 'answer' ? 'answer-text' : 'question-text'"
     />
     <div v-if="hasMedia" class="media">
-      <MediaView :items="media!" autoplay />
+      <MediaView :items="media!" :autoplay="!quiet" />
     </div>
     <div class="dock"><slot /></div>
   </section>
