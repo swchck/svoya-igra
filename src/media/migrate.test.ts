@@ -30,12 +30,14 @@ describe('schema v1 → v2', () => {
       rounds: [{ id: 'r', name: 'R', themes: [{ id: 't', name: 'T', questions: [
         { id: 'q1', value: 100, kind: 'normal', text: '', answer: '', mediaUrl: dataUrl, mediaKind: 'image' },
         { id: 'q2', value: 200, kind: 'normal', text: '', answer: '', media: [{ id: 'm', url: dataUrl, kind: 'image' }] },
+        { id: 'q3', value: 300, kind: 'normal', text: '', answer: '', media: [{ id: 'b', url: 'data:image/png;base64,%%%', kind: 'image' }] },
       ] }] }],
     })
 
     const game = await getGame('g_old')
 
-    const [q1, q2] = game!.rounds[0].themes[0].questions
+    const [q1, q2, q3] = game!.rounds[0].themes[0].questions
+    expect(q3.media![0].url).toBe('data:image/png;base64,%%%')
     expect(q1.media![0].url).toMatch(/^media:\/\//)
     expect(q2.media![0].url).toBe(q1.media![0].url)
     const blob = await getMedia(q1.media![0].url)

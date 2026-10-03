@@ -58,6 +58,17 @@ function initialSnapshot(): SessionSnapshot {
   }
 }
 
+/** Reports whether a saved play-through still points at questions the game has. */
+export function fitsGame(snapshot: SessionSnapshot, game: Game): boolean {
+  const round = game.rounds[snapshot.roundIndex]
+  if (!round || !Array.isArray(snapshot.players) || snapshot.players.length === 0) return false
+  const questionIds = new Set(round.themes.flatMap((t) => t.questions.map((q) => q.id)))
+  if (snapshot.activeQuestionId !== null && !questionIds.has(snapshot.activeQuestionId)) return false
+  if (['auction', 'cat', 'question', 'answer'].includes(snapshot.phase) && snapshot.activeQuestionId === null) return false
+  if (snapshot.phase.startsWith('final') && !game.finalRound) return false
+  return !snapshot.stake || snapshot.players.some((p) => p.id === snapshot.stake!.playerId)
+}
+
 /** The most a player may stake: everything they have, but never less than the floor. */
 export function maxStake(player: Player | undefined, floor: number): number {
   return Math.max(player?.score ?? 0, floor)
@@ -93,10 +104,10 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
   }
 
   function start() {
-    state.phase = 'round-intro'
+    if (state.phase === 'title') state.phase = 'round-intro'
   }
 
-  function nextRound() {
+  function finishRound() {
     if (!game.value) return
     if (state.roundIndex < game.value.rounds.length - 1) {
       state.roundIndex += 1
@@ -106,8 +117,14 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
     }
   }
 
+  /** Skips the rest of the round on the board. */
+  function nextRound() {
+    if (state.phase === 'board') finishRound()
+  }
+
   function pick(questionId: string) {
-    if (state.played[questionId]) return
+    const inRound = round.value?.themes.some((t) => t.questions.some((q) => q.id === questionId))
+    if (state.phase !== 'board' || !inRound || state.played[questionId]) return
     state.activeQuestionId = questionId
     state.stake = null
     const kind = activeQuestion.value?.kind
@@ -117,7 +134,7 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
   /** Auction: the winner and their bid, at least the question's value. */
   function setAuctionStake(playerId: string, amount: number) {
     const q = activeQuestion.value
-    if (!q || state.phase !== 'auction' || !player(playerId)) return
+    if (!q || state.phase !== 'auction' || !player(playerId) || !Number.isFinite(amount)) return
     const bid = Math.min(Math.max(amount, q.value), maxStake(player(playerId), q.value))
     state.stake = { playerId, amount: bid }
     state.phase = 'question'
@@ -134,31 +151,32 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
   /** Closes the open question, scoring the verdict if there is one. */
   function close(verdict?: { playerId: string; sign: Sign }) {
     const q = activeQuestion.value
-    if (q) {
-      state.played[q.id] = true
-      // with a stake on the table only its holder can win or lose points
-      const allowed = verdict && (!state.stake || state.stake.playerId === verdict.playerId)
-      const target = allowed ? player(verdict.playerId) : undefined
-      if (target) target.score += verdict!.sign * activeValue.value
-    }
+    if (state.phase !== 'answer' || !q) return
+    state.played[q.id] = true
+    // with a stake on the table only its holder can win or lose points
+    const allowed = verdict && (!state.stake || state.stake.playerId === verdict.playerId)
+    const target = allowed ? player(verdict.playerId) : undefined
+    if (target && (verdict!.sign === 1 || verdict!.sign === -1)) target.score += verdict!.sign * activeValue.value
     state.activeQuestionId = null
     state.stake = null
-    if (round.value && isRoundDone(round.value, state.played)) nextRound()
+    if (round.value && isRoundDone(round.value, state.played)) finishRound()
     else state.phase = 'board'
   }
 
   function setFinalBet(playerId: string, amount: number) {
     const p = player(playerId)
-    if (!p) return
+    if (!p || state.phase !== 'final-bets' || !Number.isFinite(amount)) return
     state.finalBets[playerId] = Math.min(Math.max(0, Math.round(amount)), Math.max(p.score, 0))
   }
 
   function setFinalVerdict(playerId: string, sign: Sign) {
+    if (state.phase !== 'final-answer' || !player(playerId) || (sign !== 1 && sign !== -1)) return
     state.finalVerdicts[playerId] = sign
   }
 
   /** Applies final bets by the marked verdicts and shows the results. */
   function scoreFinal() {
+    if (state.phase !== 'final-answer') return
     for (const p of players.value) {
       const sign = state.finalVerdicts[p.id]
       if (sign) p.score += sign * (state.finalBets[p.id] ?? 0)
@@ -183,7 +201,7 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
 
   function adjustScore(playerId: string, delta: number) {
     const p = player(playerId)
-    if (p) p.score += delta
+    if (p && Number.isFinite(delta)) p.score += delta
   }
 
   function addPlayer() {

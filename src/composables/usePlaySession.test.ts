@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { reactive, ref } from 'vue'
 import type { Game, QuestionKind } from '../types'
 import { makeEmptyFinal, makeEmptyGame, makeEmptyRound } from '../game/model'
-import { usePlaySession } from './usePlaySession'
+import { fitsGame, usePlaySession } from './usePlaySession'
 
 function tinyGame(withFinal = true): Game {
   const game = makeEmptyGame()
@@ -32,6 +32,7 @@ describe('usePlaySession', () => {
     s.advance()
     s.close({ playerId: p1.id, sign: 1 })
     s.pick(q100.id)
+    s.advance()
     s.close({ playerId: p2.id, sign: -1 })
 
     expect(p1.score).toBe(200)
@@ -49,6 +50,7 @@ describe('usePlaySession', () => {
       s.advance()
       for (const q of round.themes[0].questions) {
         s.pick(q.id)
+        s.advance()
         s.close({ playerId: p1.id, sign: 1 })
       }
     }
@@ -73,7 +75,9 @@ describe('usePlaySession', () => {
   it('skips the final when there is none', () => {
     const s = usePlaySession(ref(tinyGame(false)))
     s.start()
+    s.advance()
     s.nextRound()
+    s.advance()
     s.nextRound()
     expect(s.state.phase).toBe('results')
   })
@@ -119,6 +123,7 @@ describe('usePlaySession', () => {
   it('ignores played questions and keeps at least one player', () => {
     const { s, q } = onBoard()
     s.pick(q.id)
+    s.advance()
     s.close()
     s.pick(q.id)
     expect(s.state.phase).toBe('board')
@@ -147,5 +152,37 @@ describe('usePlaySession', () => {
     expect(s.advance()).toBe(false)
     s.pick(q.id)
     expect(s.advance()).toBe(false)
+  })
+
+  it('ignores repeated and out-of-place commands', () => {
+    const { game, s, p1 } = onBoard()
+    const [q100, q200] = game.rounds[0].themes[0].questions
+
+    s.pick(game.rounds[1].themes[0].questions[0].id)
+    expect(s.state.phase).toBe('board')
+
+    s.pick(q100.id)
+    s.advance()
+    s.close({ playerId: p1.id, sign: 1 })
+    s.close({ playerId: p1.id, sign: 1 })
+    s.pick(q200.id)
+    s.advance()
+    s.close()
+    s.close()
+
+    expect(p1.score).toBe(100)
+    expect(s.state.phase).toBe('round-intro')
+    expect(s.state.roundIndex).toBe(1)
+  })
+
+  it('tells whether a saved session still fits the game', () => {
+    const { game, s, q } = onBoard()
+    s.pick(q.id)
+    const snapshot = s.snapshot()
+    expect(fitsGame(snapshot, game)).toBe(true)
+
+    game.rounds[0].themes[0].questions.splice(1)
+    expect(fitsGame(snapshot, game)).toBe(false)
+    expect(fitsGame({ ...snapshot, phase: 'board', activeQuestionId: null, roundIndex: 5 }, game)).toBe(false)
   })
 })

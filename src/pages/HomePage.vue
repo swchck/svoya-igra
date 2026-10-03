@@ -30,7 +30,6 @@ onMounted(async () => {
   if (isDesktop) version.value = await (await import('@tauri-apps/api/app')).getVersion()
 })
 
-// no editor is open while the library is on screen, so unsaved attachments can't be lost
 onMounted(() => {
   store.pruneMedia().catch(() => {})
 })

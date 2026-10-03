@@ -7,7 +7,7 @@ export type SaveStatus = 'idle' | 'pending' | 'saving' | 'saved' | 'error'
  *
  * Replacing the object (e.g. the initial load) is not an edit and does not save;
  * only mutations of the current object do. A pending save is flushed when the
- * owning component or scope is disposed. `save` must not mutate the value,
+ * owning component or scope is disposed and when the page is hidden for good. `save` must not mutate the value,
  * otherwise every save schedules the next one.
  */
 export function useAutosave<T extends object>(
@@ -48,7 +48,14 @@ export function useAutosave<T extends object>(
     { deep: true },
   )
 
+  // closing the window skips unmount; IndexedDB usually commits a write started in pagehide
+  const flushOnHide = () => {
+    if (timer !== undefined) flush()
+  }
+  window.addEventListener('pagehide', flushOnHide)
+
   onScopeDispose(() => {
+    window.removeEventListener('pagehide', flushOnHide)
     if (timer !== undefined) flush()
   })
 

@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Game } from '@/types'
-import type { SessionSnapshot } from '@/composables/usePlaySession'
+import { fitsGame, type SessionSnapshot } from '@/composables/usePlaySession'
 import { confirmAction } from '@/composables/useConfirm'
 import { getGame } from '@/storage'
 import { clearSession, loadSession } from '@/play/savedSession'
@@ -20,7 +20,12 @@ async function load() {
     router.replace({ name: 'home' })
     return
   }
-  const saved = loadSession(g.id)
+  let saved = loadSession(g.id)
+  // the game may have been edited since: a missing question or round can't be resumed
+  if (saved && !fitsGame(saved, g)) {
+    clearSession(g.id)
+    saved = null
+  }
   if (saved && saved.phase !== 'title' && saved.phase !== 'results') {
     const leader = [...saved.players].sort((a, b) => b.score - a.score)[0]
     const resume = await confirmAction({

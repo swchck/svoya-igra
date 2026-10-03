@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { toast } from 'vue-sonner'
 import { ArrowLeft, ArrowRight, FileJson, Loader2, Package, Play, Plus, Trash2 } from '@lucide/vue'
-import { useRouter } from 'vue-router'
+import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import type { Game } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -104,6 +104,19 @@ async function removeFinal() {
     game.value.finalRound = undefined
   }
 }
+
+// the dispose-time flush can't report a failure, so settle the save while the page can still say so
+onBeforeRouteLeave(async () => {
+  if (saveStatus.value === 'pending' || saveStatus.value === 'saving') await flushSave()
+  if (saveStatus.value !== 'error') return true
+  return confirmAction({
+    title: 'Изменения не сохранены',
+    description: saveError.value?.message ?? 'Последние правки не удалось записать.',
+    confirmLabel: 'Уйти без сохранения',
+    cancelLabel: 'Остаться',
+    destructive: true,
+  })
+})
 
 async function play() {
   if (!game.value) return

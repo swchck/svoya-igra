@@ -44,7 +44,7 @@ const theme = computed(() => round.value?.themes.find((t) => t.questions.some((q
 
 let channel: PlayChannel | null = null
 function send(name: HostCommand, ...args: unknown[]) {
-  channel?.post({ type: 'command', name, args })
+  channel?.post({ type: 'command', name, args, phase: state.phase })
 }
 
 function apply(snapshot: SessionSnapshot) {

@@ -49,8 +49,14 @@ pub fn from_args(args: impl IntoIterator<Item = String>, cwd: &Path) -> Vec<Path
     args.into_iter()
         .skip(1)
         .filter(|a| !a.starts_with('-'))
-        .map(|a| cwd.join(a))
+        .map(|a| file_url_path(&a).unwrap_or_else(|| cwd.join(a)))
         .collect()
+}
+
+// Linux file managers launch with %U and hand over file:// URLs instead of paths
+fn file_url_path(arg: &str) -> Option<PathBuf> {
+    let url = tauri::Url::parse(arg).ok()?;
+    (url.scheme() == "file").then(|| url.to_file_path().ok()).flatten()
 }
 
 /// Hands the queued files to the frontend and forgets them.
@@ -63,4 +69,24 @@ pub fn take_opened_files(files: tauri::State<'_, OpenedFiles>) -> Vec<String> {
         .drain(..)
         .map(|p| p.to_string_lossy().into_owned())
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn from_args_resolves_paths_and_file_urls() {
+        let cwd = Path::new("/home/me");
+        let args = ["svoya-igra", "--flag", "quiz.gamezip", "/tmp/a.json", "file:///tmp/My%20Quiz.gamezip"];
+        let paths = from_args(args.map(String::from), cwd);
+        assert_eq!(
+            paths,
+            [
+                PathBuf::from("/home/me/quiz.gamezip"),
+                PathBuf::from("/tmp/a.json"),
+                PathBuf::from("/tmp/My Quiz.gamezip"),
+            ]
+        );
+    }
 }

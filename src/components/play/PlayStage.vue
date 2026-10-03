@@ -94,7 +94,8 @@ onMounted(async () => {
   window.addEventListener('keydown', onKey)
   channel = await openPlayChannel(props.game.id, (m) => {
     if (m.type === 'hello') publish()
-    else if (m.type === 'command' && HOST_COMMANDS.includes(m.name)) {
+    // a command from a phase the stage has left is a double click or a stale screen
+    else if (m.type === 'command' && HOST_COMMANDS.includes(m.name) && m.phase === state.phase) {
       ;(session[m.name] as (...args: unknown[]) => void)(...m.args)
     }
   })

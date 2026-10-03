@@ -3,12 +3,14 @@ import { invoke, isTauri } from '@tauri-apps/api/core'
 /* Everything that differs between the desktop shell and a plain browser tab. */
 
 let youtubeBridge: string | null = null
+let mainWindow = true
 
 /** True inside the desktop app. */
 export const isDesktop = isTauri()
 
 /** Resolves platform facts that the UI reads synchronously. Call once before mounting. */
 export async function initPlatform(): Promise<void> {
+  if (isDesktop) mainWindow = (await import('@tauri-apps/api/window')).getCurrentWindow().label === 'main'
   // app pages are served from tauri:// (or tauri.localhost on Windows), which YouTube
   // rejects with error 153; the dev server is plain http and embeds directly
   if (isDesktop && !import.meta.env.DEV) {
@@ -17,6 +19,11 @@ export async function initPlatform(): Promise<void> {
     // browsers may evict IndexedDB under storage pressure unless it is marked persistent
     navigator.storage?.persist?.().catch(() => {})
   }
+}
+
+/** Reports whether this is the library window rather than a host window. */
+export function isMainWindow(): boolean {
+  return mainWindow
 }
 
 /** Returns the iframe URL for a YouTube video with the given player parameters. */

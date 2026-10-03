@@ -28,9 +28,9 @@ export function downloadUrl(d: Download): string {
   return `${RELEASES_URL}/latest/download/${d.file}`
 }
 
-/** True when the latest release actually ships this installer. */
+/** True when the latest release ships this installer, or when that can't be checked. */
 export function isAvailable(d: Download): boolean {
-  return !!latestRelease.value?.files.has(d.file)
+  return releaseUnknown.value || !!latestRelease.value?.files.has(d.file)
 }
 
 interface UADataLike {
@@ -64,18 +64,21 @@ export interface LatestRelease {
   files: Set<string>
 }
 
-/** The latest published release, null before the first one, undefined while loading. */
+/** The latest published release, null before the first one, undefined while loading or unknown. */
 export const latestRelease = ref<LatestRelease | null | undefined>(undefined)
+/** True when GitHub could not be asked (rate limit, offline): links are offered blind. */
+export const releaseUnknown = ref(false)
 
 export async function loadLatestRelease(): Promise<void> {
   try {
     const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
       headers: { Accept: 'application/vnd.github+json' },
     })
-    if (!res.ok) {
+    if (res.status === 404) {
       latestRelease.value = null
       return
     }
+    if (!res.ok) throw new Error(`GitHub API ${res.status}`)
     const data = (await res.json()) as { tag_name: string; published_at: string; assets: { name: string }[] }
     latestRelease.value = {
       version: data.tag_name.replace(/^v/, ''),
@@ -83,7 +86,7 @@ export async function loadLatestRelease(): Promise<void> {
       files: new Set(data.assets.map((a) => a.name)),
     }
   } catch {
-    // rate limit or offline: links still point at the latest release
-    latestRelease.value = null
+    // 60 anonymous requests an hour per IP run out fast behind an office NAT
+    releaseUnknown.value = true
   }
 }

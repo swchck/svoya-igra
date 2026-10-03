@@ -3,11 +3,12 @@ import { useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 import { useGamesStore } from '@/stores/games'
 import { importGameFile } from '@/io/gameFile'
-import { findUpdate, isDesktop, onOpenedFiles } from '@/platform'
+import { findUpdate, isDesktop, isMainWindow, onOpenedFiles } from '@/platform'
 
-/** Desktop-only wiring: files opened through the OS and update offers. */
+/** Desktop-only wiring of the main window: files opened through the OS and update offers. */
 export function useDesktopIntegration() {
-  if (!isDesktop) return
+  // host windows run the same app; they must not race the main one for opened files
+  if (!isDesktop || !isMainWindow()) return
   const router = useRouter()
   const store = useGamesStore()
   let stop: (() => void) | undefined

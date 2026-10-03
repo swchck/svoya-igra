@@ -8,9 +8,14 @@ export interface MediaRecord {
   blob: Blob
 }
 
+// stored this session but not yet seen in a saved game: an import or an editor
+// holds them between putMedia and its save, and pruning in that gap would eat them
+const unclaimed = new Set<string>()
+
 /** Stores the blob and returns its media:// URL. */
 export async function putMedia(blob: Blob): Promise<string> {
   const id = uid('m_')
+  unclaimed.add(id)
   await dbPut<MediaRecord>({ id, blob }, STORE_MEDIA)
   return mediaRef(id)
 }
@@ -37,10 +42,15 @@ export function displayUrl(url: string): Promise<string> {
   return cached
 }
 
-/** Deletes stored attachments that none of the given URLs refer to. */
+/**
+ * Deletes stored attachments that none of the given URLs refer to. Attachments stored
+ * by this session survive until a call sees them referenced, so a game that is still
+ * being imported or edited keeps its files; abandoned ones go on a later launch.
+ */
 export async function deleteUnreferencedMedia(referenced: Iterable<string>): Promise<number> {
   const keep = new Set([...referenced].filter(isStoredMedia).map(mediaId))
-  const orphans = (await dbGetAllKeys(STORE_MEDIA)).filter((id) => !keep.has(id))
+  for (const id of keep) unclaimed.delete(id)
+  const orphans = (await dbGetAllKeys(STORE_MEDIA)).filter((id) => !keep.has(id) && !unclaimed.has(id))
   for (const id of orphans) {
     await dbDelete(id, STORE_MEDIA)
     const url = mediaRef(id)

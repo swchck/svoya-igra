@@ -1,5 +1,5 @@
 import { isTauri } from '@tauri-apps/api/core'
-import type { SessionSnapshot } from '@/composables/usePlaySession'
+import type { Phase, SessionSnapshot } from '@/composables/usePlaySession'
 
 /** Session methods the host window may call on the stage. */
 export const HOST_COMMANDS = [
@@ -20,7 +20,8 @@ export type HostCommand = (typeof HOST_COMMANDS)[number]
 export type PlayMessage =
   | { type: 'hello' }
   | { type: 'state'; snapshot: SessionSnapshot }
-  | { type: 'command'; name: HostCommand; args: unknown[] }
+  /** `phase` is what the host saw when it sent the command. */
+  | { type: 'command'; name: HostCommand; args: unknown[]; phase: Phase }
 
 export interface PlayChannel {
   post(message: PlayMessage): void

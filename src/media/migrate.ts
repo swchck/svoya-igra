@@ -26,8 +26,15 @@ export function migrateInlineMedia(tx: IDBTransaction): void {
       if (!item.url.startsWith('data:')) continue
       let id = idByDataUrl.get(item.url)
       if (!id) {
+        let blob
+        try {
+          blob = dataUrlToBlob(item.url)
+        } catch {
+          // a throw here aborts the upgrade and locks every game out, so leave the bad one inline
+          continue
+        }
         id = uid('m_')
-        media.put({ id, blob: dataUrlToBlob(item.url) })
+        media.put({ id, blob })
         idByDataUrl.set(item.url, id)
       }
       item.url = mediaRef(id)

@@ -60,8 +60,7 @@ export async function deleteGame(id: string): Promise<void> {
 
 /**
  * Deletes attachments no saved game refers to: leftovers of deleted games and of
- * media removed in the editor. Must not run while an editor may hold a freshly
- * stored attachment its game has not been saved with yet.
+ * media removed in the editor. Safe to run while an import or an editor is busy.
  */
 export async function pruneMedia(): Promise<number> {
   const games = await loadGames()
