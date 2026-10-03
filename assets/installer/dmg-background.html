@@ -1,0 +1,66 @@
+<!doctype html>
+<!--
+  Source of src-tauri/installer/dmg-background.tiff. The light lower half is
+  deliberate: Finder draws icon labels in black there.
+
+  Render this page in Chromium at 660x400, once at 1x and once at 2x, then:
+  tiffutil -cathidpicheck bg.png bg@2x.png -out src-tauri/installer/dmg-background.tiff
+
+  Icon centres must match bundle.macOS.dmg in tauri.conf.json: app (165, 190),
+  Applications (495, 190). Finder draws the icons at 128 px.
+-->
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: Oswald; src: url(../../node_modules/@fontsource-variable/oswald/files/oswald-cyrillic-wght-normal.woff2) format('woff2'); font-weight: 200 700; unicode-range: U+0400-04FF; }
+  @font-face { font-family: Oswald; src: url(../../node_modules/@fontsource-variable/oswald/files/oswald-latin-wght-normal.woff2) format('woff2'); font-weight: 200 700; unicode-range: U+0000-00FF; }
+  @font-face { font-family: Golos; src: url(../../node_modules/@fontsource-variable/golos-text/files/golos-text-cyrillic-wght-normal.woff2) format('woff2'); font-weight: 400 900; unicode-range: U+0400-04FF; }
+  @font-face { font-family: Golos; src: url(../../node_modules/@fontsource-variable/golos-text/files/golos-text-latin-wght-normal.woff2) format('woff2'); font-weight: 400 900; unicode-range: U+0000-00FF; }
+  html, body { margin: 0; width: 660px; height: 400px; overflow: hidden; }
+  body { position: relative; font-family: Golos, sans-serif; background: linear-gradient(180deg, #f4f5ff, #e4e7ff); }
+  .grid { position: absolute; inset: 118px 0 0; display: grid; grid-template-columns: repeat(11, 1fr); gap: 8px; padding: 14px; opacity: .4; }
+  .grid span { border-radius: 8px; background: #d9ddfb; height: 44px; }
+  .pool { position: absolute; width: 230px; height: 230px; border-radius: 50%; transform: translate(-50%, -50%); background: radial-gradient(circle, #ffffff 0 40%, rgba(255,255,255,0) 70%); }
+  header { position: absolute; inset: 0 0 auto; height: 118px; overflow: hidden; text-align: center;
+    background: radial-gradient(90% 120% at 50% -30%, #4b3cf0, transparent 70%), linear-gradient(180deg, #2a2fd8, #120f73); border-bottom: 3px solid #ffc531; }
+  header::before { content: ''; position: absolute; inset: 0 0 auto; height: 8px; background: radial-gradient(circle, rgba(255,240,200,.8) 0 1.6px, transparent 2.4px) 0 0 / 22px 8px repeat-x; }
+  .beam { position: absolute; top: -60px; width: 160px; height: 240px; filter: blur(18px); opacity: .55; }
+  .beam.l { left: 40px; background: linear-gradient(180deg, #ff3d9a, transparent); transform: rotate(-18deg); }
+  .beam.r { right: 40px; background: linear-gradient(180deg, #3fe0ff, transparent); transform: rotate(18deg); }
+  h1 { position: relative; margin: 26px 0 0; font: 700 48px/1 Oswald; letter-spacing: .04em; text-transform: uppercase;
+    background: linear-gradient(180deg, #fff3b8, #ffc531 50%, #e08f00); -webkit-background-clip: text; color: transparent; filter: drop-shadow(0 3px 8px rgba(10, 8, 80, .6)); }
+  p.sub { position: relative; margin: 8px 0 0; font: 400 13px Golos; color: rgba(225, 228, 255, .8); letter-spacing: .02em; }
+  svg.arrow { position: absolute; left: 255px; top: 170px; }
+  p.hint { position: absolute; left: 0; right: 0; top: 300px; margin: 0; text-align: center; font: 500 15px Golos; color: #1d2070; }
+  p.hint b { font-weight: 700; }
+</style>
+</head>
+<body>
+  <div class="grid">
+    <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+    <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+    <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+    <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+    <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+  </div>
+  <div class="pool" style="left:165px; top:190px"></div>
+  <div class="pool" style="left:495px; top:190px"></div>
+  <header>
+    <div class="beam l"></div><div class="beam r"></div>
+    <h1>Своя игра</h1>
+    <p class="sub">Конструктор и проигрыватель</p>
+  </header>
+  <svg class="arrow" width="150" height="40" viewBox="0 0 150 40" aria-hidden="true">
+    <defs>
+      <linearGradient id="g" gradientUnits="userSpaceOnUse" x1="6" y1="20" x2="136" y2="20">
+        <stop offset="0" stop-color="#ffc531" stop-opacity=".35"/>
+        <stop offset="1" stop-color="#f29a00"/>
+      </linearGradient>
+    </defs>
+    <line x1="6" y1="20" x2="136" y2="20" stroke="url(#g)" stroke-width="7" stroke-linecap="round"/>
+    <polyline points="118,6 138,20 118,34" fill="none" stroke="#f29a00" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  <p class="hint">Перетащите значок игры в папку <b>Applications</b></p>
+</body>
+</html>

@@ -1,0 +1,47 @@
+<!doctype html>
+<!--
+  Source of the Windows installer pictures in src-tauri/installer/.
+  Render at 1x: #sidebar at 164x314 to nsis-sidebar.bmp, #header at 150x57 to
+  nsis-header.bmp. NSIS reads only BMP, so convert the screenshots with
+  `sips -s format bmp`.
+-->
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: Oswald; src: url(../../node_modules/@fontsource-variable/oswald/files/oswald-cyrillic-wght-normal.woff2) format('woff2'); font-weight: 200 700; }
+  @font-face { font-family: Golos; src: url(../../node_modules/@fontsource-variable/golos-text/files/golos-text-cyrillic-wght-normal.woff2) format('woff2'); font-weight: 400 900; }
+  body { margin: 0; display: flex; gap: 20px; align-items: flex-start; background: #fff; }
+  .gold { font-family: Oswald; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+    background: linear-gradient(180deg, #fff3b8, #ffc531 50%, #e08f00); -webkit-background-clip: text; color: transparent; }
+  #sidebar { position: relative; width: 164px; height: 314px; overflow: hidden;
+    background: radial-gradient(120% 60% at 50% 0%, #4b3cf0, transparent 70%), linear-gradient(180deg, #2a2fd8, #0e0b5c); }
+  #sidebar::before { content: ''; position: absolute; inset: 0 0 auto; height: 8px; background: radial-gradient(circle, rgba(255,240,200,.8) 0 1.5px, transparent 2.3px) 0 0 / 18px 8px repeat-x; }
+  .beam { position: absolute; top: -40px; width: 70px; height: 260px; filter: blur(14px); opacity: .5; }
+  .beam.l { left: -10px; background: linear-gradient(180deg, #ff3d9a, transparent); transform: rotate(-14deg); }
+  .beam.r { right: -10px; background: linear-gradient(180deg, #3fe0ff, transparent); transform: rotate(14deg); }
+  .board { position: absolute; left: 22px; top: 54px; display: grid; grid-template-columns: repeat(3, 34px); gap: 6px; }
+  .board span { height: 34px; border-radius: 7px; border: 1.5px solid rgba(255, 197, 49, .55); background: linear-gradient(180deg, #3a3ff0, #1a17a0); }
+  .board span.on { background: linear-gradient(180deg, #ffe08a, #ffc531); border-color: #ffc531; box-shadow: 0 0 14px rgba(255, 197, 49, .8); }
+  .title { position: absolute; left: 0; right: 0; top: 200px; text-align: center; font-size: 30px; line-height: 1; }
+  .sub { position: absolute; left: 0; right: 0; top: 240px; text-align: center; font: 400 11px Golos; color: rgba(225, 228, 255, .8); }
+  #header { width: 150px; height: 57px; display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding-right: 8px; box-sizing: border-box; background: #fff; }
+  .mini { display: grid; grid-template-columns: repeat(3, 10px); gap: 2px; padding: 5px; border-radius: 8px; background: linear-gradient(180deg, #3b36f2, #120f73); }
+  .mini span { height: 10px; border-radius: 2px; border: 1px solid rgba(255, 197, 49, .6); }
+  .mini span.on { background: #ffc531; }
+  .htitle { white-space: nowrap; font-family: Oswald; font-weight: 700; font-size: 15px; letter-spacing: .04em; text-transform: uppercase; color: #1d2070; }
+</style>
+</head>
+<body>
+  <div id="sidebar">
+    <div class="beam l"></div><div class="beam r"></div>
+    <div class="board"><span></span><span></span><span></span><span></span><span class="on"></span><span></span><span></span><span></span><span></span></div>
+    <div class="title gold">Своя игра</div>
+    <div class="sub">Конструктор и проигрыватель</div>
+  </div>
+  <div id="header">
+    <span class="htitle">Своя игра</span>
+    <div class="mini"><span></span><span></span><span></span><span></span><span class="on"></span><span></span><span></span><span></span><span></span></div>
+  </div>
+</body>
+</html>

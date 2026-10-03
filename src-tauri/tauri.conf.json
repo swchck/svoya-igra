@@ -58,7 +58,22 @@
     "copyright": "© 2026",
     "macOS": {
       "signingIdentity": "-",
-      "minimumSystemVersion": "11.0"
+      "minimumSystemVersion": "11.0",
+      "dmg": {
+        "background": "installer/dmg-background.tiff",
+        "windowSize": {
+          "width": 660,
+          "height": 400
+        },
+        "appPosition": {
+          "x": 165,
+          "y": 190
+        },
+        "applicationFolderPosition": {
+          "x": 495,
+          "y": 190
+        }
+      }
     },
     "windows": {
       "nsis": {
@@ -66,7 +81,10 @@
           "Russian"
         ],
         "displayLanguageSelector": false,
-        "installMode": "currentUser"
+        "installMode": "currentUser",
+        "headerImage": "installer/nsis-header.bmp",
+        "sidebarImage": "installer/nsis-sidebar.bmp",
+        "installerIcon": "icons/icon.ico"
       }
     },
     "createUpdaterArtifacts": false,
