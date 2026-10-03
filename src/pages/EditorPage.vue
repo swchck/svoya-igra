@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGamesStore } from '../stores/games'
 import { getGame, makeEmptyQuestion, makeEmptyRound, makeEmptyTheme, uid } from '../storage'
@@ -7,6 +7,7 @@ import type { Game, Question, Round, Theme } from '../types'
 import MediaList from '../components/MediaList.vue'
 import { exportGameZip } from '../archive'
 import { exportGameJson } from '../storage'
+import { useAutosave } from '../composables/useAutosave'
 
 function fileSlug(t: string): string {
   const s = (t || 'svoya-igra').trim().toLowerCase().replace(/[^a-zа-яё0-9-]+/gi, '-').replace(/^-+|-+$/g, '')
@@ -45,16 +46,20 @@ const selectedQuestion = computed<Question | null>(() => {
   return t?.questions[selected.value.qIdx] ?? null
 })
 
-let saveTimer: number | undefined
-watch(
-  game,
-  (g) => {
-    if (!g) return
-    if (saveTimer) clearTimeout(saveTimer)
-    saveTimer = window.setTimeout(() => store.save(g), 250)
-  },
-  { deep: true },
-)
+const { status: saveStatus, error: saveError, flush: flushSave } = useAutosave(game, (g) => store.save(g))
+const saveLabel = computed(() => {
+  switch (saveStatus.value) {
+    case 'pending':
+    case 'saving':
+      return 'Сохранение…'
+    case 'saved':
+      return 'Сохранено'
+    case 'error':
+      return 'Не сохранено'
+    default:
+      return ''
+  }
+})
 
 function addRound() {
   if (!game.value) return
@@ -102,9 +107,10 @@ function back() {
   router.push({ name: 'home' })
 }
 
-function play() {
+async function play() {
   if (!game.value) return
-  store.save(game.value)
+  await flushSave()
+  if (saveStatus.value === 'error') return
   router.push({ name: 'play', params: { id: game.value.id } })
 }
 
@@ -125,7 +131,6 @@ async function saveGamezip() {
   if (!game.value || exporting.value) return
   exporting.value = true
   try {
-    store.save(game.value) // ensure freshest copy persisted
     const blob = await exportGameZip(game.value)
     trigger(blob, `${fileSlug(game.value.title)}.gamezip`)
   } catch (err) {
@@ -136,7 +141,6 @@ async function saveGamezip() {
 }
 function saveJson() {
   if (!game.value) return
-  store.save(game.value)
   const blob = new Blob([exportGameJson(game.value)], { type: 'application/json' })
   trigger(blob, `${fileSlug(game.value.title)}.json`)
 }
@@ -149,8 +153,14 @@ function saveJson() {
       <button class="si-button ghost" @click="back">← К списку</button>
       <input v-model="game.title" class="si-input title-input" placeholder="Название игры" />
       <div class="si-spacer" />
-      <button class="si-button" @click="saveJson" title="Сохранить как .json">JSON</button>
-      <button class="si-button" :disabled="exporting" @click="saveGamezip" title="Сохранить как .gamezip">
+      <span
+        class="save-status"
+        :class="saveStatus"
+        :title="saveError?.message"
+        role="status"
+      >{{ saveLabel }}</span>
+      <button class="si-button" title="Сохранить как .json" @click="saveJson">JSON</button>
+      <button class="si-button" :disabled="exporting" title="Сохранить как .gamezip" @click="saveGamezip">
         {{ exporting ? '⏳ Упаковка…' : '📦 .gamezip' }}
       </button>
       <button class="si-button primary" @click="play">▶ Играть</button>
@@ -208,8 +218,8 @@ function saveJson() {
                   auction: q.kind === 'auction',
                   bag: q.kind === 'cat-in-bag',
                 }"
-                @click="selectQuestion(tIdx, qIdx)"
                 :title="q.text || 'Пустой вопрос'"
+                @click="selectQuestion(tIdx, qIdx)"
               >
                 {{ q.value }}
               </button>
@@ -263,8 +273,8 @@ function saveJson() {
           </div>
 
           <MediaList
-            label="Медиа к вопросу (можно несколько)"
             v-model="selectedQuestion.media"
+            label="Медиа к вопросу (можно несколько)"
           />
 
           <div>
@@ -273,8 +283,8 @@ function saveJson() {
           </div>
 
           <MediaList
-            label="Медиа к ответу (можно несколько)"
             v-model="selectedQuestion.answerMedia"
+            label="Медиа к ответу (можно несколько)"
           />
 
           <div class="si-row">
@@ -310,7 +320,7 @@ function saveJson() {
           <label class="si-label">Вопрос</label>
           <textarea v-model="game.finalRound.text" class="si-textarea" placeholder="Финальный вопрос..." />
         </div>
-        <MediaList label="Медиа к финалу (можно несколько)" v-model="game.finalRound.media" />
+        <MediaList v-model="game.finalRound.media" label="Медиа к финалу (можно несколько)" />
         <div>
           <label class="si-label">Ответ</label>
           <textarea v-model="game.finalRound.answer" class="si-textarea" placeholder="Ответ..." />
@@ -322,6 +332,8 @@ function saveJson() {
 </template>
 
 <style scoped>
+.save-status { color: var(--si-mute); font-size: 14px; font-style: italic; }
+.save-status.error { color: #ff8a8a; font-style: normal; font-weight: 700; }
 .editor-head {
   display: flex;
   gap: 12px;

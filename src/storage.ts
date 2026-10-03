@@ -1,4 +1,4 @@
-import type { FinalQuestion, Game, MediaItem, MediaKind, Question, Round, Theme } from './types'
+import type { Game, MediaItem, MediaKind, Question, Round, Theme } from './types'
 import { dbDelete, dbGet, dbGetAll, dbPut } from './db'
 
 const LEGACY_KEY = 'svoya-igra:games:v1'
@@ -81,9 +81,19 @@ export async function getGame(id: string): Promise<Game | undefined> {
   return g ? migrateGame(g) : undefined
 }
 
-export async function upsertGame(game: Game): Promise<void> {
-  game.updatedAt = Date.now()
-  await dbPut(game)
+/** Plain deep copy: IndexedDB can't structured-clone Vue proxies (DataCloneError). */
+function toPlain<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T
+}
+
+/**
+ * Persists a snapshot of the game and returns it. The argument is left untouched,
+ * so saving a reactive game never re-triggers watchers on it.
+ */
+export async function upsertGame(game: Game): Promise<Game> {
+  const snapshot = { ...toPlain(game), updatedAt: Date.now() }
+  await dbPut(snapshot)
+  return snapshot
 }
 
 export async function deleteGame(id: string): Promise<void> {

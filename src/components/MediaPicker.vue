@@ -1,26 +1,19 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import type { MediaItem, MediaKind, MediaMode } from '../types'
 import YouTubeEmbed from './YouTubeEmbed.vue'
 
-type Kind = 'image' | 'audio' | 'video' | 'youtube'
-type Mode = 'video' | 'audio'
+const props = defineProps<{ modelValue: MediaItem }>()
 
-const props = defineProps<{
-  label?: string
-  url?: string
-  kind?: Kind
-  mode?: Mode
-  duration?: number
-}>()
-
-const emit = defineEmits<{
-  (e: 'update:url', v: string | undefined): void
-  (e: 'update:kind', v: Kind | undefined): void
-  (e: 'update:mode', v: Mode | undefined): void
-  (e: 'update:duration', v: number | undefined): void
-}>()
+// one event per user action: separate url/kind/mode events would each be merged
+// into the same stale props snapshot and overwrite one another
+const emit = defineEmits<{ (e: 'update:modelValue', v: MediaItem): void }>()
 
 const fileInput = ref<HTMLInputElement | null>(null)
+
+function patch(p: Partial<MediaItem>) {
+  emit('update:modelValue', { ...props.modelValue, ...p })
+}
 
 function pick() { fileInput.value?.click() }
 
@@ -28,7 +21,7 @@ function isYoutubeUrl(u: string): boolean {
   return /(?:^|\.)youtube\.com|youtu\.be/.test(u)
 }
 
-function detectKind(input: { file?: File; url?: string }): Kind | undefined {
+function detectKind(input: { file?: File; url?: string }): MediaKind | undefined {
   if (input.url && isYoutubeUrl(input.url)) return 'youtube'
   if (input.file) {
     if (input.file.type.startsWith('image/')) return 'image'
@@ -44,77 +37,74 @@ function detectKind(input: { file?: File; url?: string }): Kind | undefined {
   return undefined
 }
 
+function modeFor(kind: MediaKind): MediaMode | undefined {
+  return kind === 'youtube' ? props.modelValue.mode ?? 'video' : undefined
+}
+
+function readAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(file)
+  })
+}
+
 async function onFile(e: Event) {
   const input = e.target as HTMLInputElement
   const file = input.files?.[0]
+  input.value = ''
   if (!file) return
   const kind = detectKind({ file })
   if (!kind) {
     alert('Поддерживаются изображения, аудио и видео.')
-    input.value = ''
     return
   }
-  const reader = new FileReader()
-  reader.onload = () => {
-    emit('update:url', reader.result as string)
-    emit('update:kind', kind)
-    emit('update:mode', undefined)
-  }
-  reader.readAsDataURL(file)
-  input.value = ''
+  patch({ url: await readAsDataUrl(file), kind, mode: undefined })
 }
 
-function setUrl(v: string) {
-  if (!v) {
-    emit('update:url', undefined)
-    emit('update:kind', undefined)
-    emit('update:mode', undefined)
-    return
-  }
-  emit('update:url', v)
-  const kind = detectKind({ url: v })
-  if (kind) emit('update:kind', kind)
-  if (kind === 'youtube' && !props.mode) emit('update:mode', 'video')
+function setUrl(url: string) {
+  const kind = detectKind({ url }) ?? props.modelValue.kind
+  patch({ url, kind, mode: modeFor(kind) })
 }
 
-function setKind(v: Kind | '') {
-  emit('update:kind', (v || undefined) as Kind | undefined)
-  if (v !== 'youtube') emit('update:mode', undefined)
-  else if (!props.mode) emit('update:mode', 'video')
+function setKind(v: MediaKind | '') {
+  const kind = v || detectKind({ url: props.modelValue.url }) || 'image'
+  patch({ kind, mode: modeFor(kind) })
 }
 
-function setMode(v: Mode) { emit('update:mode', v) }
+function setMode(mode: MediaMode) { patch({ mode }) }
 
 function clear() {
-  emit('update:url', undefined)
-  emit('update:kind', undefined)
-  emit('update:mode', undefined)
-  emit('update:duration', undefined)
+  patch({ url: '', mode: undefined, duration: undefined })
 }
 
 function setDuration(v: string) {
   const n = parseInt(v, 10)
-  emit('update:duration', isFinite(n) && n > 0 ? n : undefined)
+  patch({ duration: isFinite(n) && n > 0 ? n : undefined })
 }
 
-const isYoutube = computed(() => props.kind === 'youtube' || (props.url ? isYoutubeUrl(props.url) : false))
+const url = computed(() => props.modelValue.url)
+const kind = computed(() => props.modelValue.kind)
+const mode = computed(() => props.modelValue.mode)
+const duration = computed(() => props.modelValue.duration)
+const isYoutube = computed(() => kind.value === 'youtube' || isYoutubeUrl(url.value))
 </script>
 
 <template>
   <div class="media-picker">
-    <label class="si-label">{{ label || 'Медиа' }}</label>
     <div class="si-row">
       <input
         class="si-input"
         :value="url"
-        @input="setUrl(($event.target as HTMLInputElement).value)"
         placeholder="URL картинки / аудио / видео / YouTube"
+        @input="setUrl(($event.target as HTMLInputElement).value)"
       />
       <select
         class="si-select"
         style="max-width:160px"
         :value="kind || ''"
-        @change="setKind(($event.target as HTMLSelectElement).value as Kind | '')"
+        @change="setKind(($event.target as HTMLSelectElement).value as MediaKind | '')"
       >
         <option value="">авто</option>
         <option value="image">картинка</option>
@@ -162,8 +152,8 @@ const isYoutube = computed(() => props.kind === 'youtube' || (props.url ? isYout
         step="1"
         class="si-input duration-input"
         :value="duration ?? ''"
-        @input="setDuration(($event.target as HTMLInputElement).value)"
         placeholder="до конца"
+        @input="setDuration(($event.target as HTMLInputElement).value)"
       />
       <span class="muted">сек (0 / пусто = играть до конца)</span>
     </div>

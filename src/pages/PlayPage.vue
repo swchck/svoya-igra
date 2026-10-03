@@ -202,7 +202,7 @@ function maxQuestions(round: { themes: { questions: unknown[] }[] }): number {
         <div class="players-setup">
           <div v-for="p in players" :key="p.id" class="si-row">
             <input v-model="p.name" class="si-input" />
-            <button class="si-button danger ghost" @click="removePlayer(p)" :disabled="players.length<=1">×</button>
+            <button class="si-button danger ghost" :disabled="players.length<=1" @click="removePlayer(p)">×</button>
           </div>
           <button class="si-button" @click="addPlayer">+ Игрок</button>
         </div>

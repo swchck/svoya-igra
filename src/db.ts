@@ -22,6 +22,7 @@ function openDb(): Promise<IDBDatabase> {
     req.onsuccess = () => resolve(req.result)
     req.onerror = () => reject(req.error || new Error('IndexedDB open error'))
   })
+  dbPromise.catch(() => { dbPromise = null })
   return dbPromise
 }
 
@@ -30,10 +31,11 @@ function tx<T>(mode: IDBTransactionMode, run: (s: IDBObjectStore) => IDBRequest<
     (db) =>
       new Promise<T>((resolve, reject) => {
         const t = db.transaction(STORE_GAMES, mode)
-        const store = t.objectStore(STORE_GAMES)
-        const req = run(store)
-        req.onsuccess = () => resolve(req.result)
-        req.onerror = () => reject(req.error)
+        const req = run(t.objectStore(STORE_GAMES))
+        // QuotaExceededError arrives as a transaction abort while the request itself
+        // already reported success, so only a committed transaction counts
+        t.oncomplete = () => resolve(req.result)
+        t.onabort = () => reject(t.error ?? req.error ?? new Error('IndexedDB transaction aborted'))
       }),
   )
 }

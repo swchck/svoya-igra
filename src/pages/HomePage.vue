@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGamesStore } from '../stores/games'
 import { exportGameJson, importGameJson, makeEmptyGame } from '../storage'
@@ -11,14 +11,14 @@ const store = useGamesStore()
 
 const fileInput = ref<HTMLInputElement | null>(null)
 
-const sortedGames = computed(() =>
-  [...store.games].sort((a, b) => b.updatedAt - a.updatedAt),
-)
 
-function createNew() {
-  const g = makeEmptyGame('Своя Игра')
-  store.save(g)
-  router.push({ name: 'editor', params: { id: g.id } })
+async function createNew() {
+  try {
+    const g = await store.save(makeEmptyGame('Своя Игра'))
+    router.push({ name: 'editor', params: { id: g.id } })
+  } catch (err) {
+    alert('Не удалось создать игру: ' + (err as Error).message)
+  }
 }
 
 function play(id: string) {
@@ -29,9 +29,13 @@ function edit(id: string) {
   router.push({ name: 'editor', params: { id } })
 }
 
-function remove(g: Game) {
+async function remove(g: Game) {
   if (!confirm(`Удалить игру "${g.title}"?`)) return
-  store.remove(g.id)
+  try {
+    await store.remove(g.id)
+  } catch (err) {
+    alert('Не удалось удалить игру: ' + (err as Error).message)
+  }
 }
 
 function downloadJson(g: Game) {
@@ -73,10 +77,10 @@ async function loadSample() {
     // Динамический import — образец и его картинки попадают в бандл (или inline-бандл портативной сборки).
     const mod = await import('../samples/sample1996')
     const game = importGameJson(JSON.stringify(mod.getSampleGame()))
-    for (const g of store.games) {
-      if (g.title === game.title) store.remove(g.id)
+    for (const g of store.games.filter((g) => g.title === game.title)) {
+      await store.remove(g.id)
     }
-    store.save(game)
+    await store.save(game)
     alert('Образец игры загружен (предыдущая копия заменена)')
   } catch (err) {
     alert('Не удалось загрузить пример: ' + (err as Error).message)
@@ -96,7 +100,7 @@ async function onFile(e: Event) {
       const text = await file.text()
       game = importGameJson(text)
     }
-    store.save(game)
+    await store.save(game)
     alert('Игра импортирована')
   } catch (err) {
     alert('Не удалось импортировать: ' + (err as Error).message)
@@ -130,12 +134,16 @@ function fmtDate(ts: number) {
       />
     </section>
 
-    <section v-if="sortedGames.length === 0" class="empty">
+    <section v-if="store.loadError" class="empty error">
+      <p>Не удалось открыть библиотеку игр: {{ store.loadError.message }}</p>
+    </section>
+
+    <section v-else-if="store.games.length === 0" class="empty">
       <p>Игр пока нет. Создайте первую — нажмите «Новая игра».</p>
     </section>
 
     <section v-else class="game-list">
-      <article v-for="g in sortedGames" :key="g.id" class="si-card game-row">
+      <article v-for="g in store.games" :key="g.id" class="si-card game-row">
         <div class="game-info">
           <h3 class="game-title">{{ g.title || 'Без названия' }}</h3>
           <p class="game-meta">
@@ -183,6 +191,7 @@ function fmtDate(ts: number) {
   color: var(--si-mute);
   padding: 40px;
 }
+.empty.error { color: #ff8a8a; }
 .game-list {
   display: flex;
   flex-direction: column;

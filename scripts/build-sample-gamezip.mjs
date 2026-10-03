@@ -1,8 +1,8 @@
 // Собирает sample-1996.gamezip: пакует JSON + все картинки в один архив
 // формата .gamezip (см. src/archive.ts).
-import { readFile, writeFile, readdir } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
-import { dirname, join, extname } from 'node:path'
+import { dirname, join } from 'node:path'
 import { zipSync, strToU8 } from 'fflate'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { MediaItem } from '../types'
 import { uid } from '../storage'
 import MediaPicker from './MediaPicker.vue'
@@ -12,71 +13,49 @@ const emit = defineEmits<{
   (e: 'update:modelValue', v: MediaItem[] | undefined): void
 }>()
 
-function items(): MediaItem[] {
-  return props.modelValue ? [...props.modelValue] : []
-}
+const items = computed(() => props.modelValue ?? [])
 
 function commit(list: MediaItem[]) {
   emit('update:modelValue', list.length ? list : undefined)
 }
 
 function add() {
-  const list = items()
-  list.push({ id: uid('mi_'), url: '', kind: 'image' })
-  commit(list)
+  commit([...items.value, { id: uid('mi_'), url: '', kind: 'image' }])
 }
 
 function remove(i: number) {
-  const list = items()
-  list.splice(i, 1)
-  commit(list)
+  commit(items.value.filter((_, j) => j !== i))
 }
 
 function move(i: number, dir: -1 | 1) {
-  const list = items()
   const j = i + dir
-  if (j < 0 || j >= list.length) return
-  const [it] = list.splice(i, 1)
-  list.splice(j, 0, it)
+  if (j < 0 || j >= items.value.length) return
+  const list = [...items.value]
+  ;[list[i], list[j]] = [list[j], list[i]]
   commit(list)
 }
 
-function update(i: number, patch: Partial<MediaItem>) {
-  const list = items()
-  list[i] = { ...list[i], ...patch }
-  // Drop empty entries
-  if (!list[i].url) {
-    // Allow blank picker but keep entry
-  }
-  commit(list)
+function replace(i: number, item: MediaItem) {
+  commit(items.value.map((it, j) => (j === i ? item : it)))
 }
 </script>
 
 <template>
   <div class="media-list">
     <label v-if="label" class="si-label">{{ label }}</label>
-    <div v-if="!items().length" class="empty">
+    <div v-if="!items.length" class="empty">
       <button class="si-button" @click="add">+ Добавить медиа</button>
     </div>
     <template v-else>
-      <article v-for="(it, i) in items()" :key="it.id" class="m-item">
+      <article v-for="(it, i) in items" :key="it.id" class="m-item">
         <header class="m-head">
           <span class="m-num">#{{ i + 1 }}</span>
-          <button class="si-button ghost" :disabled="i === 0" @click="move(i, -1)" title="Вверх">↑</button>
-          <button class="si-button ghost" :disabled="i === items().length - 1" @click="move(i, 1)" title="Вниз">↓</button>
+          <button class="si-button ghost" :disabled="i === 0" title="Вверх" @click="move(i, -1)">↑</button>
+          <button class="si-button ghost" :disabled="i === items.length - 1" title="Вниз" @click="move(i, 1)">↓</button>
           <span class="si-spacer" />
-          <button class="si-button danger ghost" @click="remove(i)" title="Удалить">×</button>
+          <button class="si-button danger ghost" title="Удалить" @click="remove(i)">×</button>
         </header>
-        <MediaPicker
-          :url="it.url"
-          :kind="it.kind"
-          :mode="it.mode"
-          :duration="it.duration"
-          @update:url="(v) => update(i, { url: v ?? '' })"
-          @update:kind="(v) => update(i, { kind: v as any })"
-          @update:mode="(v) => update(i, { mode: v as any })"
-          @update:duration="(v) => update(i, { duration: v })"
-        />
+        <MediaPicker :model-value="it" @update:model-value="(v) => replace(i, v)" />
       </article>
       <button class="si-button" @click="add">+ Ещё медиа</button>
     </template>
