@@ -2,8 +2,9 @@ import { isTauri } from '@tauri-apps/api/core'
 import { t } from '@/i18n'
 import type { Phase, SessionSnapshot } from '@/composables/usePlaySession'
 import type { MediaAction, MediaStatus } from './mediaControl'
+import type { LanStatus } from './lan'
 
-/** Session methods the host window may call on the stage. */
+/** Session methods the host window may call on the stage, plus the phone buzzers' reopen. */
 export const HOST_COMMANDS = [
   'start',
   'pick',
@@ -20,6 +21,7 @@ export const HOST_COMMANDS = [
   'timerStart',
   'timerPause',
   'timerReset',
+  'buzzReopen',
 ] as const
 export type HostCommand = (typeof HOST_COMMANDS)[number]
 
@@ -32,6 +34,8 @@ export type PlayMessage =
   | { type: 'command'; name: HostCommand; args: unknown[]; phase: Phase }
   | { type: 'media'; status: Record<string, MediaStatus> }
   | { type: 'media-command'; id: string; action: MediaAction }
+  /** The phone buzzers' room; null while they are off. */
+  | { type: 'lan'; status: LanStatus | null }
 
 export const HOST_PING_MS = 2000
 

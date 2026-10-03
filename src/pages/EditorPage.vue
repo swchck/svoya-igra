@@ -3,7 +3,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import {
   ArrowLeft, ArrowRight, CircleAlert, CircleCheck, Download, FileJson, History, Loader2, MoreHorizontal, Package, Play, Plus, Printer,
-  Trash2, TriangleAlert, Trophy,
+  Trash2, TriangleAlert, Trophy, Wifi,
 } from '@lucide/vue'
 import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -24,6 +24,8 @@ import type { Issue } from '@/game/validate'
 import type { Snapshot } from '@/history'
 import { plainCopy } from '@/lib/plain'
 import { exportGameFile, type GameFileFormat } from '@/io/gameFile'
+import { isDesktop } from '@/platform'
+import ShareGameDialog from '@/components/lan/ShareGameDialog.vue'
 import { useAutosave } from '@/composables/useAutosave'
 import { useGameIssues } from '@/composables/useGameIssues'
 import { useHistory } from '@/composables/useHistory'
@@ -238,6 +240,7 @@ async function restore(snap: Snapshot) {
   }
 }
 
+const shareOpen = ref(false)
 const exporting = ref(false)
 async function exportAs(format: GameFileFormat) {
   if (!game.value || exporting.value) return
@@ -284,6 +287,7 @@ async function exportAs(format: GameFileFormat) {
         <DropdownMenuContent align="end" class="min-w-52">
           <DropdownMenuItem @select="exportAs('gamezip')"><Package />{{ t('editor.page.exportGamezip') }}</DropdownMenuItem>
           <DropdownMenuItem @select="exportAs('json')"><FileJson />{{ t('editor.page.exportJson') }}</DropdownMenuItem>
+          <DropdownMenuItem v-if="isDesktop" @select="shareOpen = true"><Wifi />{{ t('lan.share.menu') }}</DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem @select="router.push({ name: 'print', params: { id: game.id } })"><Printer />{{ t('editor.page.cheatSheet') }}</DropdownMenuItem>
         </DropdownMenuContent>
@@ -346,6 +350,7 @@ async function exportAs(format: GameFileFormat) {
 
     <HistoryDialog v-model:open="historyOpen" :game-id="game.id" @restore="restore" />
     <IssuesDialog v-model:open="issuesOpen" :issues="issues" @goto="goToIssue" />
+    <ShareGameDialog v-if="isDesktop" v-model:open="shareOpen" :game="game" />
 
     <StagePreview
       v-if="current && tab !== 'final'"

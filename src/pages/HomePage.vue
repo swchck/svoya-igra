@@ -3,7 +3,7 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
-import { Download, FileJson, MoreHorizontal, Package, Pencil, Play, Plus, Sparkles, Trash2, Upload } from '@lucide/vue'
+import { Download, FileJson, MoreHorizontal, Package, Pencil, Play, Plus, Sparkles, Trash2, Upload, Wifi } from '@lucide/vue'
 import type { Game } from '@/types'
 import { Button } from '@/components/ui/button'
 import {
@@ -22,6 +22,7 @@ import StageBackdrop from '@/components/play/StageBackdrop.vue'
 import MiniBoard from '@/components/MiniBoard.vue'
 import LocaleSwitch from '@/components/LocaleSwitch.vue'
 import { currentLocale } from '@/i18n'
+import ShareGameDialog from '@/components/lan/ShareGameDialog.vue'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -31,6 +32,13 @@ const busy = ref(false)
 // the titles in assets/sample/content.mjs plus the pre-translation sample, so older copies get replaced
 const SAMPLE_TITLES = ['Пример: всего понемногу', 'Sample: a bit of everything', 'Primer: od svega po malo', 'Своя игра — 1996 и не только']
 const version = ref('')
+const sharing = ref<Game | null>(null)
+const shareOpen = ref(false)
+
+function shareOverWifi(g: Game) {
+  sharing.value = g
+  shareOpen.value = true
+}
 
 onMounted(async () => {
   if (isDesktop) version.value = await (await import('@tauri-apps/api/app')).getVersion()
@@ -189,6 +197,7 @@ function fmtDate(ts: number) {
             <DropdownMenuContent align="end" class="min-w-52">
               <DropdownMenuItem @select="exportAs(g, 'gamezip')"><Package />{{ t('home.card.exportGamezip') }}</DropdownMenuItem>
               <DropdownMenuItem @select="exportAs(g, 'json')"><FileJson />{{ t('home.card.exportJson') }}</DropdownMenuItem>
+              <DropdownMenuItem v-if="isDesktop" @select="shareOverWifi(g)"><Wifi />{{ t('lan.share.menu') }}</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive" @select="remove(g)"><Trash2 />{{ t('home.card.delete') }}</DropdownMenuItem>
             </DropdownMenuContent>
@@ -201,6 +210,7 @@ function fmtDate(ts: number) {
       <Download class="size-4" />{{ t('home.footnote') }}
     </p>
     <p v-if="version" class="version">{{ t('home.version', { version }) }}</p>
+    <ShareGameDialog v-if="isDesktop" v-model:open="shareOpen" :game="sharing" />
   </main>
 </template>
 

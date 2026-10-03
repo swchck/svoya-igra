@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Plus, X } from '@lucide/vue'
+import { Plus, Smartphone, X } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
 import type { Player } from '@/types'
 import { PLAYER_AVATARS, PLAYER_COLORS, playerColor } from '@/play/palette'
@@ -13,6 +13,10 @@ import IconButton from '@/components/IconButton.vue'
 const { t } = useI18n()
 const players = defineModel<Player[]>({ required: true })
 const teams = defineModel<boolean>('teams', { default: false })
+defineProps<{
+  /** Phones online per player id, while phone buzzers are on. */
+  phones?: Record<string, number>
+}>()
 defineEmits<{ (e: 'add'): void; (e: 'remove', player: Player): void }>()
 
 function setMode(value: unknown) {
@@ -78,6 +82,7 @@ function setMode(value: unknown) {
         </PopoverContent>
       </Popover>
       <Input v-model="p.name" :aria-label="teams ? t('play.setup.teamNameLabel') : t('play.setup.nameLabel')" />
+      <Smartphone v-if="phones?.[p.id]" class="size-4 shrink-0 text-cyan" :aria-label="t('lan.phoneConnected')" />
       <IconButton :label="teams ? t('play.setup.removeTeam') : t('play.setup.remove')" :disabled="players.length <= 1" @click="$emit('remove', p)"><X /></IconButton>
     </div>
     <Button variant="outline" class="self-start" @click="$emit('add')"><Plus />{{ teams ? t('play.setup.addTeam') : t('play.setup.add') }}</Button>

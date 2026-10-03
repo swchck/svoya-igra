@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
-import { Crown } from '@lucide/vue'
+import { Crown, Smartphone } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
 import type { Player } from '@/types'
 import { confettiAt } from '@/lib/motion'
@@ -12,6 +12,10 @@ const props = defineProps<{
   players: Player[]
   /** The player answering alone: the auction winner or the cat's recipient. */
   activeId?: string
+  /** Phones online per player id, while phone buzzers are on. */
+  phones?: Record<string, number>
+  /** Who pressed their phone's button first. */
+  buzzedId?: string
 }>()
 
 const leaderId = computed(() => {
@@ -62,11 +66,14 @@ watch(
         :ref="(el) => el && (desks[p.id] = el as HTMLElement)"
         class="desk"
         :style="{ '--pc': playerColor(p, i) }"
-        :class="{ active: p.id === activeId, leader: p.id === leaderId, shake: shaking[p.id], negative: p.score < 0 }"
+        :class="{ active: p.id === activeId, buzzed: p.id === buzzedId, leader: p.id === leaderId, shake: shaking[p.id], negative: p.score < 0 }"
         @animationend="shaking[p.id] = false"
       >
         <Crown v-if="p.id === leaderId" class="crown" :aria-label="t('play.podiums.leader')" />
-        <span class="name"><span v-if="p.avatar" class="avatar" aria-hidden="true">{{ p.avatar }}</span>{{ p.name }}</span>
+        <span class="name">
+          <span v-if="p.avatar" class="avatar" aria-hidden="true">{{ p.avatar }}</span>{{ p.name }}
+          <Smartphone v-if="phones?.[p.id]" class="phone" :aria-label="t('lan.phoneConnected')" />
+        </span>
         <span class="score"><AnimatedNumber :value="p.score" /></span>
         <span v-for="b in bursts[p.id]" :key="b.key" class="delta" :class="b.delta > 0 ? 'up' : 'down'">
           {{ b.delta > 0 ? '+' : '−' }}{{ Math.abs(b.delta) }}
@@ -104,6 +111,20 @@ watch(
   transform: translateY(-6px);
   border-color: var(--cyan);
   box-shadow: 0 0 0 2px var(--cyan), 0 18px 50px -18px color-mix(in oklch, var(--cyan) 80%, transparent);
+}
+.desk.buzzed {
+  transform: translateY(-10px) scale(1.04);
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--gold), 0 0 60px -6px color-mix(in oklch, var(--gold) 85%, transparent);
+  animation: buzz-in 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.4);
+}
+.phone {
+  display: inline;
+  width: 0.8em;
+  height: 0.8em;
+  margin-left: 0.35em;
+  vertical-align: -0.05em;
+  color: var(--cyan);
 }
 .crown {
   position: absolute;
@@ -168,12 +189,17 @@ watch(
   60% { transform: translateX(-5px); }
   80% { transform: translateX(3px); }
 }
+@keyframes buzz-in {
+  0% { transform: translateY(0) scale(1); }
+  60% { transform: translateY(-14px) scale(1.08); }
+  100% { transform: translateY(-10px) scale(1.04); }
+}
 @keyframes bob {
   0%, 100% { transform: translateY(0) rotate(-6deg); }
   50% { transform: translateY(-3px) rotate(6deg); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .crown, .delta, .shake { animation: none; }
+  .crown, .delta, .shake, .desk.buzzed { animation: none; }
   .delta { display: none; }
 }
 </style>

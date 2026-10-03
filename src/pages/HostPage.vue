@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import SoundToggle from '@/components/SoundToggle.vue'
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Eye, Keyboard, Minus, Plus, SkipForward, Undo2 } from '@lucide/vue'
+import { Eye, Keyboard, Minus, Plus, SkipForward, Smartphone, Undo2 } from '@lucide/vue'
 import type { Game, MediaItem } from '@/types'
 import { Button } from '@/components/ui/button'
 import { getGame } from '@/storage'
@@ -13,6 +13,7 @@ import { playerColor } from '@/play/palette'
 import { useRemaining } from '@/play/timer'
 import { HOST_PING_MS, openPlayChannel, type HostCommand, type PlayChannel } from '@/play/channel'
 import type { MediaAction, MediaStatus } from '@/play/mediaControl'
+import { buzzWindow, buzzWinner, type LanStatus } from '@/play/lan'
 import BoardGrid from '@/components/play/BoardGrid.vue'
 import AnimatedNumber from '@/components/play/AnimatedNumber.vue'
 import AuctionPanel from '@/components/play/AuctionPanel.vue'
@@ -24,6 +25,7 @@ import MarkdownView from '@/components/MarkdownView.vue'
 import HostMediaControls from '@/components/play/HostMediaControls.vue'
 import HostTimer from '@/components/play/HostTimer.vue'
 import StatsTable from '@/components/play/StatsTable.vue'
+import BuzzPanel from '@/components/play/BuzzPanel.vue'
 
 const props = defineProps<{ id: string }>()
 const router = useRouter()
@@ -35,6 +37,10 @@ const connected = ref(false)
 const mirror = usePlaySession(game)
 const { state, players, round, activeQuestion, activeValue, canUndo } = mirror
 const mediaStatus = ref<Record<string, MediaStatus>>({})
+/** The stage's phone buzzers; null while they are off. */
+const lan = ref<LanStatus | null>(null)
+const showBuzz = computed(() => !!lan.value && buzzWindow(state) !== null)
+const buzzedId = computed(() => (lan.value && showBuzz.value ? buzzWinner(lan.value) : undefined))
 
 const phaseLabel = computed<Record<Phase, string>>(() => ({
   title: t('host.phase.title'),
@@ -84,6 +90,11 @@ const scoreStep = computed(() => (isQuestionPhase.value && activeValue.value ? a
 const ranking = computed(() => [...players.value].sort((a, b) => b.score - a.score))
 // colors and numbers follow the setup order, which ranking reshuffles
 const seats = computed(() => new Map(players.value.map((p, i) => [p.id, { color: playerColor(p, i), n: i + 1 }])))
+
+// whoever buzzed first is who + and − apply to
+watch(buzzedId, (id) => {
+  if (id) selectedId.value = id
+})
 
 let channel: PlayChannel | null = null
 function send(name: HostCommand, ...args: unknown[]) {
@@ -151,6 +162,7 @@ onMounted(async () => {
   channel = await openPlayChannel(props.id, (m) => {
     if (m.type === 'state') apply(m.snapshot)
     else if (m.type === 'media') mediaStatus.value = m.status
+    else if (m.type === 'lan') lan.value = m.status
   })
   channel.post({ type: 'hello' })
   pinger = setInterval(() => channel?.post({ type: 'ping' }), HOST_PING_MS)
@@ -224,9 +236,12 @@ onUnmounted(() => {
             :value="activeQuestion.catValue ?? activeQuestion.value"
             @give="(id) => send('giveCat', id)"
           />
-          <Button v-else-if="state.phase === 'question'" size="lg" class="big self-center" @click="send('advance')">
-            {{ t('host.showAnswer') }}
-          </Button>
+          <template v-else-if="state.phase === 'question'">
+            <BuzzPanel v-if="showBuzz && lan" :players="players" :status="lan" :value="activeValue" @reopen="(wrong) => send('buzzReopen', wrong)" />
+            <Button size="lg" class="big self-center" @click="send('advance')">
+              {{ t('host.showAnswer') }}
+            </Button>
+          </template>
           <VerdictPanel
             v-else
             :players="players"
@@ -253,14 +268,25 @@ onUnmounted(() => {
             @bet="(id, amount) => send('setFinalBet', id, amount)"
             @done="send('advance')"
           />
-          <Button v-else-if="state.phase === 'final-question'" size="lg" class="big self-center" @click="send('advance')">
-            {{ t('host.showAnswer') }}
-          </Button>
+          <template v-else-if="state.phase === 'final-question'">
+            <section v-if="lan" class="phone-answers" :aria-label="t('lan.final.answers')">
+              <h3 class="aside-title">{{ t('lan.final.answers') }}</h3>
+              <p v-for="p in players.filter((x) => x.score > 0)" :key="p.id">
+                <span class="who-name">{{ p.name }}</span>
+                <span v-if="lan.answers[p.id]" class="said">{{ lan.answers[p.id] }}</span>
+                <span v-else class="muted">{{ t('lan.final.noAnswer') }}</span>
+              </p>
+            </section>
+            <Button size="lg" class="big self-center" @click="send('advance')">
+              {{ t('host.showAnswer') }}
+            </Button>
+          </template>
           <FinalVerdictPanel
             v-else
             :players="players"
             :bets="state.finalBets"
             :verdicts="state.finalVerdicts"
+            :answers="lan?.answers"
             @verdict="(id, sign) => send('setFinalVerdict', id, sign)"
             @done="send('scoreFinal')"
           />
@@ -281,12 +307,13 @@ onUnmounted(() => {
           <li
             v-for="p in ranking"
             :key="p.id"
-            :class="{ active: p.id === state.stake?.playerId, selected: p.id === targetId }"
+            :class="{ active: p.id === state.stake?.playerId || p.id === buzzedId, selected: p.id === targetId }"
             :style="{ '--pc': seats.get(p.id)?.color }"
           >
             <span class="who">
               <button type="button" class="seat" :aria-pressed="p.id === targetId" :aria-label="p.name" @click="selectedId = p.id">{{ seats.get(p.id)?.n }}</button>
               <span class="label">{{ p.avatar }} {{ p.name }}</span>
+              <Smartphone v-if="lan?.phones[p.id]" class="size-3.5 shrink-0 text-cyan" :aria-label="t('lan.phoneConnected')" />
             </span>
             <span class="pts" :class="{ neg: p.score < 0 }"><AnimatedNumber :value="p.score" /></span>
             <span class="adjust">
@@ -475,6 +502,24 @@ onUnmounted(() => {
 }
 .rich :deep(code) {
   font-size: 0.85em;
+}
+.phone-answers {
+  display: grid;
+  gap: 6px;
+}
+.phone-answers p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin: 0;
+}
+.who-name {
+  font-weight: 600;
+}
+.said {
+  font-family: var(--font-serif);
+  color: var(--gold);
+  overflow-wrap: anywhere;
 }
 .answer {
   display: grid;

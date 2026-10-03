@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#14117a">
+<meta name="referrer" content="no-referrer">
+<title>Своя игра</title>
+<style>
+:root {
+  --night: #0b0a4a;
+  --deep: #14117a;
+  --tile: #2620b0;
+  --tile-deep: #1a1590;
+  --gold: #ffc93c;
+  --gold-deep: #e8a317;
+  --cyan: #5ee6ff;
+  --magenta: #ff5fa2;
+  --green: #5cf0a0;
+  --text: #f4f3ff;
+  --muted: #b7b4f0;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(120% 60% at 50% 0%, #3b2fd6 0%, transparent 60%),
+    radial-gradient(90% 50% at 50% 110%, #5a1a9e 0%, transparent 70%),
+    linear-gradient(180deg, var(--deep), var(--night));
+  background-attachment: fixed;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
+}
+[hidden] { display: none !important; }
+header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 0 6px;
+}
+.brand {
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-size: 15px;
+}
+.game { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 14px; }
+main { flex: 1; display: flex; flex-direction: column; gap: 16px; padding: 8px 0 20px; }
+section { display: flex; flex-direction: column; gap: 14px; flex: 1; }
+h1 {
+  margin: 8px 0 0;
+  font-size: 26px;
+  line-height: 1.15;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--gold);
+  text-shadow: 0 2px 18px rgba(255, 201, 60, 0.35);
+}
+p { margin: 0; }
+.muted { color: var(--muted); }
+.card {
+  border-radius: 18px;
+  padding: 16px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.09), rgba(255,255,255,0.03));
+  border: 1px solid rgba(255,255,255,0.14);
+}
+.seats { display: grid; gap: 10px; }
+.seat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-left: 5px solid var(--gold);
+  background: linear-gradient(180deg, var(--tile), var(--tile-deep));
+  color: var(--text);
+  font: inherit;
+  font-size: 18px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.seat:active { transform: scale(0.98); }
+.seat .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seat .pts { color: var(--gold); font-variant-numeric: tabular-nums; }
+.seat .phones { font-size: 13px; color: var(--cyan); }
+label { font-size: 14px; color: var(--muted); }
+input, textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.25);
+  background: rgba(5, 4, 40, 0.55);
+  color: var(--text);
+  font: inherit;
+  font-size: 18px;
+}
+textarea { min-height: 120px; resize: vertical; }
+input:focus, textarea:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
+.row { display: flex; gap: 8px; }
+.row > * { flex: 1; }
+button.primary, button.ghost {
+  min-height: 52px;
+  padding: 0 18px;
+  border-radius: 14px;
+  border: 0;
+  font: inherit;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+button.primary { background: linear-gradient(180deg, var(--gold), var(--gold-deep)); color: var(--night); }
+button.primary:disabled { opacity: 0.5; }
+button.ghost { background: rgba(255,255,255,0.1); color: var(--text); border: 1px solid rgba(255,255,255,0.2); }
+button.link { background: none; border: 0; color: var(--cyan); font: inherit; font-size: 14px; padding: 6px 0; cursor: pointer; }
+.me {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.me .name { flex: 1; min-width: 0; font-size: 20px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.me .pts { font-size: 26px; font-weight: 800; color: var(--gold); font-variant-numeric: tabular-nums; }
+.me .pts.neg { color: var(--magenta); }
+.stage { flex: 1; display: grid; place-items: center; align-content: center; gap: 22px; text-align: center; }
+#buzzer {
+  --size: min(72vw, 46dvh, 340px);
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: calc(var(--size) * 0.14);
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--night);
+  background: radial-gradient(circle at 35% 30%, #fff3c4 0%, var(--gold) 38%, var(--gold-deep) 75%, #9a6400 100%);
+  box-shadow:
+    0 calc(var(--size) * 0.04) 0 #8a5a00,
+    0 calc(var(--size) * 0.08) calc(var(--size) * 0.16) rgba(0,0,0,0.5),
+    inset 0 -8px 18px rgba(0,0,0,0.25);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  cursor: pointer;
+  transition: transform 0.08s ease, filter 0.2s ease, box-shadow 0.08s ease;
+}
+#buzzer.open { animation: glow 1.2s ease-in-out infinite; }
+#buzzer.pressed { transform: translateY(calc(var(--size) * 0.03)) scale(0.97); box-shadow: 0 calc(var(--size) * 0.01) 0 #8a5a00, 0 4px 12px rgba(0,0,0,0.5); }
+#buzzer.first { background: radial-gradient(circle at 35% 30%, #e6fff1 0%, var(--green) 40%, #1f9e5b 100%); box-shadow: 0 0 0 8px rgba(92,240,160,0.25), 0 0 60px rgba(92,240,160,0.6); }
+#buzzer.queued { background: radial-gradient(circle at 35% 30%, #e9fbff 0%, var(--cyan) 40%, #1b7f9e 100%); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+#buzzer:disabled { filter: grayscale(0.85) brightness(0.55); cursor: default; animation: none; }
+.status { min-height: 2.6em; font-size: 20px; font-weight: 600; }
+.status small { display: block; font-size: 14px; font-weight: 400; color: var(--muted); }
+.quick { display: flex; gap: 8px; }
+.quick button { flex: 1; min-height: 44px; font-size: 15px; }
+.ok { color: var(--green); font-weight: 600; }
+.err { color: var(--magenta); font-weight: 600; }
+#offline {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(255, 95, 162, 0.92);
+  color: #fff;
+  font-weight: 600;
+  text-align: center;
+}
+.code-input { font-size: 32px; text-align: center; letter-spacing: 0.4em; }
+@keyframes glow {
+  0%, 100% { box-shadow: 0 calc(var(--size) * 0.04) 0 #8a5a00, 0 0 0 0 rgba(255,201,60,0.55); }
+  50% { box-shadow: 0 calc(var(--size) * 0.04) 0 #8a5a00, 0 0 0 calc(var(--size) * 0.08) rgba(255,201,60,0); }
+}
+@media (prefers-reduced-motion: reduce) { #buzzer.open { animation: none; } }
+</style>
+</head>
+<body>
+<header>
+  <span class="brand" data-t="brand"></span>
+  <span class="game" id="game"></span>
+</header>
+<main>
+  <section id="s-code" hidden>
+    <h1 data-t="codeTitle"></h1>
+    <form id="code-form" class="card" style="display:grid;gap:12px">
+      <label for="code" data-t="codeLabel"></label>
+      <input id="code" class="code-input" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" required>
+      <p id="code-error" class="err" hidden></p>
+      <button class="primary" type="submit" data-t="codeGo"></button>
+    </form>
+  </section>
+
+  <section id="s-wait" hidden>
+    <div class="stage">
+      <p class="status" id="wait-text"></p>
+    </div>
+  </section>
+
+  <section id="s-pick" hidden>
+    <h1 data-t="pickTitle"></h1>
+    <div class="seats" id="seats"></div>
+    <p class="muted" id="pick-empty" data-t="pickEmpty" hidden></p>
+    <form id="join-form" class="card" style="display:grid;gap:10px" hidden>
+      <label for="name" data-t="joinLabel"></label>
+      <input id="name" maxlength="24" autocomplete="nickname" enterkeyhint="go" required>
+      <button class="primary" type="submit" data-t="join"></button>
+    </form>
+    <p class="muted" id="join-closed" data-t="joinClosed" hidden></p>
+    <p class="err" id="pick-error" hidden></p>
+  </section>
+
+  <section id="s-play" hidden>
+    <div class="me">
+      <span class="name" id="me-name"></span>
+      <span class="pts" id="me-score"></span>
+    </div>
+    <button class="link" id="switch" type="button" data-t="switch" style="align-self:flex-start"></button>
+
+    <div class="stage" id="p-buzz">
+      <button id="buzzer" type="button"></button>
+      <p class="status" id="buzz-status"></p>
+    </div>
+
+    <form class="card" id="p-bet" style="display:grid;gap:12px" hidden>
+      <h1 data-t="betTitle" style="margin:0"></h1>
+      <label for="bet" id="bet-label"></label>
+      <input id="bet" type="number" inputmode="numeric" min="0" step="100" required>
+      <div class="quick">
+        <button class="ghost" type="button" data-bet="0">0</button>
+        <button class="ghost" type="button" data-bet="half">½</button>
+        <button class="ghost" type="button" data-bet="all" data-t="allIn"></button>
+      </div>
+      <button class="primary" type="submit" data-t="betSend"></button>
+      <p id="bet-status" class="ok" hidden></p>
+    </form>
+
+    <form class="card" id="p-answer" style="display:grid;gap:12px" hidden>
+      <h1 id="answer-title" data-t="answerTitle" style="margin:0"></h1>
+      <textarea id="answer" aria-labelledby="answer-title" maxlength="200" autocomplete="off" autocapitalize="sentences"></textarea>
+      <button class="primary" type="submit" data-t="answerSend"></button>
+      <p id="answer-status" class="ok" hidden></p>
+    </form>
+
+    <div class="stage" id="p-out" hidden>
+      <p class="status" data-t="finalOut"></p>
+    </div>
+    <p class="err" id="play-error" hidden></p>
+  </section>
+</main>
+<div id="offline" hidden data-t="offline"></div>
+
+<script>
+'use strict';
+var STRINGS = {
+  ru: {
+    brand: 'Своя игра', codeTitle: 'Код комнаты', codeLabel: 'Четыре цифры с экрана ведущего', codeGo: 'Войти',
+    badCode: 'Неверный код', tooMany: 'Слишком много попыток. Попросите ведущего перезапустить кнопки.',
+    disabled: 'Кнопки сейчас выключены. Ждите ведущего.', pickTitle: 'Кто вы?', pickEmpty: 'Игроков пока нет.',
+    joinLabel: 'Или войдите под своим именем', join: 'Играть', joinClosed: 'Новых игроков добавляет ведущий.',
+    switch: 'Сменить игрока', phones: '📱 {n}', press: 'Жми!', wait: 'Ждите вопроса', waitHint: 'Кнопка загорится, когда можно отвечать',
+    first: 'Вы первый!', firstHint: 'Отвечайте', place: '{n}-й', placeHint: 'Вы в очереди', locked: 'Отвечает {name}',
+    lockedHint: 'Можно встать в очередь', lockedSomeone: 'Кто-то уже отвечает', excluded: 'Вы уже отвечали', excludedHint: 'Ждите следующего вопроса',
+    betTitle: 'Ставка в финале', betLabel: 'От 0 до {max}', allIn: 'Ва-банк', betSend: 'Поставить', betDone: 'Ставка принята: {bet}',
+    answerTitle: 'Ваш ответ', answerSend: 'Отправить', answerDone: 'Ответ отправлен. Можно исправить, пока идёт время.',
+    finalOut: 'В финале вы не играете. Болейте за остальных!', offline: 'Нет связи с игрой. Переподключаемся…',
+    full: 'В комнате нет мест.', badName: 'Введите имя.', notOpen: 'Сейчас нельзя.', notEligible: 'Вы не играете в финале.', error: 'Что-то пошло не так.'
+  },
+  en: {
+    brand: 'Svoya Igra', codeTitle: 'Room code', codeLabel: 'Four digits from the host\'s screen', codeGo: 'Enter',
+    badCode: 'Wrong code', tooMany: 'Too many attempts. Ask the host to restart the buzzers.',
+    disabled: 'Buzzers are off right now. Wait for the host.', pickTitle: 'Who are you?', pickEmpty: 'No players yet.',
+    joinLabel: 'Or join under your own name', join: 'Play', joinClosed: 'The host adds new players.',
+    switch: 'Switch player', phones: '📱 {n}', press: 'Buzz!', wait: 'Wait for the question', waitHint: 'The button lights up when you may answer',
+    first: 'You\'re first!', firstHint: 'Answer now', place: '#{n}', placeHint: 'You\'re in the queue', locked: '{name} is answering',
+    lockedHint: 'You can still join the queue', lockedSomeone: 'Someone is answering', excluded: 'You already answered', excludedHint: 'Wait for the next question',
+    betTitle: 'Final wager', betLabel: 'From 0 to {max}', allIn: 'All in', betSend: 'Place wager', betDone: 'Wager accepted: {bet}',
+    answerTitle: 'Your answer', answerSend: 'Send', answerDone: 'Answer sent. You can change it while time runs.',
+    finalOut: 'You sit out the final. Cheer for the others!', offline: 'Lost connection to the game. Reconnecting…',
+    full: 'The room is full.', badName: 'Enter a name.', notOpen: 'Not right now.', notEligible: 'You are not in the final.', error: 'Something went wrong.'
+  },
+  sr: {
+    brand: 'Svoja igra', codeTitle: 'Kod sobe', codeLabel: 'Četiri cifre sa ekrana voditelja', codeGo: 'Uđi',
+    badCode: 'Pogrešan kod', tooMany: 'Previše pokušaja. Zamolite voditelja da ponovo pokrene dugmad.',
+    disabled: 'Dugmad su sada isključena. Sačekajte voditelja.', pickTitle: 'Ko ste vi?', pickEmpty: 'Još nema igrača.',
+    joinLabel: 'Ili uđite pod svojim imenom', join: 'Igraj', joinClosed: 'Nove igrače dodaje voditelj.',
+    switch: 'Promeni igrača', phones: '📱 {n}', press: 'Pritisni!', wait: 'Sačekajte pitanje', waitHint: 'Dugme zasvetli kada možete da odgovarate',
+    first: 'Vi ste prvi!', firstHint: 'Odgovarajte', place: '{n}.', placeHint: 'Vi ste u redu', locked: 'Odgovara {name}',
+    lockedHint: 'Možete da stanete u red', lockedSomeone: 'Neko već odgovara', excluded: 'Već ste odgovarali', excludedHint: 'Sačekajte sledeće pitanje',
+    betTitle: 'Ulog u finalu', betLabel: 'Od 0 do {max}', allIn: 'Va-bank', betSend: 'Uloži', betDone: 'Ulog prihvaćen: {bet}',
+    answerTitle: 'Vaš odgovor', answerSend: 'Pošalji', answerDone: 'Odgovor poslat. Možete ga ispraviti dok vreme teče.',
+    finalOut: 'Ne igrate u finalu. Navijajte za ostale!', offline: 'Nema veze sa igrom. Ponovo se povezujemo…',
+    full: 'Soba je puna.', badName: 'Unesite ime.', notOpen: 'Ne sada.', notEligible: 'Ne igrate u finalu.', error: 'Nešto nije u redu.'
+  }
+};
+
+function pickLang() {
+  var langs = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || 'ru'];
+  for (var i = 0; i < langs.length; i++) {
+    var base = String(langs[i]).toLowerCase().split('-')[0];
+    if (STRINGS[base]) return base;
+    if (['hr', 'bs', 'sh', 'cnr'].indexOf(base) >= 0) return 'sr';
+  }
+  return 'ru';
+}
+var LANG = pickLang();
+document.documentElement.lang = LANG;
+function t(key, vars) {
+  var s = STRINGS[LANG][key] || STRINGS.ru[key] || key;
+  return s.replace(/\{(\w+)\}/g, function (_, k) { return vars && vars[k] !== undefined ? String(vars[k]) : ''; });
+}
+document.title = t('brand');
+Array.prototype.forEach.call(document.querySelectorAll('[data-t]'), function (el) { el.textContent = t(el.getAttribute('data-t')); });
+
+function $(id) { return document.getElementById(id); }
+function show(id, on) { $(id).hidden = !on; }
+function storage(fn) { try { return fn(); } catch (e) { return null; } }
+
+var params = new URLSearchParams(location.search);
+var code = (params.get('r') || '').replace(/\D/g, '').slice(0, 4);
+var TOKEN_PREFIX = 'svoya-igra:lan:';
+var token = '';
+var view = null;
+var version = 0;
+var pollAbort = null;
+var pollGen = 0;
+var lastBuzz = '';
+
+function loadToken() {
+  token = storage(function () { return localStorage.getItem(TOKEN_PREFIX + code); }) || '';
+}
+function saveToken(value) {
+  token = value || '';
+  storage(function () {
+    // tokens of earlier rooms are dead: each server run makes a new code
+    for (var i = localStorage.length - 1; i >= 0; i--) {
+      var k = localStorage.key(i);
+      if (k && k.indexOf(TOKEN_PREFIX) === 0 && k !== TOKEN_PREFIX + code) localStorage.removeItem(k);
+    }
+    if (token) localStorage.setItem(TOKEN_PREFIX + code, token);
+    else localStorage.removeItem(TOKEN_PREFIX + code);
+  });
+}
+
+function screen(name) {
+  ['s-code', 's-wait', 's-pick', 's-play'].forEach(function (id) { show(id, id === name); });
+}
+
+function errorText(code) {
+  return {
+    'bad-code': t('badCode'), 'too-many-codes': t('tooMany'), disabled: t('disabled'), full: t('full'),
+    'bad-name': t('badName'), 'join-closed': t('joinClosed'), 'not-open': t('notOpen'), 'not-eligible': t('notEligible')
+  }[code] || t('error');
+}
+
+function api(path, body) {
+  return fetch(path + '?r=' + encodeURIComponent(code), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    cache: 'no-store'
+  }).then(function (res) {
+    return res.json().catch(function () { return {}; }).then(function (data) {
+      if (data && data.view) apply(data.view);
+      if (!res.ok) throw new Error(data && data.error || 'error');
+      return data;
+    });
+  });
+}
+
+function showCode(message) {
+  stopPolling();
+  screen('s-code');
+  $('code').value = code;
+  $('code-error').textContent = message || '';
+  show('code-error', !!message);
+}
+
+function stopPolling() {
+  pollGen++;
+  if (pollAbort) pollAbort.abort();
+  pollAbort = null;
+}
+
+function poll() {
+  stopPolling();
+  var gen = pollGen;
+  var ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+  pollAbort = ctrl;
+  var url = '/api/poll?r=' + encodeURIComponent(code) + '&t=' + encodeURIComponent(token) + '&v=' + version;
+  fetch(url, { cache: 'no-store', signal: ctrl ? ctrl.signal : undefined })
+    .then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (data) {
+        if (gen !== pollGen) return;
+        if (res.status === 403 || res.status === 429) {
+          showCode(errorText(data.error));
+          return;
+        }
+        if (!res.ok) throw new Error(data.error || 'error');
+        show('offline', false);
+        apply(data);
+        poll();
+      });
+    })
+    .catch(function () {
+      if (gen !== pollGen) return;
+      show('offline', true);
+      version = 0;
+      setTimeout(function () { if (gen === pollGen) poll(); }, 1500);
+    });
+}
+
+function apply(next) {
+  if (view && next.v < view.v) return;
+  view = next;
+  version = next.v;
+  if (next.reset) saveToken('');
+  render();
+}
+
+function vibrate(pattern) {
+  if (navigator.vibrate) navigator.vibrate(pattern);
+}
+
+function render() {
+  var v = view;
+  $('game').textContent = v.title || '';
+  if (!v.enabled) {
+    screen('s-wait');
+    $('wait-text').textContent = t('disabled');
+    return;
+  }
+  if (!v.me) {
+    renderPick(v);
+    return;
+  }
+  screen('s-play');
+  show('play-error', false);
+  $('me-name').textContent = v.me.name;
+  $('me-score').textContent = String(v.me.score);
+  $('me-score').classList.toggle('neg', v.me.score < 0);
+  var mode = v.finalMode;
+  show('p-buzz', !mode);
+  show('p-bet', mode === 'bet' && v.cap !== null);
+  show('p-answer', mode === 'answer' && v.cap !== null);
+  show('p-out', !!mode && v.cap === null);
+  if (!mode) renderBuzz(v);
+  else if (mode === 'bet' && v.cap !== null) renderBet(v);
+  else if (mode === 'answer' && v.cap !== null) renderAnswer(v);
+}
+
+function renderPick(v) {
+  screen('s-pick');
+  var seats = $('seats');
+  seats.textContent = '';
+  v.roster.forEach(function (p) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'seat';
+    var name = document.createElement('span');
+    name.className = 'name';
+    name.textContent = p.name;
+    b.appendChild(name);
+    if (p.phones > 0) {
+      var ph = document.createElement('span');
+      ph.className = 'phones';
+      ph.textContent = t('phones', { n: p.phones });
+      b.appendChild(ph);
+    }
+    var pts = document.createElement('span');
+    pts.className = 'pts';
+    pts.textContent = String(p.score);
+    b.appendChild(pts);
+    b.addEventListener('click', function () { claim(p.id); });
+    seats.appendChild(b);
+  });
+  show('pick-empty', v.roster.length === 0);
+  show('join-form', v.allowJoin);
+  show('join-closed', !v.allowJoin);
+}
+
+function renderBuzz(v) {
+  var b = $('buzzer');
+  var st = $('buzz-status');
+  var buzz = v.buzz;
+  var label, line, hint, cls = '', enabled = false;
+  if (buzz.excluded) {
+    label = '✕'; line = t('excluded'); hint = t('excludedHint');
+  } else if (buzz.position === 1) {
+    label = '1'; line = t('first'); hint = t('firstHint'); cls = 'first';
+  } else if (buzz.position) {
+    label = t('place', { n: buzz.position }); line = t('placeHint'); hint = buzz.winner ? t('locked', { name: buzz.winner }) : ''; cls = 'queued';
+  } else if (buzz.state === 'open') {
+    label = t('press'); line = ''; hint = ''; cls = 'open'; enabled = true;
+  } else if (buzz.state === 'locked') {
+    label = t('press'); line = buzz.winner ? t('locked', { name: buzz.winner }) : t('lockedSomeone'); hint = t('lockedHint'); enabled = true;
+  } else {
+    label = '…'; line = t('wait'); hint = t('waitHint');
+  }
+  b.textContent = label;
+  b.className = cls;
+  b.disabled = !enabled && !cls;
+  st.textContent = line;
+  if (hint) {
+    var small = document.createElement('small');
+    small.textContent = hint;
+    st.appendChild(small);
+  }
+  var key = buzz.state + ':' + buzz.position;
+  if (buzz.position === 1 && lastBuzz !== key) vibrate([60, 40, 120]);
+  lastBuzz = key;
+}
+
+function renderBet(v) {
+  var input = $('bet');
+  input.max = String(v.cap);
+  $('bet-label').textContent = t('betLabel', { max: v.cap });
+  if (document.activeElement !== input && input.value === '') input.value = v.bet !== null ? String(v.bet) : '';
+  show('bet-status', v.bet !== null);
+  $('bet-status').textContent = v.bet !== null ? t('betDone', { bet: v.bet }) : '';
+}
+
+function renderAnswer(v) {
+  var area = $('answer');
+  if (document.activeElement !== area && area.value === '' && v.answer) area.value = v.answer;
+  show('answer-status', !!v.answer);
+  $('answer-status').textContent = v.answer ? t('answerDone') : '';
+}
+
+function fail(id, err) {
+  $(id).textContent = errorText(err && err.message);
+  show(id, true);
+}
+
+function claim(playerId) {
+  api('/api/claim', { token: token, playerId: playerId })
+    .then(function (data) { saveToken(data.token); poll(); })
+    .catch(function (err) { fail('pick-error', err); });
+}
+
+$('join-form').addEventListener('submit', function (e) {
+  e.preventDefault();
+  api('/api/join', { token: token, name: $('name').value })
+    .then(function (data) { saveToken(data.token); poll(); })
+    .catch(function (err) { fail('pick-error', err); });
+});
+
+$('switch').addEventListener('click', function () {
+  api('/api/leave', { token: token }).catch(function () {});
+});
+
+$('buzzer').addEventListener('pointerdown', function (e) {
+  e.preventDefault();
+  var b = $('buzzer');
+  if (b.disabled) return;
+  b.classList.add('pressed');
+  vibrate(30);
+  api('/api/buzz', { token: token })
+    .catch(function (err) { if (err.message !== 'not-open') fail('play-error', err); })
+    .then(function () { b.classList.remove('pressed'); });
+});
+$('buzzer').addEventListener('contextmenu', function (e) { e.preventDefault(); });
+
+Array.prototype.forEach.call(document.querySelectorAll('[data-bet]'), function (btn) {
+  btn.addEventListener('click', function () {
+    var cap = view && view.cap || 0;
+    var kind = btn.getAttribute('data-bet');
+    $('bet').value = String(kind === 'all' ? cap : kind === 'half' ? Math.floor(cap / 2) : 0);
+  });
+});
+
+$('p-bet').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var amount = Math.round(Number($('bet').value) || 0);
+  api('/api/bet', { token: token, amount: amount })
+    .then(function (data) { $('bet').value = String(data.bet); })
+    .catch(function (err) { fail('play-error', err); });
+});
+
+$('p-answer').addEventListener('submit', function (e) {
+  e.preventDefault();
+  api('/api/answer', { token: token, text: $('answer').value })
+    .then(function () { $('answer').blur(); })
+    .catch(function (err) { fail('play-error', err); });
+});
+
+$('code-form').addEventListener('submit', function (e) {
+  e.preventDefault();
+  code = $('code').value.replace(/\D/g, '').slice(0, 4);
+  if (code.length !== 4) return;
+  history.replaceState(null, '', '?r=' + code);
+  start();
+});
+
+// a phone in a pocket should not doze off between questions
+var wakeLock = null;
+function keepAwake() {
+  if (!navigator.wakeLock || wakeLock || document.visibilityState !== 'visible') return;
+  navigator.wakeLock.request('screen').then(function (lock) {
+    wakeLock = lock;
+    lock.addEventListener('release', function () { wakeLock = null; });
+  }).catch(function () {});
+}
+document.addEventListener('pointerdown', keepAwake, { passive: true });
+document.addEventListener('visibilitychange', function () {
+  if (document.visibilityState !== 'visible' || !code || $('s-code').hidden === false) return;
+  keepAwake();
+  // a backgrounded tab's long poll may have died silently
+  version = 0;
+  poll();
+});
+
+function start() {
+  loadToken();
+  view = null;
+  version = 0;
+  screen('s-wait');
+  $('wait-text').textContent = '…';
+  poll();
+}
+
+if (code.length === 4) start();
+else showCode('');
+</script>
+</body>
+</html>

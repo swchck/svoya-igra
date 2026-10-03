@@ -371,8 +371,10 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
     state.teams = on
   }
 
-  function addPlayer() {
-    players.value.push(newPlayer(players.value, state.teams))
+  /** Adds a competitor under a default name, or the one a phone joined as. */
+  function addPlayer(from?: Pick<Player, 'id' | 'name'>) {
+    if (from && player(from.id)) return
+    players.value.push({ ...newPlayer(players.value, state.teams), ...from })
   }
 
   function removePlayer(playerId: string) {

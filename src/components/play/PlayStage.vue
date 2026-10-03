@@ -2,9 +2,11 @@
 import { computed, onMounted, onUnmounted, provide, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ArrowLeft, Cat, Gavel, Maximize, Minimize, MonitorSmartphone, SkipForward, Undo2 } from '@lucide/vue'
+import { ArrowLeft, Cat, Gavel, Maximize, Minimize, MonitorSmartphone, SkipForward, Smartphone, Undo2, X } from '@lucide/vue'
+import { toast } from 'vue-sonner'
 import type { Game } from '@/types'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { confirmAction } from '@/composables/useConfirm'
 import { usePlaySession, type SessionSnapshot } from '@/composables/usePlaySession'
 import { clearSession, saveSession } from '@/play/savedSession'
@@ -14,6 +16,8 @@ import { plainCopy } from '@/lib/plain'
 import { prefersReducedMotion } from '@/lib/motion'
 import { useStageSounds, useTimerSounds } from '@/play/sounds'
 import { accentStyle } from '@/play/accents'
+import { lanAvailable } from '@/play/lan'
+import { useLanRoom } from '@/play/useLanRoom'
 import { useRemaining } from '@/play/timer'
 import SoundToggle from '@/components/SoundToggle.vue'
 import StageBackdrop from './StageBackdrop.vue'
@@ -31,6 +35,7 @@ import CatPanel from './CatPanel.vue'
 import VerdictPanel from './VerdictPanel.vue'
 import FinalBetsPanel from './FinalBetsPanel.vue'
 import FinalVerdictPanel from './FinalVerdictPanel.vue'
+import PhonesPanel from '@/components/lan/PhonesPanel.vue'
 
 const props = defineProps<{ game: Game; restored?: SessionSnapshot }>()
 const router = useRouter()
@@ -43,6 +48,20 @@ const session = usePlaySession(
 const { state, players, round, activeQuestion, activeValue, ranking, inProgress } = session
 
 useStageSounds(() => state.phase, players)
+
+const lan = useLanRoom(session, () => props.game.title)
+const { info: lanInfo, status: lanStatus, starting: lanStarting, winnerId: buzzedId, phones } = lan
+const phoneCount = computed(() => Object.values(phones.value).reduce((a, b) => a + b, 0))
+const phonesOpen = ref(false)
+
+async function startPhones() {
+  try {
+    await lan.start()
+  } catch (err) {
+    const message = String(err)
+    toast.error(t('lan.errors.failed'), { description: message === 'no-network' ? t('lan.errors.noNetwork') : message })
+  }
+}
 
 const settings = computed(() => props.game.settings)
 const accent = computed(() => accentStyle(settings.value))
@@ -92,6 +111,10 @@ watch(
   { deep: true },
 )
 watch(() => media.status, publishMedia, { deep: true })
+function publishLan() {
+  channel?.post({ type: 'lan', status: lanInfo.value ? plainCopy(lanStatus.value) : null })
+}
+watch([lanInfo, lanStatus], publishLan, { deep: true })
 
 // the host window pings while open; with a host at the controls the stage drops its own
 const lastPing = ref(0)
@@ -218,12 +241,14 @@ onMounted(async () => {
       if (m.type === 'hello') {
         publish()
         publishMedia()
+        publishLan()
       }
     } else if (m.type === 'media-command') {
       media.run(m.id, m.action)
     } else if (m.type === 'command' && HOST_COMMANDS.includes(m.name) && m.phase === state.phase) {
       // a command from a phase the stage has left is a double click or a stale screen
       if (m.name === 'pick') pick(String(m.args[0]))
+      else if (m.name === 'buzzReopen') lan.reopen(m.args[0] === true)
       else (session[m.name] as (...args: unknown[]) => void)(...m.args)
     }
   })
@@ -248,6 +273,9 @@ onUnmounted(() => {
       <span v-if="hostConnected" class="host-on"><span class="dot" />{{ t('play.stage.hostConnected') }}</span>
       <div class="flex-1" />
       <SoundToggle />
+      <Button v-if="lanAvailable && state.phase !== 'title'" variant="ghost" @click="phonesOpen = true">
+        <Smartphone />{{ t('lan.phones') }}<span v-if="lanInfo" class="phone-count">{{ phoneCount }}</span>
+      </Button>
       <Button variant="ghost" @click="openHostWindow(game.id, game.title)"><MonitorSmartphone />{{ t('play.stage.hostWindow') }}</Button>
       <Button variant="ghost" @click="toggleFullscreen">
         <template v-if="isFullscreen"><Minimize />{{ t('play.stage.exitFullscreen') }}</template>
@@ -267,7 +295,8 @@ onUnmounted(() => {
           <h1 class="title-shine game-title">{{ game.title || t('play.stage.defaultTitle') }}</h1>
           <p v-if="game.subtitle" class="subtitle">{{ game.subtitle }}</p>
           <p v-if="settings?.introText" class="intro-text">{{ settings.introText }}</p>
-          <PlayerSetup v-model="players" :teams="state.teams" @update:teams="session.setTeams" @add="session.addPlayer" @remove="(p) => session.removePlayer(p.id)" />
+          <PlayerSetup v-model="players" :teams="state.teams" :phones="phones" @update:teams="session.setTeams" @add="session.addPlayer()" @remove="(p) => session.removePlayer(p.id)" />
+          <PhonesPanel v-if="lanAvailable" :info="lanInfo" :starting="lanStarting" :phones="phoneCount" @start="startPhones" @stop="lan.stop" />
           <Button size="lg" class="start" @click="session.start">{{ t('play.stage.start') }}</Button>
         </section>
 
@@ -324,7 +353,12 @@ onUnmounted(() => {
           :text="activeQuestion.text"
           :media="activeQuestion.media"
         >
-          <Button v-if="!hostConnected" size="lg" class="h-12 px-8 text-lg" @click="session.advance">{{ t('play.stage.showAnswer') }}</Button>
+          <div v-if="!hostConnected" class="flex flex-wrap justify-center gap-3">
+            <Button v-if="buzzedId" size="lg" variant="destructive" class="h-12 px-6 text-lg" @click="lan.reopen(true)">
+              <X />{{ t('lan.buzz.wrong', { value: activeValue }) }}
+            </Button>
+            <Button size="lg" class="h-12 px-8 text-lg" @click="session.advance">{{ t('play.stage.showAnswer') }}</Button>
+          </div>
         </CardSlide>
 
         <CardSlide
@@ -392,6 +426,7 @@ onUnmounted(() => {
               :players="players"
               :bets="state.finalBets"
               :verdicts="state.finalVerdicts"
+              :answers="lanInfo ? lanStatus.answers : undefined"
               @verdict="session.setFinalVerdict"
               @done="session.scoreFinal"
             />
@@ -411,7 +446,15 @@ onUnmounted(() => {
       </Transition>
     </main>
 
-    <PlayerPodiums v-if="inProgress" :players="players" :active-id="state.stake?.playerId" />
+    <PlayerPodiums v-if="inProgress" :players="players" :active-id="state.stake?.playerId" :phones="phones" :buzzed-id="buzzedId" />
+
+    <Dialog v-if="lanAvailable" v-model:open="phonesOpen">
+      <DialogContent class="sm:max-w-lg">
+        <DialogTitle class="font-display text-xl uppercase text-gold">{{ t('lan.toggle') }}</DialogTitle>
+        <DialogDescription class="sr-only">{{ t('lan.toggleHint') }}</DialogDescription>
+        <PhonesPanel :info="lanInfo" :starting="lanStarting" :phones="phoneCount" @start="startPhones" @stop="lan.stop" />
+      </DialogContent>
+    </Dialog>
 
     <div v-if="flight" :key="flight.key" ref="flightTile" class="flight" aria-hidden="true">{{ flight.value }}</div>
   </div>
@@ -446,6 +489,15 @@ onUnmounted(() => {
   gap: 8px;
   font-size: 13px;
   color: var(--cyan);
+}
+.phone-count {
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--cyan) 25%, transparent);
+  color: var(--cyan);
+  font-size: 12px;
+  line-height: 20px;
 }
 .dot {
   width: 8px;

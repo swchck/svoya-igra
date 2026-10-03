@@ -1,0 +1,41 @@
+import type ru from '../ru/lan'
+
+export default {
+  toggle: 'Dugmad na telefonima',
+  toggleHint: 'Igrači odgovaraju dugmetom na svom telefonu.',
+  turnOff: 'Isključi',
+  starting: 'Pokrećemo…',
+  scan: 'Usmerite kameru telefona na kod',
+  room: 'Kod sobe',
+  note: 'Telefoni moraju biti na istoj Wi‑Fi mreži. macOS može pitati za dolazne veze — dozvolite ih.',
+  noPhones: 'Još nema povezanih telefona',
+  connected: 'Povezan je {n} telefon | Povezana su {n} telefona | Povezano je {n} telefona',
+  phones: 'Telefoni',
+  phoneConnected: 'Telefon je povezan',
+  errors: {
+    noNetwork: 'Računar nije u lokalnoj mreži. Povežite ga na istu Wi‑Fi mrežu kao telefone.',
+    failed: 'Dugmad nije moguće pokrenuti',
+  },
+  buzz: {
+    title: 'Dugmad',
+    open: 'Otvorena',
+    closed: 'Zatvorena',
+    locked: 'Pritisnuli',
+    nobody: 'Još niko nije pritisnuo.',
+    wrong: 'Netačno (−{value}), otvori ponovo',
+    reopen: 'Otvori ponovo',
+    excluded: 'Već odgovarali: {names}',
+  },
+  final: {
+    answers: 'Odgovori sa telefona',
+    noAnswer: 'nema odgovora',
+  },
+  share: {
+    menu: 'Podeli preko Wi‑Fi mreže',
+    title: 'Podeli preko Wi‑Fi mreže',
+    description: 'Otvorite link na uređaju u istoj mreži i fajl igre će se preuzeti.',
+    preparing: 'Pripremamo fajl…',
+    failed: 'Igru nije moguće podeliti',
+    done: 'Gotovo',
+  },
+} satisfies typeof ru

@@ -8,5 +8,6 @@ import host from './host'
 import print from './print'
 import settings from './settings'
 import pwa from './pwa'
+import lan from './lan'
 
-export default { common, home, system, editor, media, play, host, print, settings, pwa }
+export default { common, home, system, editor, media, play, host, print, settings, pwa, lan }
