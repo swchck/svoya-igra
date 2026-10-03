@@ -72,7 +72,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="yt-wrap" :class="{ audio: mode === 'audio' }">
-    <div v-if="!embed" class="yt-error">Не удалось разобрать ссылку YouTube.</div>
+    <div v-if="!embed" class="yt-error">Ссылка на YouTube не распознана.</div>
     <template v-else>
       <div class="yt-frame-holder">
         <iframe
@@ -86,7 +86,7 @@ onBeforeUnmount(() => {
         />
         <div v-if="mode === 'audio'" class="yt-audio-mask">
           <span class="yt-audio-icon">{{ playing ? '♪' : '⏸' }}</span>
-          <span class="yt-audio-label">Аудио из YouTube</span>
+          <span class="yt-audio-label">Звук с YouTube</span>
         </div>
       </div>
       <div v-if="mode === 'audio'" class="yt-audio-controls">

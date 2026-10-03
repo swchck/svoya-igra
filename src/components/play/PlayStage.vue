@@ -59,7 +59,7 @@ async function home() {
     !inProgress.value ||
     (await confirmAction({
       title: 'Выйти из игры?',
-      description: 'Партия сохранится — её можно будет продолжить позже.',
+      description: 'Счёт сохранится, партию можно будет продолжить позже.',
       confirmLabel: 'Выйти',
     }))
   if (ok) router.push({ name: 'home' })
@@ -68,7 +68,7 @@ async function home() {
 async function skipRound() {
   const ok = await confirmAction({
     title: 'Пропустить раунд?',
-    description: 'Несыгранные вопросы останутся несыгранными.',
+    description: 'Оставшиеся вопросы этого раунда сыграны не будут.',
     confirmLabel: 'Пропустить',
   })
   if (ok) session.nextRound()
@@ -134,7 +134,7 @@ onUnmounted(() => {
     <IntroSlide
       v-else-if="state.phase === 'round-intro'"
       :title="round?.name ?? ''"
-      hint="Нажмите или пробел — к выбору вопроса"
+      hint="Нажмите пробел или кликните, чтобы перейти к табло"
       @next="session.advance"
     />
 
@@ -191,7 +191,7 @@ onUnmounted(() => {
       v-else-if="state.phase === 'final-intro'"
       title="Финал"
       :subtitle="game.finalRound?.theme"
-      hint="Нажмите или пробел — к ставкам"
+      hint="Нажмите пробел или кликните, чтобы перейти к ставкам"
       @next="session.advance"
     />
 

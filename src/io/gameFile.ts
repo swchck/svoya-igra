@@ -21,7 +21,7 @@ export async function importGameFile(file: File): Promise<Game> {
   try {
     data = JSON.parse(await file.text())
   } catch {
-    throw new Error('Файл не похож на игру: это не JSON и не .gamezip')
+    throw new Error('Это не файл игры. Подойдут .gamezip и .json')
   }
   const game = withFreshIds(parseGame(data))
   for (const item of mediaItems(game)) {
@@ -53,6 +53,6 @@ export async function exportGameFile(game: Game, format: GameFileFormat): Promis
 /** Loads the bundled sample game. */
 export async function importSampleGame(): Promise<Game> {
   const res = await fetch(`${import.meta.env.BASE_URL}samples/sample-1996.gamezip`)
-  if (!res.ok) throw new Error(`образец недоступен (${res.status})`)
+  if (!res.ok) throw new Error(`пример не загрузился, ошибка ${res.status}`)
   return importGameZip(await res.blob())
 }

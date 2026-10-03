@@ -16,10 +16,10 @@ export interface Download {
 
 // file names are fixed by scripts/release-assets.mjs, so these links survive every release
 export const DOWNLOADS: Download[] = [
-  { id: 'mac-arm', os: 'macOS', label: 'macOS · Apple Silicon', hint: 'M1 и новее', file: 'Svoya-Igra_macOS-arm64.dmg' },
+  { id: 'mac-arm', os: 'macOS', label: 'macOS · Apple Silicon', hint: 'Mac на M1 и новее', file: 'Svoya-Igra_macOS-arm64.dmg' },
   { id: 'mac-x64', os: 'macOS', label: 'macOS · Intel', hint: 'Mac с процессором Intel', file: 'Svoya-Igra_macOS-x64.dmg' },
   { id: 'windows', os: 'Windows', label: 'Windows', hint: 'Windows 10 и 11, 64 бит', file: 'Svoya-Igra_Windows-x64-setup.exe' },
-  { id: 'appimage', os: 'Linux', label: 'Linux · AppImage', hint: 'любой дистрибутив', file: 'Svoya-Igra_Linux-x64.AppImage' },
+  { id: 'appimage', os: 'Linux', label: 'Linux · AppImage', hint: 'без установки', file: 'Svoya-Igra_Linux-x64.AppImage' },
   { id: 'deb', os: 'Linux', label: 'Linux · .deb', hint: 'Ubuntu, Debian, Mint', file: 'Svoya-Igra_Linux-x64.deb' },
   { id: 'rpm', os: 'Linux', label: 'Linux · .rpm', hint: 'Fedora, openSUSE', file: 'Svoya-Igra_Linux-x64.rpm' },
 ]
@@ -82,7 +82,10 @@ export async function loadLatestRelease(): Promise<void> {
     const data = (await res.json()) as { tag_name: string; published_at: string; assets: { name: string }[] }
     latestRelease.value = {
       version: data.tag_name.replace(/^v/, ''),
-      date: new Date(data.published_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }),
+      // ru-RU appends " г." and the sentence around it ends with its own period
+      date: new Date(data.published_at)
+        .toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
+        .replace(/\s*г\.$/, ''),
       files: new Set(data.assets.map((a) => a.name)),
     }
   } catch {

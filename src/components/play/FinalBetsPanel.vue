@@ -9,7 +9,7 @@ defineEmits<{ (e: 'bet', playerId: string, amount: number): void; (e: 'done'): v
 
 <template>
   <div class="flex w-full max-w-xl flex-col items-center gap-4">
-    <p class="text-muted-foreground">Ставка — от 0 до текущего счёта. Игроки без очков ставят 0.</p>
+    <p class="text-muted-foreground">Ставка от 0 до текущего счёта. У кого нет очков, ставит 0.</p>
     <div class="grid w-full gap-2">
       <div
         v-for="p in players"

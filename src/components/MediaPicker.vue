@@ -56,7 +56,7 @@ async function onFile(e: Event) {
   if (!file) return
   const kind = detectKind({ file })
   if (!kind) {
-    toast.error('Неподдерживаемый файл', { description: 'Подойдут изображения, аудио и видео.' })
+    toast.error('Неподдерживаемый файл', { description: 'Подойдут картинки, звук и видео.' })
     return
   }
   try {
@@ -101,7 +101,7 @@ const isYoutube = computed(() => kind.value === 'youtube' || parseYoutubeUrl(url
         name="media-url"
         class="min-w-48 flex-1"
         :model-value="stored ? '' : url"
-        :placeholder="stored ? 'Загруженный файл — введите URL, чтобы заменить' : 'URL картинки, аудио, видео или YouTube'"
+        :placeholder="stored ? 'Файл загружен. Вставьте ссылку, чтобы заменить его' : 'Ссылка на картинку, звук, видео или YouTube'"
         aria-label="Ссылка на медиа"
         @update:model-value="(v) => setUrl(String(v))"
       />
@@ -110,7 +110,7 @@ const isYoutube = computed(() => kind.value === 'youtube' || parseYoutubeUrl(url
         <SelectContent>
           <SelectItem value="auto">Определить</SelectItem>
           <SelectItem value="image">Картинка</SelectItem>
-          <SelectItem value="audio">Аудио</SelectItem>
+          <SelectItem value="audio">Звук</SelectItem>
           <SelectItem value="video">Видео</SelectItem>
           <SelectItem value="youtube">YouTube</SelectItem>
         </SelectContent>
@@ -136,7 +136,7 @@ const isYoutube = computed(() => kind.value === 'youtube' || parseYoutubeUrl(url
     <div v-if="(isYoutube || kind === 'audio' || kind === 'video') && url" class="flex flex-wrap items-center gap-3">
       <Label>Длительность, с</Label>
       <NumberInput class="w-36" :model-value="duration" placeholder="до конца" @update:model-value="setDuration" />
-      <span class="text-sm text-muted-foreground">пусто — до конца</span>
+      <span class="text-sm text-muted-foreground">Если пусто, играет до конца</span>
     </div>
 
     <div v-if="url" class="preview flex max-h-80 justify-center overflow-hidden rounded-lg bg-black/25 p-2">

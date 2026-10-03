@@ -15,7 +15,7 @@ export function makeEmptyTheme(name = 'Тема'): Theme {
   return { id: uid('t_'), name, questions: DEFAULT_VALUES.map(makeEmptyQuestion) }
 }
 
-export function makeEmptyRound(name = 'РАУНД 1', themeCount = 5): Round {
+export function makeEmptyRound(name = 'Раунд 1', themeCount = 5): Round {
   return {
     id: uid('r_'),
     name,
@@ -33,7 +33,7 @@ export function makeEmptyGame(title = 'Новая игра'): Game {
     id: uid('g_'),
     title,
     subtitle: '',
-    rounds: [makeEmptyRound('РАУНД 1'), makeEmptyRound('РАУНД 2')],
+    rounds: [makeEmptyRound('Раунд 1'), makeEmptyRound('Раунд 2')],
     finalRound: makeEmptyFinal(),
     createdAt: now,
     updatedAt: now,

@@ -63,7 +63,7 @@ export async function openHostWindow(gameId: string, title: string): Promise<voi
     }
     new WebviewWindow(label, {
       url: `index.html${route}`,
-      title: `Ведущий — ${title}`,
+      title: `Ведущий · ${title}`,
       width: 960,
       height: 780,
       minWidth: 720,

@@ -28,6 +28,6 @@ defineEmits<{ (e: 'verdict', playerId: string, sign: Sign): void; (e: 'nobody'):
         </div>
       </div>
     </div>
-    <Button variant="ghost" @click="$emit('nobody')">Никто не ответил — к табло</Button>
+    <Button variant="ghost" @click="$emit('nobody')">Никто не ответил</Button>
   </div>
 </template>
