@@ -1,6 +1,6 @@
 [package]
 name = "svoya-igra"
-version = "0.1.0"
+version = "0.2.0"
 description = "Конструктор и проигрыватель «Своей игры»"
 edition = "2024"
 rust-version = "1.90"
