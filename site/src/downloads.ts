@@ -3,6 +3,8 @@ import { ref } from 'vue'
 const REPO = 'swchck/svoya-igra'
 export const REPO_URL = `https://github.com/${REPO}`
 export const RELEASES_URL = `${REPO_URL}/releases`
+/** The web build of the app, deployed next to the site by `npm run site:build`. */
+export const APP_URL = './app/'
 
 export type PlatformId = 'mac-arm' | 'mac-x64' | 'windows' | 'appimage' | 'deb' | 'rpm'
 
@@ -24,8 +26,10 @@ export const DOWNLOADS: Download[] = [
   { id: 'rpm', os: 'Linux', label: 'Linux · .rpm', hint: 'Fedora, openSUSE', file: 'Svoya-Igra_Linux-x64.rpm' },
 ]
 
+/** Returns a link that downloads the installer itself, never a release page. */
 export function downloadUrl(d: Download): string {
-  return `${RELEASES_URL}/latest/download/${d.file}`
+  // GitHub redirects /latest/download/<file> straight to the asset, so the link works blind too
+  return latestRelease.value?.files.get(d.file) ?? `${RELEASES_URL}/latest/download/${d.file}`
 }
 
 /** True when the latest release ships this installer, or when that can't be checked. */
@@ -61,7 +65,8 @@ export async function detectPlatform(): Promise<PlatformId | null> {
 export interface LatestRelease {
   version: string
   date: string
-  files: Set<string>
+  /** Installer file name to its direct download URL. */
+  files: Map<string, string>
 }
 
 /** The latest published release, null before the first one, undefined while loading or unknown. */
@@ -79,14 +84,14 @@ export async function loadLatestRelease(): Promise<void> {
       return
     }
     if (!res.ok) throw new Error(`GitHub API ${res.status}`)
-    const data = (await res.json()) as { tag_name: string; published_at: string; assets: { name: string }[] }
+    const data = (await res.json()) as { tag_name: string; published_at: string; assets: { name: string; browser_download_url: string }[] }
     latestRelease.value = {
       version: data.tag_name.replace(/^v/, ''),
       // ru-RU appends " г." and the sentence around it ends with its own period
       date: new Date(data.published_at)
         .toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
         .replace(/\s*г\.$/, ''),
-      files: new Set(data.assets.map((a) => a.name)),
+      files: new Map(data.assets.map((a) => [a.name, a.browser_download_url])),
     }
   } catch {
     // 60 anonymous requests an hour per IP run out fast behind an office NAT
