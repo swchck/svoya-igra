@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import type { MediaItem } from '../../types'
-import MediaView from '../MediaView.vue'
+import type { MediaItem } from '@/types'
+import { Badge } from '@/components/ui/badge'
+import MediaView from '@/components/MediaView.vue'
 
 defineProps<{
   variant: 'question' | 'answer'
@@ -11,49 +12,18 @@ defineProps<{
 </script>
 
 <template>
-  <section class="slide card-slide">
-    <div v-if="badge" class="badge">{{ badge }}</div>
-    <div :class="variant === 'question' ? 'q-text' : 'a-text'">{{ text }}</div>
+  <section class="mx-auto flex w-full max-w-6xl flex-1 flex-col items-center justify-center gap-7 p-8 text-center">
+    <Badge v-if="badge" class="px-4 py-1 font-display text-base tracking-widest uppercase">{{ badge }}</Badge>
+    <div
+      v-if="variant === 'question'"
+      class="font-serif text-[clamp(28px,3.6vw,56px)] leading-tight font-bold whitespace-pre-wrap"
+    >
+      {{ text }}
+    </div>
+    <div v-else class="title-gold text-[clamp(36px,5.5vw,84px)] leading-tight whitespace-pre-wrap normal-case">
+      {{ text }}
+    </div>
     <MediaView v-if="media?.length" :items="media" :autoplay="true" />
-    <div class="actions"><slot /></div>
+    <div class="flex w-full flex-col items-center gap-4"><slot /></div>
   </section>
 </template>
-
-<style scoped>
-.card-slide {
-  max-width: 1100px;
-  margin: 0 auto;
-  width: 100%;
-}
-.badge {
-  background: var(--si-gold);
-  color: #1a1a4a;
-  padding: 6px 18px;
-  border-radius: 30px;
-  font-family: var(--font-title);
-  font-weight: 700;
-  letter-spacing: 0.1em;
-}
-.q-text {
-  font-weight: 700;
-  font-size: clamp(28px, 4vw, 56px);
-  line-height: 1.25;
-  white-space: pre-wrap;
-}
-.a-text {
-  font-family: var(--font-title);
-  font-weight: 700;
-  color: var(--si-gold);
-  font-size: clamp(36px, 6vw, 80px);
-  line-height: 1.2;
-  white-space: pre-wrap;
-}
-.actions {
-  margin-top: 18px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  width: 100%;
-}
-</style>

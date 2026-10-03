@@ -81,11 +81,12 @@ Actions, распространение — через GitHub Releases.
 
 ## Фаза 5. UI-кит (P3)
 
-- [ ] Tailwind v4 + shadcn-vue, тема на CSS-переменных
-- [ ] Button, Input, Textarea, Label, Select, Card, Tabs, ToggleGroup, NumberField,
+- [x] Tailwind v4 + shadcn-vue, тема на CSS-переменных
+- [x] Button, Input, Textarea, Label, Select, Card, Tabs, ToggleGroup, NumberField,
       Tooltip, DropdownMenu
-- [ ] Dialog/AlertDialog вместо `confirm`, Sonner вместо `alert`
-- [ ] Фокус-стили, `aria-label` у кнопок-иконок, доска на узких экранах
+- [x] Dialog/AlertDialog вместо `confirm`, Sonner вместо `alert`
+- [x] Фокус-стили, `aria-label` и подсказки у кнопок-иконок, доска прокручивается на узких экранах
+- [x] Шрифты: Oswald (табло, заголовки), PT Serif (текст вопросов), Golos Text (интерфейс)
 
 ## Фаза 6. Игровой процесс (P4)
 

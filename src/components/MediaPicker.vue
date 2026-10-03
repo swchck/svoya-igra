@@ -1,10 +1,19 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import type { MediaItem, MediaKind, MediaMode } from '../types'
-import { parseYoutubeUrl } from '../game/youtube'
-import { isStoredMedia } from '../media/ref'
-import { putMedia } from '../media/store'
-import MediaElement from './MediaElement.vue'
+import { toast } from 'vue-sonner'
+import { FolderOpen, X } from '@lucide/vue'
+import type { MediaItem, MediaKind, MediaMode } from '@/types'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import IconButton from '@/components/IconButton.vue'
+import NumberInput from '@/components/NumberInput.vue'
+import { parseYoutubeUrl } from '@/game/youtube'
+import { isStoredMedia } from '@/media/ref'
+import { putMedia } from '@/media/store'
+import MediaElement from '@/components/MediaElement.vue'
 
 const props = defineProps<{ modelValue: MediaItem }>()
 
@@ -47,13 +56,13 @@ async function onFile(e: Event) {
   if (!file) return
   const kind = detectKind({ file })
   if (!kind) {
-    alert('Поддерживаются изображения, аудио и видео.')
+    toast.error('Неподдерживаемый файл', { description: 'Подойдут изображения, аудио и видео.' })
     return
   }
   try {
     patch({ url: await putMedia(file), kind, mode: undefined })
   } catch (err) {
-    alert('Не удалось сохранить файл: ' + (err as Error).message)
+    toast.error('Не удалось сохранить файл', { description: (err as Error).message })
   }
 }
 
@@ -62,8 +71,8 @@ function setUrl(url: string) {
   patch({ url, kind, mode: modeFor(kind) })
 }
 
-function setKind(v: MediaKind | '') {
-  const kind = v || detectKind({ url: props.modelValue.url }) || 'image'
+function setKind(v: MediaKind | 'auto') {
+  const kind = (v !== 'auto' && v) || detectKind({ url: props.modelValue.url }) || 'image'
   patch({ kind, mode: modeFor(kind) })
 }
 
@@ -73,9 +82,8 @@ function clear() {
   patch({ url: '', mode: undefined, duration: undefined })
 }
 
-function setDuration(v: string) {
-  const n = parseInt(v, 10)
-  patch({ duration: isFinite(n) && n > 0 ? n : undefined })
+function setDuration(n: number | undefined) {
+  patch({ duration: n && n > 0 ? Math.round(n) : undefined })
 }
 
 const url = computed(() => props.modelValue.url)
@@ -87,125 +95,58 @@ const isYoutube = computed(() => kind.value === 'youtube' || parseYoutubeUrl(url
 </script>
 
 <template>
-  <div class="media-picker">
-    <div class="si-row">
-      <input
-        class="si-input"
-        :value="stored ? '' : url"
-        :placeholder="stored ? 'Загруженный файл — введите URL, чтобы заменить' : 'URL картинки / аудио / видео / YouTube'"
-        @input="setUrl(($event.target as HTMLInputElement).value)"
+  <div class="flex flex-col gap-3">
+    <div class="flex flex-wrap items-center gap-2">
+      <Input
+        name="media-url"
+        class="min-w-48 flex-1"
+        :model-value="stored ? '' : url"
+        :placeholder="stored ? 'Загруженный файл — введите URL, чтобы заменить' : 'URL картинки, аудио, видео или YouTube'"
+        aria-label="Ссылка на медиа"
+        @update:model-value="(v) => setUrl(String(v))"
       />
-      <select
-        class="si-select"
-        style="max-width:160px"
-        :value="kind || ''"
-        @change="setKind(($event.target as HTMLSelectElement).value as MediaKind | '')"
+      <Select :model-value="kind" @update:model-value="(v) => setKind(v as MediaKind | 'auto')">
+        <SelectTrigger class="w-36" aria-label="Тип медиа"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="auto">Определить</SelectItem>
+          <SelectItem value="image">Картинка</SelectItem>
+          <SelectItem value="audio">Аудио</SelectItem>
+          <SelectItem value="video">Видео</SelectItem>
+          <SelectItem value="youtube">YouTube</SelectItem>
+        </SelectContent>
+      </Select>
+      <Button variant="secondary" @click="pick"><FolderOpen />Файл…</Button>
+      <IconButton v-if="url" label="Очистить" @click="clear"><X /></IconButton>
+      <input ref="fileInput" type="file" class="hidden" accept="image/*,audio/*,video/*" @change="onFile" />
+    </div>
+
+    <div v-if="isYoutube && url" class="flex flex-wrap items-center gap-3">
+      <Label>Режим</Label>
+      <ToggleGroup
+        type="single"
+        variant="outline"
+        :model-value="mode ?? 'video'"
+        @update:model-value="(v) => v && setMode(v as MediaMode)"
       >
-        <option value="">авто</option>
-        <option value="image">картинка</option>
-        <option value="audio">аудио</option>
-        <option value="video">видео</option>
-        <option value="youtube">YouTube</option>
-      </select>
-      <button class="si-button" @click="pick">Файл…</button>
-      <button v-if="url" class="si-button danger ghost" @click="clear">×</button>
-      <input
-        ref="fileInput"
-        type="file"
-        accept="image/*,audio/*,video/*"
-        style="display:none"
-        @change="onFile"
-      />
+        <ToggleGroupItem value="video">Видео</ToggleGroupItem>
+        <ToggleGroupItem value="audio">Только звук</ToggleGroupItem>
+      </ToggleGroup>
     </div>
 
-    <!-- YouTube playback mode toggle -->
-    <div v-if="isYoutube && url" class="mode-row">
-      <span class="si-label" style="margin: 0;">Режим:</span>
-      <label class="seg" :class="{ active: (mode || 'video') === 'video' }">
-        <input
-          type="radio"
-          :checked="(mode || 'video') === 'video'"
-          @change="setMode('video')"
-        />
-        Видео (без метаинформации)
-      </label>
-      <label class="seg" :class="{ active: mode === 'audio' }">
-        <input
-          type="radio"
-          :checked="mode === 'audio'"
-          @change="setMode('audio')"
-        />
-        Только аудио
-      </label>
+    <div v-if="(isYoutube || kind === 'audio' || kind === 'video') && url" class="flex flex-wrap items-center gap-3">
+      <Label>Длительность, с</Label>
+      <NumberInput class="w-36" :model-value="duration" placeholder="до конца" @update:model-value="setDuration" />
+      <span class="text-sm text-muted-foreground">пусто — до конца</span>
     </div>
 
-    <div v-if="(isYoutube || kind === 'audio' || kind === 'video') && url" class="duration-row">
-      <span class="si-label" style="margin: 0;">Длительность:</span>
-      <input
-        type="number"
-        min="0"
-        step="1"
-        class="si-input duration-input"
-        :value="duration ?? ''"
-        placeholder="до конца"
-        @input="setDuration(($event.target as HTMLInputElement).value)"
-      />
-      <span class="muted">сек (0 / пусто = играть до конца)</span>
-    </div>
-
-    <div v-if="url" class="preview">
+    <div v-if="url" class="preview flex max-h-80 justify-center overflow-hidden rounded-lg bg-black/25 p-2">
       <MediaElement :item="modelValue" preview />
     </div>
   </div>
 </template>
 
 <style scoped>
-.media-picker { display: flex; flex-direction: column; gap: 8px; }
-.mode-row {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-.seg {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border: 1px solid var(--si-cell-border);
-  border-radius: 999px;
-  background: rgba(255,255,255,0.05);
-  cursor: pointer;
-  font-size: 14px;
-  color: var(--si-mute);
-}
-.seg.active {
-  background: rgba(255, 192, 0, 0.18);
-  color: var(--si-gold);
-  border-color: var(--si-gold);
-}
-.seg input { accent-color: var(--si-gold); }
-.duration-row {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-.duration-input {
-  max-width: 120px;
-}
-
-.preview {
-  margin-top: 6px;
-  display: flex;
-  justify-content: center;
-  background: rgba(0,0,0,0.25);
-  padding: 8px;
-  border-radius: 8px;
-  max-height: 320px;
-  overflow: hidden;
-}
-.preview :deep(img), .preview :deep(video) { max-height: 280px; max-width: 100%; }
+.preview :deep(img),
+.preview :deep(video) { max-height: 280px; max-width: 100%; border-radius: 8px; }
 .preview :deep(audio) { width: 100%; }
-.muted { color: var(--si-mute); font-size: 13px; word-break: break-all; }
 </style>

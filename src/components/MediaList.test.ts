@@ -4,6 +4,7 @@ import { defineComponent, h, ref } from 'vue'
 import type { MediaItem } from '../types'
 import MediaList from './MediaList.vue'
 import MediaPicker from './MediaPicker.vue'
+import { TooltipProvider } from './ui/tooltip'
 
 const item = (p: Partial<MediaItem> = {}): MediaItem => ({ id: 'mi_1', url: '', kind: 'image', ...p })
 
@@ -11,7 +12,7 @@ describe('MediaPicker', () => {
   it('emits a single complete item when a URL is typed', async () => {
     const w = mount(MediaPicker, { props: { modelValue: item() } })
 
-    await w.find('input.si-input').setValue('https://example.com/a.mp3')
+    await w.find('input[name=media-url]').setValue('https://example.com/a.mp3')
 
     const events = w.emitted('update:modelValue')!
     expect(events).toHaveLength(1)
@@ -21,7 +22,7 @@ describe('MediaPicker', () => {
   it('switches YouTube links to video mode by default', async () => {
     const w = mount(MediaPicker, { props: { modelValue: item() } })
 
-    await w.find('input.si-input').setValue('https://youtu.be/O4SacSbp-Rc')
+    await w.find('input[name=media-url]').setValue('https://youtu.be/O4SacSbp-Rc')
 
     expect(w.emitted('update:modelValue')![0][0]).toMatchObject({ kind: 'youtube', mode: 'video' })
   })
@@ -45,11 +46,13 @@ describe('MediaList', () => {
   it('keeps the typed URL through the parent v-model', async () => {
     const model = ref<MediaItem[] | undefined>([item()])
     const Host = defineComponent(() => () =>
-      h(MediaList, { modelValue: model.value, 'onUpdate:modelValue': (v?: MediaItem[]) => { model.value = v } }),
+      h(TooltipProvider, () =>
+        h(MediaList, { modelValue: model.value, 'onUpdate:modelValue': (v?: MediaItem[]) => { model.value = v } }),
+      ),
     )
     const w = mount(Host)
 
-    await w.find('input.si-input').setValue('https://example.com/pic.png')
+    await w.find('input[name=media-url]').setValue('https://example.com/pic.png')
     await flushPromises()
 
     expect(model.value).toEqual([item({ url: 'https://example.com/pic.png', kind: 'image' })])

@@ -54,7 +54,7 @@ const playerRequested = ref(false)
 
 <style scoped>
 .missing {
-  color: var(--si-mute);
+  color: var(--muted-foreground);
   font-style: italic;
   padding: 12px;
 }

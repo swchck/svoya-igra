@@ -1,8 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { MediaItem } from '../types'
-import { uid } from '../game/model'
-import MediaPicker from './MediaPicker.vue'
+import { ArrowDown, ArrowUp, Plus, Trash2 } from '@lucide/vue'
+import type { MediaItem } from '@/types'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import IconButton from '@/components/IconButton.vue'
+import MediaPicker from '@/components/MediaPicker.vue'
+import { uid } from '@/game/model'
 
 const props = defineProps<{
   label?: string
@@ -41,48 +45,25 @@ function replace(i: number, item: MediaItem) {
 </script>
 
 <template>
-  <div class="media-list">
-    <label v-if="label" class="si-label">{{ label }}</label>
-    <div v-if="!items.length" class="empty">
-      <button class="si-button" @click="add">+ Добавить медиа</button>
+  <section class="flex flex-col gap-3">
+    <div class="flex items-center justify-between gap-2">
+      <Label v-if="label">{{ label }}</Label>
+      <Button variant="outline" size="sm" @click="add"><Plus />Добавить медиа</Button>
     </div>
-    <template v-else>
-      <article v-for="(it, i) in items" :key="it.id" class="m-item">
-        <header class="m-head">
-          <span class="m-num">#{{ i + 1 }}</span>
-          <button class="si-button ghost" :disabled="i === 0" title="Вверх" @click="move(i, -1)">↑</button>
-          <button class="si-button ghost" :disabled="i === items.length - 1" title="Вниз" @click="move(i, 1)">↓</button>
-          <span class="si-spacer" />
-          <button class="si-button danger ghost" title="Удалить" @click="remove(i)">×</button>
-        </header>
-        <MediaPicker :model-value="it" @update:model-value="(v) => replace(i, v)" />
-      </article>
-      <button class="si-button" @click="add">+ Ещё медиа</button>
-    </template>
-  </div>
+    <article
+      v-for="(it, i) in items"
+      :key="it.id"
+      class="m-item flex flex-col gap-3 rounded-lg border border-dashed border-border bg-board/40 p-3"
+    >
+      <header class="flex items-center gap-1">
+        <span class="mr-auto font-display text-sm text-gold">#{{ i + 1 }}</span>
+        <IconButton label="Выше" size="icon-xs" :disabled="i === 0" @click="move(i, -1)"><ArrowUp /></IconButton>
+        <IconButton label="Ниже" size="icon-xs" :disabled="i === items.length - 1" @click="move(i, 1)">
+          <ArrowDown />
+        </IconButton>
+        <IconButton label="Убрать медиа" size="icon-xs" @click="remove(i)"><Trash2 /></IconButton>
+      </header>
+      <MediaPicker :model-value="it" @update:model-value="(v) => replace(i, v)" />
+    </article>
+  </section>
 </template>
-
-<style scoped>
-.media-list { display: flex; flex-direction: column; gap: 12px; }
-.empty { display: flex; }
-.m-item {
-  border: 1px dashed var(--si-cell-border);
-  border-radius: 10px;
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  background: rgba(0, 0, 80, 0.18);
-}
-.m-head {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-.m-num {
-  font-family: var(--font-title);
-  color: var(--si-gold);
-  font-size: 14px;
-}
-.m-head .si-button { padding: 4px 10px; font-size: 13px; }
-</style>

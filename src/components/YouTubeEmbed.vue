@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { Pause, Play, Square } from '@lucide/vue'
+import { Button } from '@/components/ui/button'
 import { parseYoutubeUrl } from '../game/youtube'
 import { youtubeEmbedUrl } from '../platform'
 
@@ -101,10 +103,11 @@ function onLoad() {
         </div>
       </div>
       <div v-if="isAudio" class="yt-audio-controls">
-        <button class="si-button" @click="togglePlay">
-          {{ isPlaying ? '⏸ Пауза' : '▶ Воспроизвести' }}
-        </button>
-        <button class="si-button ghost" @click="stop">⏹ Остановить</button>
+        <Button variant="secondary" @click="togglePlay">
+          <template v-if="isPlaying"><Pause />Пауза</template>
+          <template v-else><Play />Воспроизвести</template>
+        </Button>
+        <Button variant="ghost" @click="stop"><Square />Стоп</Button>
       </div>
     </template>
   </div>
@@ -148,8 +151,8 @@ function onLoad() {
   align-items: center;
   justify-content: center;
   gap: 12px;
-  color: var(--si-gold);
-  font-family: var(--font-title);
+  color: var(--gold);
+  font-family: var(--font-display);
   font-size: 22px;
   pointer-events: none;
 }
@@ -163,7 +166,7 @@ function onLoad() {
   justify-content: center;
 }
 .yt-error {
-  color: var(--si-mute);
+  color: var(--muted-foreground);
   padding: 20px;
 }
 </style>

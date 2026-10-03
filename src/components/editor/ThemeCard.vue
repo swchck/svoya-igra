@@ -1,10 +1,21 @@
 <script setup lang="ts">
-import type { Theme } from '../../types'
-import { makeEmptyQuestion } from '../../game/model'
+import { Plus, Trash2 } from '@lucide/vue'
+import type { Theme } from '@/types'
+import { Card } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import IconButton from '@/components/IconButton.vue'
+import { makeEmptyQuestion } from '@/game/model'
+import { cn } from '@/lib/utils'
 
 const theme = defineModel<Theme>({ required: true })
 defineProps<{ selected: number | null }>()
 defineEmits<{ (e: 'select', questionIndex: number): void; (e: 'remove'): void }>()
+
+const KIND_CELL = {
+  normal: '',
+  auction: 'bg-accent',
+  'cat-in-bag': 'bg-fuchsia-500/25',
+} as const
 
 function addQuestion() {
   const last = theme.value.questions.at(-1)
@@ -13,69 +24,32 @@ function addQuestion() {
 </script>
 
 <template>
-  <article class="theme-card si-card">
-    <div class="si-row">
-      <input v-model="theme.name" class="si-input theme-name" placeholder="Название темы" />
-      <button class="si-button danger ghost" title="Удалить тему" @click="$emit('remove')">×</button>
+  <Card size="sm" class="gap-3 px-3">
+    <div class="flex items-center gap-2">
+      <Input v-model="theme.name" class="font-display text-base tracking-wide" placeholder="Название темы" aria-label="Название темы" />
+      <IconButton label="Удалить тему" @click="$emit('remove')"><Trash2 /></IconButton>
     </div>
-    <div class="q-row">
+    <div class="flex flex-wrap gap-2">
       <button
         v-for="(q, qIdx) in theme.questions"
         :key="q.id"
-        class="q-cell"
-        :class="{
-          active: selected === qIdx,
-          empty: !q.text,
-          auction: q.kind === 'auction',
-          bag: q.kind === 'cat-in-bag',
-        }"
+        :class="
+          cn(
+            'h-12 w-16 rounded-lg border border-border bg-board font-display text-lg font-semibold text-gold transition hover:-translate-y-px',
+            KIND_CELL[q.kind],
+            !q.text && 'text-gold/40 italic',
+            selected === qIdx && 'ring-2 ring-ring ring-offset-2 ring-offset-background',
+          )
+        "
         :title="q.text || 'Пустой вопрос'"
+        :aria-pressed="selected === qIdx"
         @click="$emit('select', qIdx)"
       >
         {{ q.value }}
       </button>
-      <button class="q-cell add" title="Добавить вопрос" @click="addQuestion">+</button>
+      <IconButton label="Добавить вопрос" variant="outline" size="icon-lg" class="h-12" @click="addQuestion">
+        <Plus />
+      </IconButton>
     </div>
-  </article>
+  </Card>
 </template>
-
-<style scoped>
-.theme-card { padding: 12px; }
-.theme-card .si-row { flex-wrap: nowrap; }
-.theme-name { font-family: var(--font-title); }
-.q-row {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 10px;
-}
-.q-cell {
-  width: 64px;
-  height: 56px;
-  border-radius: 8px;
-  border: 1px solid var(--si-cell-border);
-  background: var(--si-cell-bg);
-  color: var(--si-gold);
-  font-family: var(--font-body);
-  font-weight: 700;
-  font-size: 18px;
-  cursor: pointer;
-  transition: transform 0.1s, background 0.15s;
-}
-.q-cell:hover { transform: translateY(-1px); }
-.q-cell.active {
-  outline: 2px solid var(--si-gold);
-  outline-offset: 2px;
-}
-.q-cell.empty {
-  color: rgba(255, 192, 0, 0.4);
-  font-style: italic;
-}
-.q-cell.auction { background: rgba(255, 192, 0, 0.18); }
-.q-cell.bag { background: rgba(160, 80, 220, 0.25); }
-.q-cell.add {
-  width: 44px;
-  color: var(--si-mute);
-  font-size: 22px;
-}
-</style>

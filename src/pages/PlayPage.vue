@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
+import { ArrowLeft, Check, Maximize, Minimize, SkipForward, X } from '@lucide/vue'
 import { useRouter } from 'vue-router'
-import type { Game } from '../types'
-import { getGame } from '../storage'
-import { usePlaySession } from '../composables/usePlaySession'
-import PlayersStrip from '../components/play/PlayersStrip.vue'
-import PlayerSetup from '../components/play/PlayerSetup.vue'
-import IntroSlide from '../components/play/IntroSlide.vue'
-import BoardGrid from '../components/play/BoardGrid.vue'
-import CardSlide from '../components/play/CardSlide.vue'
-import ResultsSlide from '../components/play/ResultsSlide.vue'
+import type { Game } from '@/types'
+import { Button } from '@/components/ui/button'
+import { confirmAction } from '@/composables/useConfirm'
+import { getGame } from '@/storage'
+import { usePlaySession } from '@/composables/usePlaySession'
+import PlayersStrip from '@/components/play/PlayersStrip.vue'
+import PlayerSetup from '@/components/play/PlayerSetup.vue'
+import IntroSlide from '@/components/play/IntroSlide.vue'
+import BoardGrid from '@/components/play/BoardGrid.vue'
+import CardSlide from '@/components/play/CardSlide.vue'
+import ResultsSlide from '@/components/play/ResultsSlide.vue'
 
 const props = defineProps<{ id: string }>()
 const router = useRouter()
@@ -25,9 +28,15 @@ const { state, players, round, activeQuestion, ranking, inProgress } = session
 
 const KIND_BADGE = { normal: undefined, auction: 'ВОПРОС-АУКЦИОН', 'cat-in-bag': 'КОТ В МЕШКЕ' } as const
 
-function home() {
-  if (inProgress.value && !confirm('Прервать игру?')) return
+async function home() {
+  if (inProgress.value && !(await confirmAction({ title: 'Прервать игру?', description: 'Счёт этой партии не сохранится.', confirmLabel: 'Прервать' }))) return
   router.push({ name: 'home' })
+}
+
+async function skipRound() {
+  if (await confirmAction({ title: 'Пропустить раунд?', description: 'Несыгранные вопросы останутся несыгранными.', confirmLabel: 'Пропустить' })) {
+    session.nextRound()
+  }
 }
 
 const isFullscreen = ref(false)
@@ -56,35 +65,38 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="game" class="play-shell">
-    <header class="play-top">
-      <button class="si-button ghost" @click="home">← Выйти</button>
-      <div class="si-spacer" />
-      <button class="si-button ghost" @click="toggleFullscreen">
-        {{ isFullscreen ? '⤓ Свернуть' : '⤢ На весь экран' }}
-      </button>
+  <div v-if="game" class="flex min-h-screen flex-col">
+    <header class="flex items-center gap-3 px-5 py-3">
+      <Button variant="ghost" @click="home"><ArrowLeft />Выйти</Button>
+      <div class="flex-1" />
+      <Button variant="ghost" @click="toggleFullscreen">
+        <template v-if="isFullscreen"><Minimize />Свернуть</template>
+        <template v-else><Maximize />На весь экран</template>
+      </Button>
     </header>
 
     <PlayersStrip v-if="inProgress" v-model="players" />
 
-    <section v-if="state.phase === 'title'" class="slide">
-      <h1 class="si-title huge">{{ game.title || 'СВОЯ ИГРА' }}</h1>
-      <p v-if="game.subtitle" class="subtitle">{{ game.subtitle }}</p>
+    <section v-if="state.phase === 'title'" class="flex flex-1 flex-col items-center justify-center gap-8 p-8 text-center">
+      <div>
+        <h1 class="title-gold text-6xl leading-none sm:text-8xl">{{ game.title || 'Своя игра' }}</h1>
+        <p v-if="game.subtitle" class="mt-4 font-serif text-2xl text-muted-foreground italic">{{ game.subtitle }}</p>
+      </div>
       <PlayerSetup v-model="players" @add="session.addPlayer" @remove="session.removePlayer" />
-      <button class="si-button primary big" @click="session.start">▶ Начать игру</button>
+      <Button size="lg" class="h-12 px-8 text-lg" @click="session.start">Начать игру</Button>
     </section>
 
     <IntroSlide
       v-else-if="state.phase === 'round-intro'"
       :title="round?.name ?? ''"
-      hint="нажмите для перехода к выбору"
+      hint="Нажмите или пробел — к выбору вопроса"
       @next="session.advance"
     />
 
-    <section v-else-if="state.phase === 'board' && round" class="slide board">
-      <h2 class="board-title si-title">{{ round.name }}</h2>
+    <section v-else-if="state.phase === 'board' && round" class="flex flex-1 flex-col items-center gap-5 px-5 py-6">
+      <h2 class="title-gold text-4xl">{{ round.name }}</h2>
       <BoardGrid :round="round" :played="state.played" @pick="session.pick" />
-      <button class="si-button ghost" @click="session.nextRound">Пропустить раунд →</button>
+      <Button variant="ghost" @click="skipRound">Пропустить раунд<SkipForward /></Button>
     </section>
 
     <CardSlide
@@ -94,7 +106,7 @@ onUnmounted(() => {
       :text="activeQuestion.text"
       :media="activeQuestion.media"
     >
-      <button class="si-button primary big" @click="session.advance">Показать ответ</button>
+      <Button size="lg" class="h-12 px-8 text-lg" @click="session.advance">Показать ответ</Button>
     </CardSlide>
 
     <CardSlide
@@ -103,76 +115,42 @@ onUnmounted(() => {
       :text="activeQuestion.answer"
       :media="activeQuestion.answerMedia"
     >
-      <div class="award-grid">
-        <div v-for="p in players" :key="p.id" class="award-card">
-          <div class="award-name">{{ p.name }}</div>
-          <div class="award-buttons">
-            <button class="si-button primary" @click="session.close({ player: p, sign: 1 })">
-              +{{ activeQuestion.value }}
-            </button>
-            <button class="si-button danger" @click="session.close({ player: p, sign: -1 })">
-              −{{ activeQuestion.value }}
-            </button>
+      <div class="grid w-full max-w-4xl grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3">
+        <div v-for="p in players" :key="p.id" class="flex flex-col gap-2 rounded-xl border border-border bg-board p-3">
+          <div class="font-medium">{{ p.name }}</div>
+          <div class="flex gap-2">
+            <Button class="flex-1" @click="session.close({ player: p, sign: 1 })"><Check />+{{ activeQuestion.value }}</Button>
+            <Button class="flex-1" variant="destructive" @click="session.close({ player: p, sign: -1 })">
+              <X />−{{ activeQuestion.value }}
+            </Button>
           </div>
         </div>
       </div>
-      <button class="si-button ghost" @click="session.close()">Никто (к выбору)</button>
+      <Button variant="ghost" @click="session.close()">Никто не ответил — к табло</Button>
     </CardSlide>
 
     <IntroSlide
       v-else-if="state.phase === 'final-intro'"
-      title="ФИНАЛЬНЫЙ РАУНД"
+      title="Финал"
       :subtitle="game.finalRound?.theme"
-      hint="нажмите чтобы начать"
+      hint="Нажмите или пробел — начать"
       @next="session.advance"
     />
 
     <CardSlide
       v-else-if="state.phase === 'final-question' && game.finalRound"
       variant="question"
-      :badge="`ФИНАЛ · ${game.finalRound.theme}`"
+      :badge="`Финал · ${game.finalRound.theme}`"
       :text="game.finalRound.text"
       :media="game.finalRound.media"
     >
-      <button class="si-button primary big" @click="session.advance">Показать ответ</button>
+      <Button size="lg" class="h-12 px-8 text-lg" @click="session.advance">Показать ответ</Button>
     </CardSlide>
 
     <CardSlide v-else-if="state.phase === 'final-answer' && game.finalRound" variant="answer" :text="game.finalRound.answer">
-      <button class="si-button primary big" @click="session.advance">К результатам →</button>
+      <Button size="lg" class="h-12 px-8 text-lg" @click="session.advance">К итогам</Button>
     </CardSlide>
 
     <ResultsSlide v-else-if="state.phase === 'results'" :ranking="ranking" @home="home" />
   </div>
 </template>
-
-<style scoped>
-.play-shell {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-.play-top {
-  display: flex;
-  gap: 12px;
-  padding: 12px 18px;
-  align-items: center;
-}
-.board { gap: 16px; width: 100%; }
-.board-title { font-size: clamp(28px, 4vw, 44px); margin: 0; }
-.award-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
-  width: 100%;
-  max-width: 900px;
-}
-.award-card {
-  background: var(--si-cell-bg);
-  border: 1px solid var(--si-cell-border);
-  border-radius: 10px;
-  padding: 12px;
-}
-.award-name { font-family: var(--font-title); margin-bottom: 8px; }
-.award-buttons { display: flex; gap: 8px; }
-.award-buttons .si-button { flex: 1; justify-content: center; }
-</style>

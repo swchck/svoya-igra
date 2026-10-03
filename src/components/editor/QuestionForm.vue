@@ -1,51 +1,55 @@
 <script setup lang="ts">
-import type { Question } from '../../types'
-import MediaList from '../MediaList.vue'
+import { Trash2 } from '@lucide/vue'
+import type { Question } from '@/types'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
+import NumberInput from '@/components/NumberInput.vue'
+import MediaList from '@/components/MediaList.vue'
 
 const question = defineModel<Question>({ required: true })
 defineEmits<{ (e: 'remove'): void }>()
 </script>
 
 <template>
-  <div class="q-form">
-    <div class="si-row fields">
-      <div>
-        <label class="si-label">Стоимость</label>
-        <input v-model.number="question.value" type="number" class="si-input" min="0" step="100" />
+  <div class="flex flex-col gap-5">
+    <div class="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-3">
+      <div class="grid gap-1.5">
+        <Label>Стоимость</Label>
+        <NumberInput v-model="question.value" :step="100" />
       </div>
-      <div>
-        <label class="si-label">Тип</label>
-        <select v-model="question.kind" class="si-select">
-          <option value="normal">Обычный</option>
-          <option value="auction">Вопрос-аукцион</option>
-          <option value="cat-in-bag">Кот в мешке</option>
-        </select>
+      <div class="grid gap-1.5">
+        <Label>Тип</Label>
+        <Select v-model="question.kind">
+          <SelectTrigger class="w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="normal">Обычный</SelectItem>
+            <SelectItem value="auction">Вопрос-аукцион</SelectItem>
+            <SelectItem value="cat-in-bag">Кот в мешке</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
-      <div v-if="question.kind === 'cat-in-bag'">
-        <label class="si-label">Цена «кота»</label>
-        <input v-model.number="question.catValue" type="number" class="si-input" min="0" step="100" />
+      <div v-if="question.kind === 'cat-in-bag'" class="grid gap-1.5">
+        <Label>Цена «кота»</Label>
+        <NumberInput v-model="question.catValue" :step="100" :placeholder="String(question.value)" />
       </div>
     </div>
 
-    <div>
-      <label class="si-label">Вопрос</label>
-      <textarea v-model="question.text" class="si-textarea" placeholder="Текст вопроса..." />
+    <div class="grid gap-1.5">
+      <Label for="q-text">Вопрос</Label>
+      <Textarea id="q-text" v-model="question.text" class="min-h-24 font-serif text-base" placeholder="Текст вопроса…" />
     </div>
     <MediaList v-model="question.media" label="Медиа к вопросу" />
 
-    <div>
-      <label class="si-label">Ответ</label>
-      <textarea v-model="question.answer" class="si-textarea" placeholder="Правильный ответ..." />
+    <div class="grid gap-1.5">
+      <Label for="q-answer">Ответ</Label>
+      <Textarea id="q-answer" v-model="question.answer" class="min-h-20 font-serif text-base" placeholder="Правильный ответ…" />
     </div>
     <MediaList v-model="question.answerMedia" label="Медиа к ответу" />
 
-    <div class="si-row">
-      <button class="si-button danger" @click="$emit('remove')">Удалить вопрос</button>
+    <div>
+      <Button variant="destructive" @click="$emit('remove')"><Trash2 />Удалить вопрос</Button>
     </div>
   </div>
 </template>
-
-<style scoped>
-.q-form { display: flex; flex-direction: column; gap: 14px; }
-.fields > div { flex: 1; }
-</style>
