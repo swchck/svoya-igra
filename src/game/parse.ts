@@ -62,7 +62,7 @@ function normalizeFinal(f: StoredFinal): FinalQuestion {
  * @throws Error with a user-facing message when the data is not a game.
  */
 export function parseGame(data: unknown): Game {
-  const invalid = () => new Error('Некорректный формат игры')
+  const invalid = () => new Error('Файл повреждён или это не игра')
   if (!isObject(data) || typeof data.id !== 'string' || !Array.isArray(data.rounds)) throw invalid()
   for (const r of data.rounds) {
     if (!isObject(r) || !Array.isArray(r.themes)) throw invalid()

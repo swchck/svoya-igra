@@ -29,69 +29,82 @@ const released = computed(() => DOWNLOADS.some(isAvailable))
 const FEATURES = [
   {
     icon: LayoutGrid,
-    title: 'Редактор раундов',
-    text: 'Раунды, темы, вопросы и финал. Стоимость, типы вопросов, перестановка — всё в одном окне, сохраняется само.',
+    title: 'Редактор',
+    text: 'Раунды, темы, вопросы и финал собираются в одном окне. У каждого вопроса своя стоимость и тип. Темы и вопросы можно переставлять, правки сохраняются сразу.',
   },
   {
     icon: Clapperboard,
-    title: 'Картинки, звук, видео',
-    text: 'Несколько медиа к вопросу и к ответу. Файлы с диска или ссылки, YouTube — как видео или только звук, с ограничением по времени.',
+    title: 'Картинки, звук и видео',
+    text: 'К вопросу и к ответу можно прикрепить несколько файлов с диска или ссылок. Ролик с YouTube показывается как видео или играет только звуком, и его можно остановить через заданное число секунд.',
   },
   {
     icon: Gavel,
     title: 'Аукцион и кот в мешке',
-    text: 'Ставки до ва-банка, передача вопроса другому игроку, финал со ставками — правила считаются сами.',
+    text: 'На аукционе игрок ставит от стоимости вопроса до всего своего счёта. Кота в мешке ведущий отдаёт другому игроку по отдельной цене. В финале каждый ставит часть своих очков.',
   },
   {
     icon: MonitorSmartphone,
     title: 'Окно ведущего',
-    text: 'Сцена — на проекторе, пульт с ответами и управлением — на ноутбуке. Зрители видят только то, что нужно.',
+    text: 'Зрители видят табло и вопросы. Ведущий во втором окне видит правильный ответ, выбирает вопросы, засчитывает ответы и правит счёт.',
   },
   {
     icon: Save,
-    title: 'Партия не потеряется',
-    text: 'Счёт и сыгранные вопросы сохраняются по ходу игры. Закрыли окно — продолжите с того же места.',
+    title: 'Сохранение партии',
+    text: 'Счёт и сыгранные вопросы записываются после каждого хода. Если закрыть окно посреди игры, в следующий раз можно продолжить с того же места.',
   },
   {
     icon: WifiOff,
-    title: 'Без интернета и аккаунтов',
-    text: 'Игры хранятся на вашем компьютере. Сеть нужна только для YouTube.',
+    title: 'Работает без интернета',
+    text: 'Игры хранятся на вашем компьютере, аккаунт не нужен. Сеть понадобится только для роликов с YouTube и медиа по ссылкам.',
   },
 ]
 
 const STEPS = [
-  { title: 'Соберите', text: 'Создайте игру или откройте пример. Добавьте вопросы, ответы и медиа.' },
-  { title: 'Выведите на экран', text: '«Играть» — и сцена на весь экран. Окно ведущего откроется рядом.' },
-  { title: 'Ведите', text: 'Выбирайте вопросы, открывайте ответы, начисляйте очки. Итоги посчитаются сами.' },
+  {
+    title: 'Соберите игру',
+    text: 'Создайте новую или откройте пример, чтобы посмотреть, как устроена готовая. Заполните темы, вопросы и ответы.',
+  },
+  {
+    title: 'Выведите на экран',
+    text: 'Нажмите «Играть» и разверните сцену на весь экран. Кнопка «Окно ведущего» откроет пульт для второго монитора.',
+  },
+  {
+    title: 'Ведите',
+    text: 'Выбирайте вопросы, показывайте ответы и отмечайте, кто ответил верно. После финала на экране появятся итоги.',
+  },
 ]
 
 const SCREENS = [
-  { id: 'board', label: 'Табло', alt: 'Табло раунда с темами и стоимостями вопросов' },
+  { id: 'board', label: 'Табло', alt: 'Табло раунда с темами и стоимостью вопросов' },
   { id: 'question', label: 'Вопрос', alt: 'Вопрос с картинками на экране для зрителей' },
   { id: 'host', label: 'Ведущий', alt: 'Окно ведущего с вопросом и правильным ответом' },
-  { id: 'editor', label: 'Редактор', alt: 'Редактор: темы, вопросы и медиа' },
+  { id: 'editor', label: 'Редактор', alt: 'Редактор с темами, вопросами и медиа' },
 ]
 
 const FAQ = [
   {
     q: 'macOS пишет, что не может проверить разработчика',
-    a: 'Приложение не подписано сертификатом Apple. Откройте «Системные настройки → Конфиденциальность и безопасность» и нажмите «Всё равно открыть». Если система говорит, что приложение повреждено, выполните в терминале: xattr -dr com.apple.quarantine "/Applications/Своя Игра.app".',
+    a: 'У приложения нет подписи Apple, поэтому macOS спрашивает разрешения при первом запуске. Откройте «Системные настройки», раздел «Конфиденциальность и безопасность», и нажмите «Всё равно открыть». Если macOS называет приложение повреждённым, выполните в Терминале: xattr -dr com.apple.quarantine "/Applications/Своя Игра.app"',
   },
   {
-    q: 'Windows показывает предупреждение SmartScreen',
-    a: 'Нажмите «Подробнее», затем «Выполнить в любом случае». Предупреждение появляется, потому что у установщика нет коммерческой подписи.',
+    q: 'Windows показывает окно SmartScreen',
+    a: 'У установщика нет платной подписи, поэтому Windows его не узнаёт. Нажмите «Подробнее», затем «Выполнить в любом случае».',
+  },
+  {
+    q: 'Как запустить AppImage на Linux?',
+    a: 'Сделайте файл исполняемым командой chmod +x Svoya-Igra_Linux-x64.AppImage и запустите его. Устанавливать ничего не нужно.',
   },
   {
     q: 'Где хранятся мои игры?',
-    a: 'На вашем компьютере, внутри приложения. Чтобы перенести игру или поделиться ею, экспортируйте её в файл .gamezip — двойной клик по нему откроет игру на другом компьютере.',
+    a: 'В данных приложения на вашем компьютере. Чтобы перенести игру или отправить её другому ведущему, экспортируйте её в файл .gamezip. Двойной клик по такому файлу откроет игру в приложении.',
   },
   {
     q: 'Нужен ли интернет?',
-    a: 'Нет. Картинки, звук и видео с диска хранятся внутри игры. Интернет нужен только для вопросов с YouTube.',
+    a: 'Нет. Файлы, добавленные с диска, хранятся внутри игры. Интернет нужен только для роликов с YouTube и медиа по ссылкам.',
   },
   {
     q: 'Сколько это стоит?',
-    a: 'Нисколько. Исходный код открыт на GitHub.',
+    a: 'Нисколько. Приложение бесплатное, исходный код открыт на GitHub.',
   },
 ]
 </script>
@@ -106,7 +119,7 @@ const FAQ = [
         </a>
         <div class="hidden flex-1 items-center gap-5 text-sm text-muted-foreground md:flex">
           <a href="#features" class="hover:text-foreground">Возможности</a>
-          <a href="#how" class="hover:text-foreground">Как это работает</a>
+          <a href="#how" class="hover:text-foreground">Как играть</a>
           <a href="#download" class="hover:text-foreground">Скачать</a>
           <a href="#faq" class="hover:text-foreground">Вопросы</a>
         </div>
@@ -120,10 +133,10 @@ const FAQ = [
     <main>
       <section class="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-5 pt-16 pb-20 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:pt-24">
         <div class="flex flex-col items-center gap-6 text-center lg:items-start lg:text-left">
-          <Badge variant="secondary" class="gap-1.5"><Sparkles class="size-3.5" />Для вечеринок, квизов и уроков</Badge>
+          <Badge variant="secondary" class="gap-1.5"><Sparkles class="size-3.5" />Бесплатно, с открытым кодом</Badge>
           <h1 class="title-gold text-6xl leading-[0.95] sm:text-7xl lg:text-8xl">Своя игра</h1>
           <p class="max-w-xl font-serif text-xl leading-relaxed text-foreground/90 sm:text-2xl">
-            Соберите собственную «Свою игру» с картинками, музыкой и YouTube — и проведите её на большом экране.
+            Соберите свою «Свою игру» с картинками, музыкой и роликами с YouTube и проведите её на большом экране.
           </p>
           <DownloadButton />
         </div>
@@ -131,9 +144,9 @@ const FAQ = [
       </section>
 
       <section id="features" class="mx-auto max-w-6xl scroll-mt-20 px-5 py-16">
-        <h2 class="title-gold mb-3 text-center text-4xl sm:text-5xl">Всё для игры</h2>
+        <h2 class="title-gold mb-3 text-center text-4xl sm:text-5xl">Что умеет приложение</h2>
         <p class="mx-auto mb-10 max-w-2xl text-center text-muted-foreground">
-          От первого вопроса до итогового счёта — без таблиц, презентаций и ручного подсчёта очков.
+          Вопросы готовятся в редакторе, игра идёт в том же приложении. Ведущий отмечает, кто ответил верно, очки программа начисляет сама.
         </p>
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Card v-for="f in FEATURES" :key="f.title" class="gap-3 px-6">
@@ -165,7 +178,7 @@ const FAQ = [
       </section>
 
       <section id="how" class="mx-auto max-w-6xl scroll-mt-20 px-5 py-16">
-        <h2 class="title-gold mb-10 text-center text-4xl sm:text-5xl">Три шага</h2>
+        <h2 class="title-gold mb-10 text-center text-4xl sm:text-5xl">Как играть</h2>
         <ol class="grid gap-4 md:grid-cols-3">
           <li v-for="(step, i) in STEPS" :key="step.title" class="flex gap-4 rounded-xl border border-border bg-board p-6">
             <span class="font-display text-5xl leading-none text-gold">{{ i + 1 }}</span>
@@ -180,9 +193,9 @@ const FAQ = [
       <section id="download" class="mx-auto max-w-6xl scroll-mt-20 px-5 py-16">
         <h2 class="title-gold mb-3 text-center text-4xl sm:text-5xl">Скачать</h2>
         <p class="mb-10 text-center text-muted-foreground">
-          <template v-if="latestRelease && released">Версия {{ latestRelease.version }} от {{ latestRelease.date }}.</template>
-          <template v-else-if="latestRelease !== undefined">Первый выпуск скоро появится.</template>
-          Приложение обновляется само.
+          <template v-if="latestRelease && released">Версия {{ latestRelease.version }}, вышла {{ latestRelease.date }}.</template>
+          <template v-else-if="latestRelease !== undefined">Первая версия ещё не опубликована.</template>
+          Когда выйдет новая версия, приложение предложит обновиться.
         </p>
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <a
@@ -199,7 +212,7 @@ const FAQ = [
           </a>
         </div>
         <p class="mt-6 flex items-center justify-center gap-2 text-sm text-muted-foreground">
-          <RefreshCw class="size-4" />Все версии и список изменений —
+          <RefreshCw class="size-4" />Все версии и списки изменений
           <a :href="RELEASES_URL" class="text-gold underline-offset-4 hover:underline">на GitHub</a>
         </p>
       </section>

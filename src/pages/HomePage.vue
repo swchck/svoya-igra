@@ -40,7 +40,7 @@ function failed(action: string, err: unknown) {
 
 async function createNew() {
   try {
-    const g = await store.save(makeEmptyGame('Своя Игра'))
+    const g = await store.save(makeEmptyGame())
     router.push({ name: 'editor', params: { id: g.id } })
   } catch (err) {
     failed('Не удалось создать игру', err)
@@ -50,7 +50,7 @@ async function createNew() {
 async function remove(g: Game) {
   const ok = await confirmAction({
     title: `Удалить «${g.title || 'Без названия'}»?`,
-    description: 'Игра и все её файлы будут удалены без возможности восстановления.',
+    description: 'Игра и её файлы удалятся навсегда.',
     confirmLabel: 'Удалить',
     destructive: true,
   })
@@ -145,7 +145,7 @@ function fmtDate(ts: number) {
     <div class="mb-8 flex flex-wrap justify-center gap-3">
       <Button size="lg" @click="createNew"><Plus />Новая игра</Button>
       <Button size="lg" variant="outline" :disabled="busy" @click="startImport"><Upload />Импорт</Button>
-      <Button size="lg" variant="ghost" :disabled="busy" @click="loadSample"><Sparkles />Пример (1996)</Button>
+      <Button size="lg" variant="ghost" :disabled="busy" @click="loadSample"><Sparkles />Открыть пример</Button>
       <input ref="fileInput" type="file" class="hidden" :accept="GAME_FILE_ACCEPT" @change="onFile" />
     </div>
 
@@ -155,7 +155,7 @@ function fmtDate(ts: number) {
 
     <Card v-else-if="store.games.length === 0" class="items-center gap-2 px-6 py-12 text-center">
       <p class="font-display text-2xl text-gold uppercase">Игр пока нет</p>
-      <p class="text-muted-foreground">Создайте первую или откройте пример, чтобы посмотреть, как всё устроено.</p>
+      <p class="text-muted-foreground">Создайте первую или откройте пример, чтобы посмотреть, как устроена готовая игра.</p>
     </Card>
 
     <ul v-else class="flex flex-col gap-3">
@@ -192,7 +192,7 @@ function fmtDate(ts: number) {
     </ul>
 
     <p class="mt-10 flex items-center justify-center gap-2 text-sm text-muted-foreground">
-      <Download class="size-4" />Игры хранятся на этом компьютере. Для переноса используйте экспорт в .gamezip.
+      <Download class="size-4" />Игры хранятся на этом компьютере. Чтобы перенести игру, экспортируйте её в .gamezip.
     </p>
     <p v-if="version" class="mt-2 text-center text-xs text-muted-foreground/70">Версия {{ version }}</p>
   </main>

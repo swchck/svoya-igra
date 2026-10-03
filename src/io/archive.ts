@@ -68,7 +68,7 @@ export async function importGameZip(
 ): Promise<Game> {
   const entries = await unzipAsync(new Uint8Array(await file.arrayBuffer()))
   const json = entries['game.json']
-  if (!json) throw new Error('В архиве нет game.json')
+  if (!json) throw new Error('В архиве нет описания игры (game.json)')
   const game = parseGame(JSON.parse(strFromU8(json)))
 
   const urlByEntry = new Map<string, string>()

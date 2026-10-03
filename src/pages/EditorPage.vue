@@ -51,7 +51,7 @@ function selectRound(i: number) {
 
 function addRound() {
   if (!game.value) return
-  game.value.rounds.push(makeEmptyRound(`РАУНД ${game.value.rounds.length + 1}`))
+  game.value.rounds.push(makeEmptyRound(`Раунд ${game.value.rounds.length + 1}`))
   selectRound(game.value.rounds.length - 1)
 }
 
@@ -73,7 +73,7 @@ function moveQuestion(offset: -1 | 1) {
 
 async function removeRound() {
   if (!game.value || game.value.rounds.length <= 1) return
-  if (!(await confirmAction({ title: `Удалить «${round.value?.name}»?`, description: 'Все темы и вопросы раунда будут удалены.', confirmLabel: 'Удалить', destructive: true }))) return
+  if (!(await confirmAction({ title: `Удалить «${round.value?.name}»?`, description: 'Вместе с раундом удалятся все его темы и вопросы.', confirmLabel: 'Удалить', destructive: true }))) return
   game.value.rounds.splice(roundIndex.value, 1)
   selectRound(Math.min(roundIndex.value, game.value.rounds.length - 1))
 }

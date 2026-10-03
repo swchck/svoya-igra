@@ -75,11 +75,11 @@ onUnmounted(() => channel?.close())
       <span class="text-muted-foreground">{{ game.title }}</span>
       <div class="flex-1" />
       <Badge v-if="connected" variant="secondary"><Radio class="text-emerald-400" />{{ PHASE_LABEL[state.phase] }}</Badge>
-      <Badge v-else variant="outline">Ждём экран игры…</Badge>
+      <Badge v-else variant="outline">Нет связи с главным окном</Badge>
     </header>
 
     <Card v-if="!connected" class="items-center px-6 py-10 text-center text-muted-foreground">
-      Откройте эту игру в главном окне — пульт подключится сам.
+      Откройте эту игру в главном окне, и пульт подключится сам.
     </Card>
 
     <template v-else>
@@ -97,7 +97,7 @@ onUnmounted(() => channel?.close())
       </section>
 
       <Card v-if="state.phase === 'title'" class="items-center gap-4 px-6 py-8">
-        <p class="text-muted-foreground">Игроки рассаживаются на экране игры.</p>
+        <p class="text-muted-foreground">Игроков добавляют в главном окне.</p>
         <Button size="lg" @click="send('start')">Начать игру</Button>
       </Card>
 
@@ -181,7 +181,7 @@ onUnmounted(() => channel?.close())
 
       <Card v-else-if="state.phase === 'results'" class="items-center gap-2 px-6 py-8">
         <p class="title-gold text-4xl">Итоги</p>
-        <p v-for="(p, i) in ranking" :key="p.id" class="text-lg">{{ i + 1 }}. {{ p.name }} — {{ p.score }}</p>
+        <p v-for="(p, i) in ranking" :key="p.id" class="text-lg">{{ i + 1 }}. {{ p.name }}: {{ p.score }}</p>
       </Card>
     </template>
   </main>

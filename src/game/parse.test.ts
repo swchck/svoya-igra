@@ -47,6 +47,6 @@ describe('parseGame', () => {
   })
 
   it.each([null, 'game', { id: 'g' }, { id: 'g', rounds: [{ themes: 'no' }] }])('rejects %j', (data) => {
-    expect(() => parseGame(data)).toThrow('Некорректный формат игры')
+    expect(() => parseGame(data)).toThrow('Файл повреждён или это не игра')
   })
 })

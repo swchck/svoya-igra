@@ -31,12 +31,12 @@ export function useDesktopIntegration() {
     stop = await onOpenedFiles(importOpened)
     const update = await findUpdate()
     if (update) {
-      toast.info(`Доступна версия ${update.version}`, {
+      toast.info(`Вышла версия ${update.version}`, {
         duration: Infinity,
         action: {
           label: 'Обновить',
           onClick: () => {
-            toast.promise(update.install(), { loading: 'Загрузка обновления…', error: 'Не удалось обновить' })
+            toast.promise(update.install(), { loading: 'Скачиваем обновление…', error: 'Не удалось обновить' })
           },
         },
       })

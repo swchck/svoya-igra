@@ -24,7 +24,7 @@ const released = computed(() => DOWNLOADS.some(isAvailable))
     </Button>
     <p class="text-sm text-muted-foreground">
       <template v-if="latestRelease && released">Версия {{ latestRelease.version }} · {{ latestRelease.date }} · бесплатно</template>
-      <template v-else-if="latestRelease !== undefined">Первый выпуск готовится — следите за релизами на GitHub</template>
+      <template v-else-if="latestRelease !== undefined">Первая версия ещё не опубликована</template>
       <template v-else>Бесплатно · macOS, Windows, Linux</template>
     </p>
   </div>

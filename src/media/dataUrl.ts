@@ -36,7 +36,7 @@ export function mimeFromName(name: string): string {
 /** Decodes a data: URL synchronously. */
 export function dataUrlToBlob(url: string): Blob {
   const match = /^data:([^;,]+)?((?:;[^;,]+)*?)(;base64)?,(.*)$/s.exec(url)
-  if (!match) throw new Error('Некорректный data URL')
+  if (!match) throw new Error('Не удалось прочитать встроенный файл')
   const payload = match[4]
   const bytes = match[3]
     ? Uint8Array.from(atob(payload), (c) => c.charCodeAt(0))

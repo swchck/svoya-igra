@@ -76,13 +76,14 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           pattern: release-*
-          path: assets
+          # not assets/: the checkout already has one, with the app icon in it
+          path: release
           merge-multiple: true
       - name: Updater manifest
         run: |
-          node scripts/updater-manifest.mjs assets "${GITHUB_REF_NAME#v}" "$GITHUB_REF_NAME" > latest.json
-          if [ -s latest.json ]; then mv latest.json assets/; else rm latest.json; fi
-          ls -la assets
+          node scripts/updater-manifest.mjs release "${GITHUB_REF_NAME#v}" "$GITHUB_REF_NAME" > latest.json
+          if [ -s latest.json ]; then mv latest.json release/; else rm latest.json; fi
+          ls -la release
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -95,4 +96,4 @@ jobs:
             --title "Своя Игра ${GITHUB_REF_NAME#v}" \
             --generate-notes \
             "${prerelease[@]}" \
-            assets/*
+            release/*
