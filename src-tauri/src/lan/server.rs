@@ -16,7 +16,7 @@ use serde::Deserialize;
 use serde_json::json;
 use tiny_http::{Header, Method, Request, Response, Server, StatusCode};
 
-use super::room::{CodeGuard, LanStatus, NewPlayer, Reject, Room};
+use super::room::{CodeGuard, LanStatus, NewPlayer, Pick, Reject, Room};
 
 const PAGE: &str = include_str!("phone.html");
 const MAX_BODY: usize = 2048;
@@ -30,6 +30,7 @@ const STATUS_TICK: Duration = Duration::from_secs(2);
 pub enum Notice {
     Status(LanStatus),
     Joined(NewPlayer),
+    Picked(Pick),
 }
 
 /// A game file offered for download.
@@ -234,6 +235,7 @@ struct Body {
     player_id: String,
     amount: i64,
     text: String,
+    question_id: String,
 }
 
 fn read_body(request: &mut Request) -> Result<Body, Response<Cursor<Vec<u8>>>> {
@@ -267,7 +269,7 @@ fn handle(shared: &Arc<Shared>, mut request: Request) {
         return;
     }
 
-    let known = ["/api/poll", "/api/join", "/api/claim", "/api/leave", "/api/buzz", "/api/bet", "/api/answer", "/game.gamezip"];
+    let known = ["/api/poll", "/api/join", "/api/claim", "/api/leave", "/api/buzz", "/api/bet", "/api/answer", "/api/pick", "/game.gamezip"];
     if !known.contains(&path.as_str()) {
         let _ = request.respond(Response::empty(404));
         return;
@@ -362,7 +364,10 @@ fn act(shared: &Shared, path: &str, body: Body) -> Response<Cursor<Vec<u8>>> {
         }
         "/api/claim" => {
             let token = if room.touch(&body.token, now) { body.token.clone() } else { new_token() };
-            room.claim(token.clone(), &body.player_id, now).map(|_| json!({ "token": token }))
+            room.claim(token.clone(), &body.player_id, now).map(|_| {
+                room.set_person(&token, &body.name);
+                json!({ "token": token })
+            })
         }
         "/api/leave" => {
             room.leave(&body.token);
@@ -374,6 +379,10 @@ fn act(shared: &Shared, path: &str, body: Body) -> Response<Cursor<Vec<u8>>> {
         }
         "/api/bet" => room.bet(&body.token, body.amount).map(|bet| json!({ "bet": bet })),
         "/api/answer" => room.answer(&body.token, &body.text).map(|_| json!({})),
+        "/api/pick" => room.pick(&body.token, &body.question_id).map(|pick| {
+            (shared.notify)(Notice::Picked(pick));
+            json!({})
+        }),
         _ => Err(Reject::Disabled),
     };
     shared.publish(&room);
@@ -544,7 +553,7 @@ mod tests {
         assert_eq!(g["view"]["me"]["name"], "Гоша");
         let joined = rx.try_iter().find_map(|n| match n {
             Notice::Joined(p) => Some(p),
-            Notice::Status(_) => None,
+            _ => None,
         });
         assert_eq!(joined.unwrap().name, "Гоша");
 
@@ -569,7 +578,7 @@ mod tests {
             .try_iter()
             .filter_map(|n| match n {
                 Notice::Status(s) => Some(s),
-                Notice::Joined(_) => None,
+                _ => None,
             })
             .last()
             .unwrap();

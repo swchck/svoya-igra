@@ -85,7 +85,10 @@ function setMode(value: unknown) {
       <Smartphone v-if="phones?.[p.id]" class="size-4 shrink-0 text-cyan" :aria-label="t('lan.phoneConnected')" />
       <IconButton :label="teams ? t('play.setup.removeTeam') : t('play.setup.remove')" :disabled="players.length <= 1" @click="$emit('remove', p)"><X /></IconButton>
     </div>
-    <Button variant="outline" class="self-start" @click="$emit('add')"><Plus />{{ teams ? t('play.setup.addTeam') : t('play.setup.add') }}</Button>
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <Button variant="outline" @click="$emit('add')"><Plus />{{ teams ? t('play.setup.addTeam') : t('play.setup.add') }}</Button>
+      <slot name="footer" />
+    </div>
   </Card>
 </template>
 

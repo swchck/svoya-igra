@@ -60,11 +60,14 @@ interface TurnState {
   activeQuestionId: string | null
   played: Record<string, true>
   stake: Stake | null
+  chooserId: string | null
   scores: Record<string, number>
   stats: Record<string, PlayerStats>
 }
 
-export type HistoryEntry = { kind: 'turn'; before: TurnState } | { kind: 'adjust'; playerId: string; delta: number }
+export type HistoryEntry =
+  | { kind: 'turn'; before: TurnState }
+  | { kind: 'adjust'; playerId: string; delta: number; chooserId?: string | null }
 
 const MAX_HISTORY = 30
 
@@ -75,6 +78,8 @@ export interface SessionSnapshot {
   activeQuestionId: string | null
   played: Record<string, true>
   stake: Stake | null
+  /** Who picks the next question off the board. */
+  chooserId: string | null
   finalBets: Record<string, number>
   finalVerdicts: Record<string, Sign>
   players: Player[]
@@ -97,6 +102,7 @@ function initialSnapshot(): SessionSnapshot {
     activeQuestionId: null,
     played: {},
     stake: null,
+    chooserId: null,
     finalBets: {},
     finalVerdicts: {},
     players: [],
@@ -147,6 +153,7 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
   const answerMs = computed(() => (game.value?.settings?.answerSeconds ?? 0) * 1000)
   // sessions saved before the timer existed carry none
   if (!restored?.timer) state.timer = { endsAt: null, left: answerMs.value }
+  state.chooserId ??= null
 
   const round = computed(() => game.value?.rounds[state.roundIndex])
   const activeQuestion = computed<Question | null>(
@@ -179,6 +186,7 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
       activeQuestionId: state.activeQuestionId,
       played: state.played,
       stake: state.stake,
+      chooserId: state.chooserId,
       scores: Object.fromEntries(players.value.map((p) => [p.id, p.score])),
       stats: state.stats,
     })
@@ -230,14 +238,29 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
     if (timerPhase()) state.timer = { endsAt: null, left: answerMs.value }
   }
 
+  /** The first round opens by lot; every later one by whoever trails. */
   function start() {
-    if (state.phase === 'title') state.phase = 'round-intro'
+    if (state.phase !== 'title') return
+    const list = players.value
+    state.chooserId = list.length ? list[Math.floor(Math.random() * list.length)]!.id : null
+    state.phase = 'round-intro'
+  }
+
+  function trailing(): string | null {
+    let low: Player | undefined
+    for (const p of players.value) if (!low || p.score < low.score) low = p
+    return low?.id ?? null
+  }
+
+  function setChooser(playerId: string) {
+    if (player(playerId)) state.chooserId = playerId
   }
 
   function finishRound() {
     if (!game.value) return
     if (state.roundIndex < game.value.rounds.length - 1) {
       state.roundIndex += 1
+      state.chooserId = trailing()
       state.phase = 'round-intro'
     } else {
       state.phase = game.value.finalRound ? 'final-intro' : 'results'
@@ -290,6 +313,7 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
     if (target && (verdict!.sign === 1 || verdict!.sign === -1)) {
       target.score += verdict!.sign * activeValue.value
       recordAnswer(target.id, verdict!.sign, activeValue.value)
+      if (verdict!.sign === 1) state.chooserId = target.id
     }
     state.activeQuestionId = null
     state.stake = null
@@ -342,8 +366,10 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
   function adjustScore(playerId: string, delta: number) {
     const p = player(playerId)
     if (!p || !Number.isFinite(delta) || delta === 0) return
-    record({ kind: 'adjust', playerId, delta })
+    record({ kind: 'adjust', playerId, delta, chooserId: state.chooserId })
     p.score += delta
+    // points handed out while a question is open mean that player got it right
+    if (delta > 0 && activeQuestion.value && ['question', 'answer'].includes(state.phase)) state.chooserId = playerId
   }
 
   /** Takes back the last scoring action, with the board state it changed. */
@@ -353,6 +379,7 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
     if (entry.kind === 'adjust') {
       const p = player(entry.playerId)
       if (p) p.score -= entry.delta
+      if (entry.chooserId !== undefined) state.chooserId = entry.chooserId
       return true
     }
     const { scores, ...before } = plainCopy(entry.before)
@@ -379,6 +406,7 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
 
   function removePlayer(playerId: string) {
     if (players.value.length > 1) players.value = players.value.filter((x) => x.id !== playerId)
+    if (state.chooserId === playerId) state.chooserId = null
   }
 
   return {
@@ -403,6 +431,7 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
     setFinalVerdict,
     scoreFinal,
     adjustScore,
+    setChooser,
     undo,
     setTeams,
     timerStart,

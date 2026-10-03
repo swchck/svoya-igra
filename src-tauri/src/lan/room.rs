@@ -38,6 +38,32 @@ pub enum FinalMode {
     Answer,
 }
 
+/// One cell of the board a phone may pick from.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BoardCell {
+    pub id: String,
+    pub value: i64,
+    #[serde(default)]
+    pub played: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BoardTheme {
+    pub name: String,
+    pub questions: Vec<BoardCell>,
+}
+
+/// The round's board while the stage waits for a pick.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Board {
+    #[serde(default)]
+    pub round: String,
+    pub themes: Vec<BoardTheme>,
+}
+
 /// What the stage tells the room; pushed whenever players or the phase change.
 #[derive(Debug, Clone, Default, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -48,11 +74,20 @@ pub struct StageInfo {
     /// Phones may add new players by name; only while the stage sets up players.
     #[serde(default)]
     pub allow_join: bool,
+    /// Seats are teams, so each phone also gives its holder's name.
+    #[serde(default)]
+    pub teams: bool,
     #[serde(default)]
     pub final_mode: Option<FinalMode>,
     /// Final round: the highest bet each playing competitor may make. Absent ones sit it out.
     #[serde(default)]
     pub caps: HashMap<String, i64>,
+    /// Present only while the board waits for the next question.
+    #[serde(default)]
+    pub board: Option<Board>,
+    /// Who picks the next question.
+    #[serde(default)]
+    pub chooser: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -76,6 +111,7 @@ pub enum Reject {
     NotOpen,
     Excluded,
     NotEligible,
+    NotYourTurn,
 }
 
 impl Reject {
@@ -91,6 +127,7 @@ impl Reject {
             Reject::NotOpen => "not-open",
             Reject::Excluded => "excluded",
             Reject::NotEligible => "not-eligible",
+            Reject::NotYourTurn => "not-your-turn",
         }
     }
 
@@ -101,13 +138,15 @@ impl Reject {
             Reject::Full => 503,
             Reject::BadName => 400,
             Reject::JoinClosed => 403,
-            Reject::NotBound | Reject::NotOpen | Reject::Excluded | Reject::NotEligible => 409,
+            Reject::NotBound | Reject::NotOpen | Reject::Excluded | Reject::NotEligible | Reject::NotYourTurn => 409,
         }
     }
 }
 
 struct Client {
     player_id: Option<String>,
+    /// The person holding the phone, when several share one seat (a team).
+    person: Option<String>,
     last_seen: Instant,
 }
 
@@ -116,6 +155,8 @@ struct Buzz {
     key: Option<String>,
     open: bool,
     order: Vec<String>,
+    /// Who pressed for each entry of `order`, when their phone has a name.
+    by: Vec<Option<String>>,
     excluded: Vec<String>,
 }
 
@@ -129,6 +170,14 @@ impl Buzz {
             BuzzState::Closed
         }
     }
+}
+
+/// A question the chooser picked on their phone; the stage opens it.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Pick {
+    pub player_id: String,
+    pub question_id: String,
 }
 
 /// A player created by a phone joining under a new name; the stage adds them to the game.
@@ -145,6 +194,8 @@ pub struct BuzzStatus {
     pub state: BuzzState,
     /// Player ids in the order they pressed; the first one answers.
     pub order: Vec<String>,
+    /// The person behind each press in `order`, when their phone gave a name.
+    pub by: Vec<Option<String>>,
     pub excluded: Vec<String>,
 }
 
@@ -154,6 +205,8 @@ pub struct BuzzStatus {
 pub struct LanStatus {
     /// Phones online per player id.
     pub phones: BTreeMap<String, u32>,
+    /// Names given on phones online, per player id.
+    pub people: BTreeMap<String, Vec<String>>,
     pub buzz: BuzzStatus,
     pub bets: BTreeMap<String, i64>,
     pub answers: BTreeMap<String, String>,
@@ -174,6 +227,7 @@ pub struct MeView {
     pub player_id: String,
     pub name: String,
     pub score: i64,
+    pub person: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -184,6 +238,8 @@ pub struct PhoneBuzz {
     pub position: Option<usize>,
     pub excluded: bool,
     pub winner: Option<String>,
+    /// The person on the winning seat who pressed, when their phone has a name.
+    pub winner_by: Option<String>,
 }
 
 /// Everything one phone renders, tailored to the player it holds.
@@ -194,6 +250,7 @@ pub struct PhoneView {
     pub enabled: bool,
     pub title: String,
     pub allow_join: bool,
+    pub teams: bool,
     pub roster: Vec<SeatView>,
     pub me: Option<MeView>,
     /// The token was given out by an earlier run of the server, or the phone was dropped.
@@ -204,6 +261,10 @@ pub struct PhoneView {
     pub cap: Option<i64>,
     pub bet: Option<i64>,
     pub answer: Option<String>,
+    pub board: Option<Board>,
+    /// The name of whoever picks the next question, while the board is up.
+    pub chooser: Option<String>,
+    pub my_turn: bool,
 }
 
 /// Counts wrong room codes per address, so the 4-digit code can't simply be swept.
@@ -262,6 +323,9 @@ pub struct Room {
     buzz: Buzz,
     bets: BTreeMap<String, i64>,
     answers: BTreeMap<String, String>,
+    /// Set once the chooser picks, so a double tap can't open two questions before the
+    /// stage takes the board down.
+    picked: bool,
 }
 
 impl Room {
@@ -276,6 +340,7 @@ impl Room {
             buzz: Buzz::default(),
             bets: BTreeMap::new(),
             answers: BTreeMap::new(),
+            picked: false,
         }
     }
 
@@ -334,6 +399,9 @@ impl Room {
             self.bets.clear();
             self.answers.clear();
         }
+        if info.board != self.stage.board || info.chooser != self.stage.chooser {
+            self.picked = false;
+        }
         self.stage = info;
         self.bump();
     }
@@ -372,7 +440,8 @@ impl Room {
         if !self.clients.contains_key(&token) {
             self.make_room(now)?;
         }
-        self.clients.insert(token, Client { player_id: Some(player_id), last_seen: now });
+        let person = self.clients.remove(&token).and_then(|c| c.person);
+        self.clients.insert(token, Client { player_id: Some(player_id), person, last_seen: now });
         self.bump();
         Ok(())
     }
@@ -409,6 +478,14 @@ impl Room {
         self.bind(token, player_id.to_string(), now)
     }
 
+    /// Names the person holding the phone; an empty name clears it.
+    pub fn set_person(&mut self, token: &str, raw_name: &str) {
+        if let Some(c) = self.clients.get_mut(token) {
+            c.person = sanitize_name(raw_name);
+            self.bump();
+        }
+    }
+
     /// The phone gives up its seat to pick another one.
     pub fn leave(&mut self, token: &str) {
         if let Some(c) = self.clients.get_mut(token) {
@@ -437,10 +514,11 @@ impl Room {
         self.bump();
     }
 
-    /// Stops taking presses; the order so far stays for the host to see.
+    /// Ends the question's buzzing: the buttons close and forget who pressed, so phones
+    /// don't keep showing the last question's result.
     pub fn close_buzz(&mut self) {
-        if self.buzz.open {
-            self.buzz.open = false;
+        if self.buzz.key.is_some() || self.buzz.open {
+            self.buzz = Buzz::default();
             self.bump();
         }
     }
@@ -454,6 +532,7 @@ impl Room {
             self.buzz.excluded.push(winner);
         }
         self.buzz.order.clear();
+        self.buzz.by.clear();
         self.buzz.open = true;
         self.bump();
     }
@@ -472,8 +551,26 @@ impl Room {
             return Err(Reject::NotOpen);
         }
         self.buzz.order.push(player_id);
+        self.buzz.by.push(self.clients.get(token).and_then(|c| c.person.clone()));
         self.bump();
         Ok(self.buzz.order.len())
+    }
+
+    /// The chooser picks a question off the board. Only the first pick counts until the
+    /// stage pushes its next state.
+    pub fn pick(&mut self, token: &str, question_id: &str) -> Result<Pick, Reject> {
+        let player_id = self.bound(token)?;
+        let board = self.stage.board.as_ref().ok_or(Reject::NotOpen)?;
+        if self.stage.chooser.as_deref() != Some(player_id.as_str()) {
+            return Err(Reject::NotYourTurn);
+        }
+        let open = board.themes.iter().flat_map(|t| &t.questions).any(|q| q.id == question_id && !q.played);
+        if !open || self.picked {
+            return Err(Reject::NotOpen);
+        }
+        self.picked = true;
+        self.bump();
+        Ok(Pick { player_id, question_id: question_id.to_string() })
     }
 
     fn cap(&self, player_id: &str) -> Option<i64> {
@@ -522,12 +619,29 @@ impl Room {
         phones
     }
 
+    fn people(&self, now: Instant) -> BTreeMap<String, Vec<String>> {
+        let mut people: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        for c in self.clients.values() {
+            if let (Some(id), Some(person)) = (&c.player_id, &c.person)
+                && now.duration_since(c.last_seen) < ONLINE_WINDOW
+            {
+                people.entry(id.clone()).or_default().push(person.clone());
+            }
+        }
+        for names in people.values_mut() {
+            names.sort();
+        }
+        people
+    }
+
     pub fn status(&self, now: Instant) -> LanStatus {
         LanStatus {
             phones: self.phones(now),
+            people: self.people(now),
             buzz: BuzzStatus {
                 state: self.buzz.state(),
                 order: self.buzz.order.clone(),
+                by: self.buzz.by.clone(),
                 excluded: self.buzz.excluded.clone(),
             },
             bets: self.bets.clone(),
@@ -542,7 +656,12 @@ impl Room {
         let me = client
             .and_then(|c| c.player_id.as_deref())
             .and_then(|id| self.seat(id))
-            .map(|p| MeView { player_id: p.id.clone(), name: p.name.clone(), score: p.score });
+            .map(|p| MeView {
+                player_id: p.id.clone(),
+                name: p.name.clone(),
+                score: p.score,
+                person: client.and_then(|c| c.person.clone()),
+            });
         let my_id = me.as_ref().map(|m| m.player_id.as_str());
         let winner = self.buzz.order.first().and_then(|id| self.seat(id)).map(|p| p.name.clone());
         PhoneView {
@@ -550,6 +669,7 @@ impl Room {
             enabled: self.enabled,
             title: self.stage.title.clone(),
             allow_join: self.stage.allow_join && self.roster().count() < MAX_PLAYERS,
+            teams: self.stage.teams,
             roster: self
                 .roster()
                 .map(|p| SeatView {
@@ -565,11 +685,15 @@ impl Room {
                 position: my_id.and_then(|id| self.buzz.order.iter().position(|o| o == id)).map(|i| i + 1),
                 excluded: my_id.is_some_and(|id| self.buzz.excluded.iter().any(|e| e == id)),
                 winner,
+                winner_by: self.buzz.by.first().cloned().flatten(),
             },
             final_mode: self.stage.final_mode,
             cap: my_id.and_then(|id| self.cap(id)),
             bet: my_id.and_then(|id| self.bets.get(id).copied()),
             answer: my_id.and_then(|id| self.answers.get(id).cloned()),
+            board: self.stage.board.clone(),
+            chooser: self.stage.board.as_ref().and(self.stage.chooser.as_deref()).and_then(|id| self.seat(id)).map(|p| p.name.clone()),
+            my_turn: self.stage.board.is_some() && !self.picked && my_id.is_some() && my_id == self.stage.chooser.as_deref(),
             me,
         }
     }
@@ -679,14 +803,12 @@ mod tests {
         room.reopen(true);
         room.close_buzz();
         assert_eq!(room.buzz("tb"), Err(Reject::NotOpen));
-        room.arm("q1");
-        assert_eq!(room.buzz("ta"), Err(Reject::Excluded), "re-arming the same question keeps exclusions");
-        room.buzz("tb").unwrap();
-        room.close_buzz();
-        assert_eq!(room.status(Instant::now()).buzz.order, ["b"]);
-        room.arm("q2");
         let status = room.status(Instant::now());
-        assert!(status.buzz.order.is_empty() && status.buzz.excluded.is_empty());
+        assert_eq!(status.buzz.state, BuzzState::Closed);
+        assert!(status.buzz.order.is_empty() && status.buzz.excluded.is_empty(), "closing forgets the question");
+        let view = room.view(Some("ta"), Instant::now());
+        assert_eq!((view.buzz.state, view.buzz.position, view.buzz.excluded), (BuzzState::Closed, None, false));
+        room.arm("q2");
         assert_eq!(room.buzz("ta"), Ok(1));
     }
 
@@ -796,5 +918,54 @@ mod tests {
         assert_eq!(room.code(), "1234");
         assert!(!room.touch("ta", now));
         assert_eq!(room.buzz("ta"), Err(Reject::Disabled));
+    }
+
+    fn board() -> Board {
+        Board {
+            round: "1".into(),
+            themes: vec![BoardTheme {
+                name: "Флаги".into(),
+                questions: vec![
+                    BoardCell { id: "q1".into(), value: 100, played: true },
+                    BoardCell { id: "q2".into(), value: 200, played: false },
+                ],
+            }],
+        }
+    }
+
+    #[test]
+    fn only_the_chooser_picks_and_only_once() {
+        let (mut room, _) = room();
+        assert_eq!(room.pick("ta", "q2"), Err(Reject::NotOpen), "no board up");
+        room.set_stage(StageInfo { roster: roster(), board: Some(board()), chooser: Some("a".into()), ..StageInfo::default() });
+        assert!(room.view(Some("ta"), Instant::now()).my_turn);
+        assert!(!room.view(Some("tb"), Instant::now()).my_turn);
+        assert_eq!(room.view(Some("tb"), Instant::now()).chooser.as_deref(), Some("Аня"));
+        assert_eq!(room.pick("tb", "q2"), Err(Reject::NotYourTurn));
+        assert_eq!(room.pick("ta", "q1"), Err(Reject::NotOpen), "already played");
+        assert_eq!(room.pick("ta", "nope"), Err(Reject::NotOpen));
+        assert_eq!(room.pick("ta", "q2"), Ok(Pick { player_id: "a".into(), question_id: "q2".into() }));
+        assert_eq!(room.pick("ta", "q2"), Err(Reject::NotOpen), "a double tap opens nothing more");
+        assert!(!room.view(Some("ta"), Instant::now()).my_turn);
+        room.set_stage(StageInfo { roster: roster(), ..StageInfo::default() });
+        room.set_stage(StageInfo { roster: roster(), board: Some(board()), chooser: Some("a".into()), ..StageInfo::default() });
+        assert!(room.view(Some("ta"), Instant::now()).my_turn, "the next board takes a pick again");
+    }
+
+    #[test]
+    fn remembers_who_pressed_on_a_shared_seat() {
+        let (mut room, now) = room();
+        room.claim("ta2".into(), "a", now).unwrap();
+        room.set_person("ta2", "  Петя ");
+        room.arm("q1");
+        room.buzz("ta2").unwrap();
+        room.buzz("tb").unwrap();
+        let status = room.status(now);
+        assert_eq!(status.buzz.by, [Some("Петя".to_string()), None]);
+        assert_eq!(status.people.get("a").map(Vec::as_slice), Some(&["Петя".to_string()][..]));
+        let view = room.view(Some("tc"), now);
+        assert_eq!((view.buzz.winner.as_deref(), view.buzz.winner_by.as_deref()), (Some("Аня"), Some("Петя")));
+        room.claim("ta2".into(), "b", now).unwrap();
+        assert_eq!(room.view(Some("ta2"), now).me.unwrap().person.as_deref(), Some("Петя"), "switching seats keeps the name");
     }
 }

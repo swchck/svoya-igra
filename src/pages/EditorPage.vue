@@ -257,14 +257,14 @@ async function exportAs(format: GameFileFormat) {
 
 <template>
   <div v-if="game" class="editor">
-    <header class="bar">
-      <Button variant="ghost" @click="router.push({ name: 'home' })"><ArrowLeft />{{ t('editor.page.back') }}</Button>
+    <header class="bar" data-tauri-drag-region>
+      <Button variant="ghost" :aria-label="t('editor.page.back')" @click="router.push({ name: 'home' })"><ArrowLeft /><span class="lbl">{{ t('editor.page.back') }}</span></Button>
       <div class="names">
         <input v-model="game.title" class="game-title" :placeholder="t('editor.page.gameTitle')" :aria-label="t('editor.page.gameTitle')" />
         <input v-model="game.subtitle" class="game-sub" :placeholder="t('editor.page.subtitlePlaceholder')" :aria-label="t('editor.page.subtitleLabel')" />
       </div>
       <span class="save" :class="saveStatus" role="status" :title="saveError?.message">
-        <span class="save-dot" />{{ saveLabel }}
+        <span class="save-dot" /><span class="lbl">{{ saveLabel }}</span>
       </span>
       <button
         type="button"
@@ -276,12 +276,12 @@ async function exportAs(format: GameFileFormat) {
         <CircleAlert v-if="errors" class="size-4" /><TriangleAlert v-else-if="warnings" class="size-4" /><CircleCheck v-else class="size-4" />
         <span v-if="issues.length" class="tabular-nums">{{ issues.length }}</span>
       </button>
-      <Button variant="ghost" @click="historyOpen = true"><History />{{ t('editor.page.history') }}</Button>
+      <Button variant="ghost" :aria-label="t('editor.page.history')" :title="t('editor.page.history')" @click="historyOpen = true"><History /><span class="lbl">{{ t('editor.page.history') }}</span></Button>
       <GameSettingsDialog v-model="game.settings" />
       <DropdownMenu>
         <DropdownMenuTrigger as-child>
           <Button variant="secondary" :disabled="exporting">
-            <Loader2 v-if="exporting" class="animate-spin" /><Download v-else />{{ t('editor.page.export') }}
+            <Loader2 v-if="exporting" class="animate-spin" /><Download v-else /><span class="lbl">{{ t('editor.page.export') }}</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" class="min-w-52">
@@ -378,25 +378,38 @@ async function exportAs(format: GameFileFormat) {
 .editor {
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  height: 100dvh;
+  overflow: hidden;
 }
 .bar {
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 10;
+  flex: none;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
-  padding: 10px 20px;
+  min-height: 56px;
+  padding: 4px 20px 4px calc(20px + var(--titlebar-inset));
   background: oklch(0.2 0.15 270 / 0.82);
   backdrop-filter: blur(14px);
   border-bottom: 1px solid oklch(1 0 0 / 0.08);
 }
 .names {
   flex: 1;
-  min-width: 220px;
+  min-width: 120px;
   display: grid;
+}
+.names input {
+  min-width: 0;
+  text-overflow: ellipsis;
+}
+.save .lbl {
+  white-space: nowrap;
+}
+@media (max-width: 1180px) {
+  .bar .lbl {
+    display: none;
+  }
 }
 .game-title,
 .game-sub,
@@ -468,18 +481,24 @@ async function exportAs(format: GameFileFormat) {
   background: var(--destructive);
 }
 .body {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: clamp(8px, 2vh, 16px);
   width: 100%;
   max-width: 1500px;
   margin: 0 auto;
-  padding: 16px 20px 32px;
+  padding: clamp(8px, 2vh, 16px) 20px clamp(10px, 2.5vh, 24px);
+  /* only the final's form or a very tall board ever needs this */
+  overflow-y: auto;
 }
 .board-pane {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: clamp(6px, 1.5vh, 12px);
   min-width: 0;
 }
 .round-head {
@@ -491,10 +510,15 @@ async function exportAs(format: GameFileFormat) {
   flex: 1;
   min-width: 0;
   font-family: var(--font-display);
-  font-size: 28px;
+  font-size: clamp(20px, 3.6vh, 28px);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+@media (max-height: 700px) {
+  .tip {
+    display: none;
+  }
 }
 .tip {
   margin: 0;

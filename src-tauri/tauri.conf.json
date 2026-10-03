@@ -20,7 +20,10 @@
         "minHeight": 640,
         "center": true,
         "resizable": true,
-        "backgroundColor": "#1a1aa8"
+        "backgroundColor": "#1a1aa8",
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "trafficLightPosition": { "x": 18, "y": 26 }
       }
     ],
     "security": {

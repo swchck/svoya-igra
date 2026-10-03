@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RotateCcw, X } from '@lucide/vue'
 import type { Player } from '@/types'
-import { buzzWinner, type LanStatus } from '@/play/lan'
+import { buzzWinner, pressedBy, type LanStatus } from '@/play/lan'
 import { playerColor } from '@/play/palette'
 import { Button } from '@/components/ui/button'
 
@@ -12,7 +12,12 @@ defineEmits<{ (e: 'reopen', wrong: boolean): void }>()
 const { t } = useI18n()
 
 const seats = computed(() => new Map(props.players.map((p, i) => [p.id, { name: p.name, color: playerColor(p, i) }])))
-const order = computed(() => props.status.buzz.order.map((id) => ({ id, ...(seats.value.get(id) ?? { name: '?', color: 'currentColor' }) })))
+const order = computed(() =>
+  props.status.buzz.order.map((id, i) => {
+    const seat = seats.value.get(id)
+    return { id, name: pressedBy(props.status, i, seat?.name) || '?', color: seat?.color ?? 'currentColor' }
+  }),
+)
 const excluded = computed(() => props.status.buzz.excluded.map((id) => seats.value.get(id)?.name ?? '?').join(', '))
 const winner = computed(() => buzzWinner(props.status))
 const stateLabel = computed(() => t(`lan.buzz.${props.status.buzz.state}`))

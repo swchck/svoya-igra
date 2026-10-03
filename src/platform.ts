@@ -9,6 +9,12 @@ let mainWindow = true
 /** True inside the desktop app. */
 export const isDesktop = isTauri()
 
+/**
+ * True in the macOS app, whose windows draw the page under a transparent title bar: the
+ * traffic lights sit over the page's top-left corner and top bars double as drag handles.
+ */
+export const overlayTitleBar = isDesktop && /Mac/.test(navigator.userAgent)
+
 /** Resolves platform facts that the UI reads synchronously. Call once before mounting. */
 export async function initPlatform(): Promise<void> {
   if (isDesktop) mainWindow = (await import('@tauri-apps/api/window')).getCurrentWindow().label === 'main'

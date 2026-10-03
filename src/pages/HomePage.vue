@@ -3,7 +3,7 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
-import { Download, FileJson, MoreHorizontal, Package, Pencil, Play, Plus, Sparkles, Trash2, Upload, Wifi } from '@lucide/vue'
+import { Download, FileJson, MoreHorizontal, Package, Pencil, Play, Plus, Settings, Sparkles, Trash2, Upload, Wifi } from '@lucide/vue'
 import type { Game } from '@/types'
 import { Button } from '@/components/ui/button'
 import {
@@ -20,7 +20,6 @@ import { exportGameFile, GAME_FILE_ACCEPT, importGameFileWithNotes, importSample
 import { isDesktop, pickGameFile } from '@/platform'
 import StageBackdrop from '@/components/play/StageBackdrop.vue'
 import MiniBoard from '@/components/MiniBoard.vue'
-import LocaleSwitch from '@/components/LocaleSwitch.vue'
 import { currentLocale } from '@/i18n'
 import ShareGameDialog from '@/components/lan/ShareGameDialog.vue'
 
@@ -153,8 +152,10 @@ function fmtDate(ts: number) {
 <template>
   <StageBackdrop />
   <main class="home">
-    <header class="hero">
-      <div class="locale"><LocaleSwitch /></div>
+    <header class="hero" data-tauri-drag-region>
+      <div class="locale">
+        <Button variant="ghost" size="icon" :aria-label="t('prefs.open')" :title="t('prefs.open')" @click="router.push({ name: 'settings' })"><Settings /></Button>
+      </div>
       <h1 class="title-shine hero-title">{{ t('system.appName') }}</h1>
       <p class="hero-sub">{{ t('home.subtitle') }}</p>
       <div class="actions">
@@ -188,11 +189,11 @@ function fmtDate(ts: number) {
           <p class="meta">{{ t('home.card.modified', { date: fmtDate(g.updatedAt) }) }}</p>
         </div>
         <div class="buttons">
-          <Button @click="router.push({ name: 'play', params: { id: g.id } })"><Play />{{ t('home.card.play') }}</Button>
-          <Button variant="secondary" @click="router.push({ name: 'editor', params: { id: g.id } })"><Pencil />{{ t('home.card.edit') }}</Button>
+          <Button size="sm" @click="router.push({ name: 'play', params: { id: g.id } })"><Play />{{ t('home.card.play') }}</Button>
+          <Button size="sm" variant="secondary" @click="router.push({ name: 'editor', params: { id: g.id } })"><Pencil />{{ t('home.card.edit') }}</Button>
           <DropdownMenu>
             <DropdownMenuTrigger as-child>
-              <Button variant="ghost" size="icon" :aria-label="t('home.card.moreActions')"><MoreHorizontal /></Button>
+              <Button variant="ghost" size="icon-sm" :aria-label="t('home.card.moreActions')"><MoreHorizontal /></Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" class="min-w-52">
               <DropdownMenuItem @select="exportAs(g, 'gamezip')"><Package />{{ t('home.card.exportGamezip') }}</DropdownMenuItem>
@@ -218,18 +219,24 @@ function fmtDate(ts: number) {
 .home {
   position: relative;
   z-index: 1;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   max-width: 1120px;
+  height: 100dvh;
   margin: 0 auto;
-  padding: 0 24px 40px;
+  padding: 0 24px clamp(10px, 2.5vh, 24px);
+}
+.home > * {
+  flex: none;
 }
 .hero {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
-  padding: clamp(40px, 9vh, 96px) 0 clamp(28px, 5vh, 48px);
+  gap: clamp(4px, 1.4vh, 14px);
+  padding: clamp(28px, 7vh, 96px) 0 clamp(14px, 4vh, 48px);
   text-align: center;
 }
 .locale {
@@ -239,7 +246,7 @@ function fmtDate(ts: number) {
 }
 .hero-title {
   margin: 0;
-  font-size: clamp(64px, 11vw, 150px);
+  font-size: clamp(48px, min(11vw, 15vh), 150px);
   line-height: 0.9;
 }
 .hero-sub {
@@ -254,7 +261,7 @@ function fmtDate(ts: number) {
   flex-wrap: wrap;
   justify-content: center;
   gap: 12px;
-  margin-top: 14px;
+  margin-top: clamp(4px, 1.4vh, 14px);
 }
 .notice {
   display: grid;
@@ -264,9 +271,17 @@ function fmtDate(ts: number) {
   border-radius: 22px;
   text-align: center;
 }
+.home > .games {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  align-content: start;
+  /* room for the hover lift and shadow, which overflow would otherwise clip */
+  padding: 6px 6px 20px;
+}
 .games {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 360px));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 300px));
   justify-content: center;
   gap: 18px;
   margin: 0;
@@ -276,9 +291,9 @@ function fmtDate(ts: number) {
 .game {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 14px;
-  border-radius: 22px;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 18px;
   transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 .game:hover {
@@ -293,6 +308,14 @@ function fmtDate(ts: number) {
   background: none;
   cursor: pointer;
   border-radius: 14px;
+}
+.thumb :deep(.mini) {
+  max-height: min(150px, 20vh);
+}
+@media (max-height: 700px) {
+  .hero-sub {
+    display: none;
+  }
 }
 .thumb-play {
   position: absolute;
@@ -322,20 +345,19 @@ function fmtDate(ts: number) {
 .name {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 500;
   line-height: 1.15;
   color: var(--gold);
 }
 .meta {
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--muted-foreground);
 }
 .buttons {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   margin-top: auto;
 }
 .footnote {
@@ -343,7 +365,7 @@ function fmtDate(ts: number) {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  margin: 40px 0 0;
+  margin: clamp(8px, 2.5vh, 40px) 0 0;
   font-size: 14px;
   color: var(--muted-foreground);
   text-align: center;

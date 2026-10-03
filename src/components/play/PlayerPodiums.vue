@@ -16,6 +16,10 @@ const props = defineProps<{
   phones?: Record<string, number>
   /** Who pressed their phone's button first. */
   buzzedId?: string
+  /** The person on that seat who pressed, when their phone gave a name. */
+  buzzedBy?: string
+  /** Who picks the next question, while the board is up. */
+  chooserId?: string
 }>()
 
 const leaderId = computed(() => {
@@ -69,7 +73,9 @@ watch(
         :class="{ active: p.id === activeId, buzzed: p.id === buzzedId, leader: p.id === leaderId, shake: shaking[p.id], negative: p.score < 0 }"
         @animationend="shaking[p.id] = false"
       >
-        <Crown v-if="p.id === leaderId" class="crown" :aria-label="t('play.podiums.leader')" />
+        <Crown v-if="p.id === leaderId" class="crown" :class="{ aside: p.id === buzzedId || p.id === chooserId }" :aria-label="t('play.podiums.leader')" />
+        <span v-if="p.id === buzzedId" class="tag gold">{{ buzzedBy ? t('lan.answeringBy', { name: buzzedBy }) : t('lan.answering') }}</span>
+        <span v-else-if="p.id === chooserId" class="tag">{{ t('lan.chooses') }}</span>
         <span class="name">
           <span v-if="p.avatar" class="avatar" aria-hidden="true">{{ p.avatar }}</span>{{ p.name }}
           <Smartphone v-if="phones?.[p.id]" class="phone" :aria-label="t('lan.phoneConnected')" />
@@ -134,6 +140,27 @@ watch(
   color: var(--gold);
   filter: drop-shadow(0 2px 6px oklch(0 0 0 / 0.5));
   animation: bob 2.4s ease-in-out infinite;
+}
+.crown.aside {
+  left: 10px;
+}
+.tag {
+  position: absolute;
+  top: -14px;
+  max-width: calc(100% - 24px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 3px 12px;
+  border-radius: 999px;
+  background: var(--cyan);
+  color: oklch(0.2 0.1 280);
+  font-size: clamp(12px, 1.1vw, 15px);
+  font-weight: 700;
+  box-shadow: 0 6px 20px -6px oklch(0 0 0 / 0.6);
+}
+.tag.gold {
+  background: var(--gold);
 }
 .name {
   max-width: 100%;

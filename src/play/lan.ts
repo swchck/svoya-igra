@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
 import type { SessionSnapshot } from '@/composables/usePlaySession'
+import type { Round } from '@/types'
 import { isDesktop } from '@/platform'
 
 /*
@@ -22,10 +23,14 @@ export type BuzzState = 'closed' | 'open' | 'locked'
 export interface LanStatus {
   /** Phones online per player id. */
   phones: Record<string, number>
+  /** Names given on phones online, per player id; a team's phones each carry one. */
+  people: Record<string, string[]>
   buzz: {
     state: BuzzState
     /** Player ids in the order they pressed; the first one answers. */
     order: string[]
+    /** Who pressed for each entry of `order`, when their phone has a name. */
+    by: (string | null)[]
     /** Players shut out of this question after answering wrong. */
     excluded: string[]
   }
@@ -41,7 +46,19 @@ export interface LanJoin {
   name: string
 }
 
+/** A question the chooser picked on their phone. */
+export interface LanPick {
+  playerId: string
+  questionId: string
+}
+
 export type FinalMode = 'bet' | 'answer'
+
+/** The board as phones see it while the chooser picks. */
+export interface LanBoard {
+  round: string
+  themes: { name: string; questions: { id: string; value: number; played: boolean }[] }[]
+}
 
 /** What the stage tells the phones. */
 export interface LanStageInfo {
@@ -49,26 +66,45 @@ export interface LanStageInfo {
   roster: { id: string; name: string; score: number }[]
   /** Phones may add players by name; only while players are being set up. */
   allowJoin: boolean
+  teams: boolean
   finalMode: FinalMode | null
   /** Final round: the most each competitor may bet; those with nothing sit it out. */
   caps: Record<string, number>
+  board: LanBoard | null
+  chooser: string | null
 }
 
 /** The status of a room nobody has joined yet. */
 export function emptyLanStatus(): LanStatus {
-  return { phones: {}, buzz: { state: 'closed', order: [], excluded: [] }, bets: {}, answers: {} }
+  return { phones: {}, people: {}, buzz: { state: 'closed', order: [], by: [], excluded: [] }, bets: {}, answers: {} }
 }
 
 /** Derives what phones should show from the session. */
-export function stageInfo(snapshot: Pick<SessionSnapshot, 'phase' | 'players'>, title: string): LanStageInfo {
+export function stageInfo(
+  snapshot: Pick<SessionSnapshot, 'phase' | 'players' | 'teams' | 'played' | 'chooserId'>,
+  title: string,
+  round?: Round,
+): LanStageInfo {
   const finalMode: FinalMode | null =
     snapshot.phase === 'final-bets' ? 'bet' : snapshot.phase === 'final-question' ? 'answer' : null
   return {
     title,
     roster: snapshot.players.map((p) => ({ id: p.id, name: p.name, score: p.score })),
     allowJoin: snapshot.phase === 'title',
+    teams: snapshot.teams,
     finalMode,
     caps: finalMode ? Object.fromEntries(snapshot.players.filter((p) => p.score > 0).map((p) => [p.id, p.score])) : {},
+    board:
+      snapshot.phase === 'board' && round
+        ? {
+            round: round.name,
+            themes: round.themes.map((t) => ({
+              name: t.name,
+              questions: t.questions.map((q) => ({ id: q.id, value: q.value, played: !!snapshot.played[q.id] })),
+            })),
+          }
+        : null,
+    chooser: snapshot.chooserId,
   }
 }
 
@@ -135,8 +171,41 @@ export async function onLanJoin(handle: (join: LanJoin) => void): Promise<() => 
   return listen<LanJoin>('lan://join', (e) => handle(e.payload))
 }
 
+/** Delivers questions the chooser picked on their phone. */
+export async function onLanPick(handle: (pick: LanPick) => void): Promise<() => void> {
+  const { listen } = await import('@tauri-apps/api/event')
+  return listen<LanPick>('lan://pick', (e) => handle(e.payload))
+}
+
+/** The name to show for a press: the person, and their team when the seat is shared. */
+export function pressedBy(status: LanStatus, index: number, seatName: string | undefined): string {
+  const person = status.buzz.by[index]
+  if (!person) return seatName ?? ''
+  return seatName && seatName !== person ? `${person} (${seatName})` : person
+}
+
 /** Renders a QR code as an SVG string, offline. */
 export async function qrSvg(text: string): Promise<string> {
   const { toString } = await import('qrcode')
   return toString(text, { type: 'svg', margin: 1, errorCorrectionLevel: 'M', color: { dark: '#0b0a4aff', light: '#ffffffff' } })
+}
+
+const PHONES_KEY = 'svoya-igra:use-phones'
+
+/** Reports whether the host last chose to play with phones. */
+export function phonesPreferred(): boolean {
+  try {
+    return localStorage.getItem(PHONES_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+/** Remembers whether to play with phones next time. */
+export function setPhonesPreferred(on: boolean): void {
+  try {
+    localStorage.setItem(PHONES_KEY, on ? '1' : '0')
+  } catch {
+    // the choice just isn't remembered
+  }
 }

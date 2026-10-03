@@ -132,6 +132,24 @@ button.link { background: none; border: 0; color: var(--cyan); font: inherit; fo
 .me .name { flex: 1; min-width: 0; font-size: 20px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .me .pts { font-size: 26px; font-weight: 800; color: var(--gold); font-variant-numeric: tabular-nums; }
 .me .pts.neg { color: var(--magenta); }
+.board { display: grid; gap: 12px; }
+.theme-name { font-size: 15px; font-weight: 700; color: var(--gold); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+.cells { display: grid; grid-template-columns: repeat(auto-fit, minmax(52px, 1fr)); gap: 8px; }
+.cell {
+  min-height: 52px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: linear-gradient(180deg, var(--tile), var(--tile-deep));
+  color: var(--gold);
+  font: inherit;
+  font-size: 20px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.cell:active { transform: scale(0.96); }
+.cell:disabled { opacity: 0.25; color: transparent; cursor: default; }
+.turn { color: var(--cyan); font-size: 18px; font-weight: 700; }
 .stage { flex: 1; display: grid; place-items: center; align-content: center; gap: 22px; text-align: center; }
 #buzzer {
   --size: min(72vw, 46dvh, 340px);
@@ -213,6 +231,10 @@ button.link { background: none; border: 0; color: var(--cyan); font: inherit; fo
 
   <section id="s-pick" hidden>
     <h1 data-t="pickTitle"></h1>
+    <div id="person-box" style="display:grid;gap:6px" hidden>
+      <label for="person" data-t="personLabel"></label>
+      <input id="person" maxlength="24" autocomplete="nickname">
+    </div>
     <div class="seats" id="seats"></div>
     <p class="muted" id="pick-empty" data-t="pickEmpty" hidden></p>
     <form id="join-form" class="card" style="display:grid;gap:10px" hidden>
@@ -230,6 +252,11 @@ button.link { background: none; border: 0; color: var(--cyan); font: inherit; fo
       <span class="pts" id="me-score"></span>
     </div>
     <button class="link" id="switch" type="button" data-t="switch" style="align-self:flex-start"></button>
+
+    <div id="p-board" style="display:grid;gap:14px" hidden>
+      <p class="turn" id="board-title"></p>
+      <div class="board" id="board"></div>
+    </div>
 
     <div class="stage" id="p-buzz">
       <button id="buzzer" type="button"></button>
@@ -268,6 +295,8 @@ button.link { background: none; border: 0; color: var(--cyan); font: inherit; fo
 'use strict';
 var STRINGS = {
   ru: {
+    personLabel: 'Ваше имя, чтобы команда знала, кто нажал', needPerson: 'Сначала введите своё имя.',
+    yourPick: 'Ваш выбор: тема и стоимость', chooser: 'Вопрос выбирает {name}', notYourTurn: 'Сейчас выбираете не вы.',
     brand: 'Своя игра', codeTitle: 'Код комнаты', codeLabel: 'Четыре цифры с экрана ведущего', codeGo: 'Войти',
     badCode: 'Неверный код', tooMany: 'Слишком много попыток. Попросите ведущего перезапустить кнопки.',
     disabled: 'Кнопки сейчас выключены. Ждите ведущего.', pickTitle: 'Кто вы?', pickEmpty: 'Игроков пока нет.',
@@ -281,6 +310,8 @@ var STRINGS = {
     full: 'В комнате нет мест.', badName: 'Введите имя.', notOpen: 'Сейчас нельзя.', notEligible: 'Вы не играете в финале.', error: 'Что-то пошло не так.'
   },
   en: {
+    personLabel: 'Your name, so the team knows who buzzed', needPerson: 'Enter your name first.',
+    yourPick: 'Your pick: a category and a value', chooser: '{name} picks the question', notYourTurn: 'It\'s not your turn to pick.',
     brand: 'Svoya Igra', codeTitle: 'Room code', codeLabel: 'Four digits from the host\'s screen', codeGo: 'Enter',
     badCode: 'Wrong code', tooMany: 'Too many attempts. Ask the host to restart the buzzers.',
     disabled: 'Buzzers are off right now. Wait for the host.', pickTitle: 'Who are you?', pickEmpty: 'No players yet.',
@@ -294,6 +325,8 @@ var STRINGS = {
     full: 'The room is full.', badName: 'Enter a name.', notOpen: 'Not right now.', notEligible: 'You are not in the final.', error: 'Something went wrong.'
   },
   sr: {
+    personLabel: 'Vaše ime, da tim zna ko je pritisnuo', needPerson: 'Prvo unesite svoje ime.',
+    yourPick: 'Vaš izbor: tema i vrednost', chooser: 'Pitanje bira {name}', notYourTurn: 'Sada ne birate vi.',
     brand: 'Svoja igra', codeTitle: 'Kod sobe', codeLabel: 'Četiri cifre sa ekrana voditelja', codeGo: 'Uđi',
     badCode: 'Pogrešan kod', tooMany: 'Previše pokušaja. Zamolite voditelja da ponovo pokrene dugmad.',
     disabled: 'Dugmad su sada isključena. Sačekajte voditelja.', pickTitle: 'Ko ste vi?', pickEmpty: 'Još nema igrača.',
@@ -339,6 +372,13 @@ var version = 0;
 var pollAbort = null;
 var pollGen = 0;
 var lastBuzz = '';
+var PERSON_KEY = 'svoya-igra:lan-person';
+$('person').value = storage(function () { return localStorage.getItem(PERSON_KEY); }) || '';
+$('person').addEventListener('input', function () {
+  var value = $('person').value;
+  storage(function () { localStorage.setItem(PERSON_KEY, value); });
+});
+function pressed(name, by) { return by && by !== name ? by + ' (' + name + ')' : name; }
 
 function loadToken() {
   token = storage(function () { return localStorage.getItem(TOKEN_PREFIX + code); }) || '';
@@ -363,7 +403,7 @@ function screen(name) {
 function errorText(code) {
   return {
     'bad-code': t('badCode'), 'too-many-codes': t('tooMany'), disabled: t('disabled'), full: t('full'),
-    'bad-name': t('badName'), 'join-closed': t('joinClosed'), 'not-open': t('notOpen'), 'not-eligible': t('notEligible')
+    'bad-name': t('badName'), 'join-closed': t('joinClosed'), 'not-open': t('notOpen'), 'not-eligible': t('notEligible'), 'not-your-turn': t('notYourTurn'), 'need-person': t('needPerson')
   }[code] || t('error');
 }
 
@@ -450,15 +490,17 @@ function render() {
   }
   screen('s-play');
   show('play-error', false);
-  $('me-name').textContent = v.me.name;
+  $('me-name').textContent = v.me.person && v.me.person !== v.me.name ? v.me.name + ' · ' + v.me.person : v.me.name;
   $('me-score').textContent = String(v.me.score);
   $('me-score').classList.toggle('neg', v.me.score < 0);
   var mode = v.finalMode;
-  show('p-buzz', !mode);
+  show('p-board', !mode && !!v.board);
+  show('p-buzz', !mode && !v.board);
+  if (!mode && v.board) renderBoard(v);
   show('p-bet', mode === 'bet' && v.cap !== null);
   show('p-answer', mode === 'answer' && v.cap !== null);
   show('p-out', !!mode && v.cap === null);
-  if (!mode) renderBuzz(v);
+  if (!mode && !v.board) renderBuzz(v);
   else if (mode === 'bet' && v.cap !== null) renderBet(v);
   else if (mode === 'answer' && v.cap !== null) renderAnswer(v);
 }
@@ -488,6 +530,7 @@ function renderPick(v) {
     b.addEventListener('click', function () { claim(p.id); });
     seats.appendChild(b);
   });
+  show('person-box', v.teams);
   show('pick-empty', v.roster.length === 0);
   show('join-form', v.allowJoin);
   show('join-closed', !v.allowJoin);
@@ -503,11 +546,11 @@ function renderBuzz(v) {
   } else if (buzz.position === 1) {
     label = '1'; line = t('first'); hint = t('firstHint'); cls = 'first';
   } else if (buzz.position) {
-    label = t('place', { n: buzz.position }); line = t('placeHint'); hint = buzz.winner ? t('locked', { name: buzz.winner }) : ''; cls = 'queued';
+    label = t('place', { n: buzz.position }); line = t('placeHint'); hint = buzz.winner ? t('locked', { name: pressed(buzz.winner, buzz.winnerBy) }) : ''; cls = 'queued';
   } else if (buzz.state === 'open') {
     label = t('press'); line = ''; hint = ''; cls = 'open'; enabled = true;
   } else if (buzz.state === 'locked') {
-    label = t('press'); line = buzz.winner ? t('locked', { name: buzz.winner }) : t('lockedSomeone'); hint = t('lockedHint'); enabled = true;
+    label = t('press'); line = buzz.winner ? t('locked', { name: pressed(buzz.winner, buzz.winnerBy) }) : t('lockedSomeone'); hint = t('lockedHint'); enabled = true;
   } else {
     label = '…'; line = t('wait'); hint = t('waitHint');
   }
@@ -523,6 +566,37 @@ function renderBuzz(v) {
   var key = buzz.state + ':' + buzz.position;
   if (buzz.position === 1 && lastBuzz !== key) vibrate([60, 40, 120]);
   lastBuzz = key;
+}
+
+function renderBoard(v) {
+  $('board-title').textContent = v.myTurn ? t('yourPick') : v.chooser ? t('chooser', { name: v.chooser }) : '';
+  var board = $('board');
+  board.textContent = '';
+  board.hidden = !v.myTurn;
+  if (!v.myTurn) return;
+  v.board.themes.forEach(function (theme) {
+    var row = document.createElement('div');
+    var name = document.createElement('div');
+    name.className = 'theme-name';
+    name.textContent = theme.name;
+    row.appendChild(name);
+    var cells = document.createElement('div');
+    cells.className = 'cells';
+    theme.questions.forEach(function (q) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'cell';
+      b.textContent = String(q.value);
+      b.disabled = q.played;
+      b.addEventListener('click', function () {
+        vibrate(20);
+        api('/api/pick', { token: token, questionId: q.id }).catch(function (err) { fail('play-error', err); });
+      });
+      cells.appendChild(b);
+    });
+    row.appendChild(cells);
+    board.appendChild(row);
+  });
 }
 
 function renderBet(v) {
@@ -547,7 +621,13 @@ function fail(id, err) {
 }
 
 function claim(playerId) {
-  api('/api/claim', { token: token, playerId: playerId })
+  var person = view && view.teams ? $('person').value.trim() : '';
+  if (view && view.teams && !person) {
+    fail('pick-error', new Error('need-person'));
+    $('person').focus();
+    return;
+  }
+  api('/api/claim', { token: token, playerId: playerId, name: person })
     .then(function (data) { saveToken(data.token); poll(); })
     .catch(function (err) { fail('pick-error', err); });
 }

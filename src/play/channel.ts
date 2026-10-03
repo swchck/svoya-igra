@@ -17,6 +17,7 @@ export const HOST_COMMANDS = [
   'setFinalVerdict',
   'scoreFinal',
   'adjustScore',
+  'setChooser',
   'undo',
   'timerStart',
   'timerPause',
@@ -71,6 +72,7 @@ export async function openHostWindow(gameId: string, title: string): Promise<voi
   const route = `#/host/${encodeURIComponent(gameId)}`
   if (isTauri()) {
     const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow')
+    const { LogicalPosition } = await import('@tauri-apps/api/dpi')
     const label = `host-${gameId.replace(/[^\w-]/g, '_')}`
     const existing = await WebviewWindow.getByLabel(label)
     if (existing) {
@@ -84,6 +86,9 @@ export async function openHostWindow(gameId: string, title: string): Promise<voi
       height: 780,
       minWidth: 720,
       minHeight: 560,
+      titleBarStyle: 'overlay',
+      hiddenTitle: true,
+      trafficLightPosition: new LogicalPosition(18, 26),
     })
     return
   }

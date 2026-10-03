@@ -9,5 +9,6 @@ import print from './print'
 import settings from './settings'
 import pwa from './pwa'
 import lan from './lan'
+import prefs from './prefs'
 
-export default { common, home, system, editor, media, play, host, print, settings, pwa, lan }
+export default { common, home, system, editor, media, play, host, print, settings, pwa, lan, prefs }

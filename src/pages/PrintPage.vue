@@ -42,7 +42,7 @@ function kindLabel(q: Question): string {
 
 <template>
   <div v-if="game" class="page">
-    <div class="toolbar">
+    <div class="toolbar" data-tauri-drag-region>
       <Button variant="ghost" @click="router.push({ name: 'editor', params: { id } })"><ArrowLeft />{{ t('print.back') }}</Button>
       <span class="toolbar-title">{{ t('print.title') }}</span>
       <Button @click="print"><Printer />{{ t('print.print') }}</Button>
@@ -117,7 +117,7 @@ function kindLabel(q: Question): string {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 20px;
+  padding: 10px 20px 10px calc(20px + var(--titlebar-inset));
   color: var(--foreground);
   background: oklch(0.2 0.15 270 / 0.92);
   backdrop-filter: blur(14px);

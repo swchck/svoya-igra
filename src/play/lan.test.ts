@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Player } from '@/types'
+import type { Player, Round } from '@/types'
 
 const invoke = vi.fn()
 const listen = vi.fn()
@@ -20,8 +20,10 @@ beforeEach(() => {
 })
 
 describe('stageInfo', () => {
+  const base = { players, teams: false, played: {} as Record<string, true>, chooserId: null as string | null }
+
   it('lets phones join by name only while players are set up', () => {
-    expect(lan.stageInfo({ phase: 'title', players }, 'Quiz')).toEqual({
+    expect(lan.stageInfo({ ...base, phase: 'title' }, 'Quiz')).toEqual({
       title: 'Quiz',
       roster: [
         { id: 'a', name: 'Аня', score: 300 },
@@ -29,18 +31,42 @@ describe('stageInfo', () => {
         { id: 'c', name: 'Вера', score: -100 },
       ],
       allowJoin: true,
+      teams: false,
       finalMode: null,
       caps: {},
+      board: null,
+      chooser: null,
     })
-    expect(lan.stageInfo({ phase: 'board', players }, 'Quiz').allowJoin).toBe(false)
+    expect(lan.stageInfo({ ...base, phase: 'board' }, 'Quiz').allowJoin).toBe(false)
+  })
+
+  it('shows the board and whose pick it is only while the board is up', () => {
+    const round = {
+      id: 'r1',
+      name: 'Раунд 1',
+      themes: [{ id: 't1', name: 'Флаги', questions: [{ id: 'q1', value: 100 }, { id: 'q2', value: 200 }] }],
+    } as unknown as Round
+    const info = lan.stageInfo({ ...base, phase: 'board', played: { q1: true }, chooserId: 'b' }, '', round)
+    expect(info.chooser).toBe('b')
+    expect(info.board).toEqual({
+      round: 'Раунд 1',
+      themes: [{ name: 'Флаги', questions: [{ id: 'q1', value: 100, played: true }, { id: 'q2', value: 200, played: false }] }],
+    })
+    expect(lan.stageInfo({ ...base, phase: 'question' }, '', round).board).toBeNull()
+  })
+
+  it('names the person behind a press, with their team when the seat is shared', () => {
+    const status = { ...lan.emptyLanStatus(), buzz: { state: 'locked' as const, order: ['a', 'b'], by: ['Петя', null], excluded: [] } }
+    expect(lan.pressedBy(status, 0, 'Совы')).toBe('Петя (Совы)')
+    expect(lan.pressedBy(status, 1, 'Лисы')).toBe('Лисы')
   })
 
   it('asks for bets and answers in the final from players with points only', () => {
-    const bets = lan.stageInfo({ phase: 'final-bets', players }, '')
+    const bets = lan.stageInfo({ ...base, phase: 'final-bets' }, '')
     expect(bets.finalMode).toBe('bet')
     expect(bets.caps).toEqual({ a: 300 })
-    expect(lan.stageInfo({ phase: 'final-question', players }, '').finalMode).toBe('answer')
-    expect(lan.stageInfo({ phase: 'final-answer', players }, '')).toMatchObject({ finalMode: null, caps: {} })
+    expect(lan.stageInfo({ ...base, phase: 'final-question' }, '').finalMode).toBe('answer')
+    expect(lan.stageInfo({ ...base, phase: 'final-answer' }, '')).toMatchObject({ finalMode: null, caps: {} })
   })
 })
 

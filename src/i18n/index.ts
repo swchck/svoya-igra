@@ -64,6 +64,16 @@ export function currentLocale(): Locale {
   return i18n.global.locale.value
 }
 
+/** Reports whether someone has picked the interface language, rather than it being guessed. */
+export function localeChosen(): boolean {
+  try {
+    return isLocale(localStorage.getItem(STORAGE_KEY))
+  } catch {
+    // without storage the question would come back on every start
+    return true
+  }
+}
+
 /** Switches the interface language and remembers it for every window of the app. */
 export function setLocale(locale: Locale): void {
   i18n.global.locale.value = locale

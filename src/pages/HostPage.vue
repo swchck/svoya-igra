@@ -176,10 +176,10 @@ onUnmounted(() => {
 
 <template>
   <main v-if="game" class="host" :style="accent">
-    <header class="top">
+    <header class="top" data-tauri-drag-region>
       <span class="brand">{{ t('host.brand') }}</span>
       <span class="game">{{ game.title }}</span>
-      <span class="flex-1" />
+      <span class="flex-1" data-tauri-drag-region />
       <Button variant="ghost" size="icon" :aria-pressed="hintOpen" :aria-label="t('host.hotkeys.toggle')" :title="t('host.hotkeys.toggle')" @click="hintOpen = !hintOpen">
         <Keyboard />
       </Button>
@@ -205,6 +205,19 @@ onUnmounted(() => {
         </div>
 
         <div v-else-if="state.phase === 'board' && round" class="board-wrap">
+          <div class="chooser" role="group" :aria-label="t('lan.chooses')">
+            <span class="muted">{{ t('lan.chooses') }}:</span>
+            <button
+              v-for="p in players"
+              :key="p.id"
+              type="button"
+              class="chooser-chip"
+              :class="{ on: p.id === state.chooserId }"
+              :style="{ '--pc': seats.get(p.id)?.color }"
+              :aria-pressed="p.id === state.chooserId"
+              @click="send('setChooser', p.id)"
+            >{{ p.avatar }} {{ p.name }}</button>
+          </div>
           <BoardGrid compact :round="round" :played="state.played" @pick="(q) => send('pick', q.id)" />
           <Button variant="ghost" class="self-center" @click="send('nextRound')">{{ t('host.skipRound') }}<SkipForward /></Button>
         </div>
@@ -347,15 +360,16 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 14px;
   min-height: 100dvh;
-  padding: 14px 18px 18px;
+  padding: 10px 18px 18px;
   background:
     radial-gradient(80% 50% at 0% 0%, color-mix(in oklch, var(--cyan) 14%, transparent), transparent 70%),
     radial-gradient(80% 50% at 100% 100%, color-mix(in oklch, var(--magenta) 14%, transparent), transparent 70%);
 }
 .top {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 12px;
+  padding-left: var(--titlebar-inset);
 }
 .brand {
   font-family: var(--font-display);
@@ -693,5 +707,26 @@ kbd {
 }
 @media (prefers-reduced-motion: reduce) {
   .dot { animation: none; }
+}
+.chooser {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+.chooser-chip {
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklch, var(--pc) 60%, transparent);
+  background: transparent;
+  color: var(--foreground);
+  cursor: pointer;
+}
+.chooser-chip.on {
+  background: var(--cyan);
+  border-color: var(--cyan);
+  color: oklch(0.2 0.1 280);
+  font-weight: 600;
 }
 </style>

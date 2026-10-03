@@ -20,6 +20,7 @@ const PORTS: std::ops::RangeInclusive<u16> = 47800..=47810;
 /// The app hears about the room on these events.
 const STATUS_EVENT: &str = "lan://status";
 const JOIN_EVENT: &str = "lan://join";
+const PICK_EVENT: &str = "lan://pick";
 const SHARE_NAME_HEADER: &str = "x-file-name";
 
 /// Holds the server while anything uses it.
@@ -106,6 +107,7 @@ fn ensure_started<'a, R: Runtime>(app: &AppHandle<R>, slot: &'a mut Option<LanSe
             let _ = match notice {
                 Notice::Status(status) => app.emit(STATUS_EVENT, status),
                 Notice::Joined(player) => app.emit(JOIN_EVENT, player),
+                Notice::Picked(pick) => app.emit(PICK_EVENT, pick),
             };
         })
         .map_err(|e| e.to_string())?;

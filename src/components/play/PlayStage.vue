@@ -16,7 +16,7 @@ import { plainCopy } from '@/lib/plain'
 import { prefersReducedMotion } from '@/lib/motion'
 import { useStageSounds, useTimerSounds } from '@/play/sounds'
 import { accentStyle } from '@/play/accents'
-import { lanAvailable } from '@/play/lan'
+import { lanAvailable, phonesPreferred, setPhonesPreferred } from '@/play/lan'
 import { useLanRoom } from '@/play/useLanRoom'
 import { useRemaining } from '@/play/timer'
 import SoundToggle from '@/components/SoundToggle.vue'
@@ -36,6 +36,7 @@ import VerdictPanel from './VerdictPanel.vue'
 import FinalBetsPanel from './FinalBetsPanel.vue'
 import FinalVerdictPanel from './FinalVerdictPanel.vue'
 import PhonesPanel from '@/components/lan/PhonesPanel.vue'
+import LanLobby from '@/components/lan/LanLobby.vue'
 
 const props = defineProps<{ game: Game; restored?: SessionSnapshot }>()
 const router = useRouter()
@@ -49,18 +50,34 @@ const { state, players, round, activeQuestion, activeValue, ranking, inProgress 
 
 useStageSounds(() => state.phase, players)
 
-const lan = useLanRoom(session, () => props.game.title)
+const lan = useLanRoom(session, () => props.game.title, (id) => pick(id))
 const { info: lanInfo, status: lanStatus, starting: lanStarting, winnerId: buzzedId, phones } = lan
+const buzzedBy = computed(() => (buzzedId.value ? (lanStatus.value.buzz.by[0] ?? undefined) : undefined))
 const phoneCount = computed(() => Object.values(phones.value).reduce((a, b) => a + b, 0))
 const phonesOpen = ref(false)
 
-async function startPhones() {
+async function startPhones(): Promise<boolean> {
   try {
     await lan.start()
+    return true
   } catch (err) {
     const message = String(err)
     toast.error(t('lan.errors.failed'), { description: message === 'no-network' ? t('lan.errors.noNetwork') : message })
+    return false
   }
+}
+
+const usePhones = ref(lanAvailable && phonesPreferred())
+watch(usePhones, (on) => {
+  setPhonesPreferred(on)
+  if (!on) lan.stop()
+})
+const lobby = ref(false)
+
+async function begin() {
+  if (!usePhones.value) return session.start()
+  lobby.value = true
+  if (!(await startPhones())) lobby.value = false
 }
 
 const settings = computed(() => props.game.settings)
@@ -268,12 +285,12 @@ onUnmounted(() => {
   <div class="stage" :class="{ 'chrome-hidden': !chromeVisible && state.phase !== 'title' }" :style="accent">
     <StageBackdrop :dim="state.phase === 'question' || state.phase === 'answer'" />
 
-    <header class="chrome">
+    <header class="chrome" data-tauri-drag-region>
       <Button variant="ghost" @click="home"><ArrowLeft />{{ t('play.stage.leave') }}</Button>
       <span v-if="hostConnected" class="host-on"><span class="dot" />{{ t('play.stage.hostConnected') }}</span>
-      <div class="flex-1" />
+      <div class="flex-1" data-tauri-drag-region />
       <SoundToggle />
-      <Button v-if="lanAvailable && state.phase !== 'title'" variant="ghost" @click="phonesOpen = true">
+      <Button v-if="(lanInfo || usePhones) && state.phase !== 'title'" variant="ghost" @click="phonesOpen = true">
         <Smartphone />{{ t('lan.phones') }}<span v-if="lanInfo" class="phone-count">{{ phoneCount }}</span>
       </Button>
       <Button variant="ghost" @click="openHostWindow(game.id, game.title)"><MonitorSmartphone />{{ t('play.stage.hostWindow') }}</Button>
@@ -290,15 +307,33 @@ onUnmounted(() => {
         <AnswerTimer :remaining-ms="remaining" :total-ms="answerMs" :running="state.timer.endsAt !== null && remaining > 0" />
       </div>
       <Transition name="scene" mode="out-in">
-        <section v-if="state.phase === 'title'" :key="sceneKey" class="title-scene">
+        <section v-if="state.phase === 'title' && !lobby" :key="sceneKey" class="title-scene">
           <StageLogo v-if="settings?.logo" :logo="settings.logo" class="title-logo" />
           <h1 class="title-shine game-title">{{ game.title || t('play.stage.defaultTitle') }}</h1>
           <p v-if="game.subtitle" class="subtitle">{{ game.subtitle }}</p>
           <p v-if="settings?.introText" class="intro-text">{{ settings.introText }}</p>
-          <PlayerSetup v-model="players" :teams="state.teams" :phones="phones" @update:teams="session.setTeams" @add="session.addPlayer()" @remove="(p) => session.removePlayer(p.id)" />
-          <PhonesPanel v-if="lanAvailable" :info="lanInfo" :starting="lanStarting" :phones="phoneCount" @start="startPhones" @stop="lan.stop" />
-          <Button size="lg" class="start" @click="session.start">{{ t('play.stage.start') }}</Button>
+          <PlayerSetup v-model="players" :teams="state.teams" :phones="phones" @update:teams="session.setTeams" @add="session.addPlayer()" @remove="(p) => session.removePlayer(p.id)">
+            <template v-if="lanAvailable" #footer>
+              <label class="phones-toggle" :title="t('lan.toggleHint')">
+                <input v-model="usePhones" type="checkbox" />
+                <Smartphone class="size-4" />{{ t('lan.usePhones') }}
+              </label>
+            </template>
+          </PlayerSetup>
+          <Button size="lg" class="start" @click="begin">{{ t('play.stage.start') }}</Button>
         </section>
+
+        <LanLobby
+          v-else-if="state.phase === 'title' && lobby"
+          key="lobby"
+          :info="lanInfo"
+          :players="players"
+          :teams="state.teams"
+          :phones="phones"
+          :people="lanStatus.people"
+          @back="lobby = false"
+          @start="session.start"
+        />
 
         <IntroSlide
           v-else-if="state.phase === 'round-intro'"
@@ -446,7 +481,10 @@ onUnmounted(() => {
       </Transition>
     </main>
 
-    <PlayerPodiums v-if="inProgress" :players="players" :active-id="state.stake?.playerId" :phones="phones" :buzzed-id="buzzedId" />
+    <PlayerPodiums v-if="inProgress" :players="players" :active-id="state.stake?.playerId" :phones="phones" :buzzed-id="buzzedId"
+      :buzzed-by="buzzedBy"
+      :chooser-id="state.phase === 'board' ? (state.chooserId ?? undefined) : undefined"
+    />
 
     <Dialog v-if="lanAvailable" v-model:open="phonesOpen">
       <DialogContent class="sm:max-w-lg">
@@ -474,7 +512,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px;
+  padding: 10px 16px 10px calc(16px + var(--titlebar-inset));
   transition: opacity 0.5s ease;
 }
 .chrome-hidden .chrome {
@@ -538,6 +576,18 @@ onUnmounted(() => {
   font-style: italic;
   font-size: clamp(18px, 2vw, 32px);
   color: var(--muted-foreground);
+}
+.phones-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.phones-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--gold);
 }
 .start {
   height: 56px;

@@ -24,6 +24,27 @@ function onBoard(kind: QuestionKind = 'normal', extra: { catValue?: number } = {
 }
 
 describe('usePlaySession', () => {
+  it('hands the pick to whoever answers right, and the next round to whoever trails', () => {
+    const { game, s, p1, p2 } = onBoard()
+    const [q100, q200] = game.rounds[0].themes[0].questions
+    expect([p1.id, p2.id]).toContain(s.state.chooserId)
+    s.setChooser(p1.id)
+    s.pick(q100.id)
+    s.advance()
+    s.close({ playerId: p2.id, sign: -1 })
+    expect(s.state.chooserId).toBe(p1.id)
+    s.pick(q200.id)
+    s.adjustScore(p2.id, 200)
+    expect(s.state.chooserId).toBe(p2.id)
+    s.undo()
+    expect(s.state.chooserId).toBe(p1.id)
+    s.adjustScore(p2.id, 400)
+    s.advance()
+    s.close()
+    expect(s.state.phase).toBe('round-intro')
+    expect(s.state.chooserId).toBe(p1.id)
+  })
+
   it('scores verdicts and marks questions played', () => {
     const { game, s, p1, p2 } = onBoard()
     const [q100, q200] = game.rounds[0].themes[0].questions

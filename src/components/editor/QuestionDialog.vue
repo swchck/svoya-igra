@@ -55,7 +55,7 @@ function onKeydown(e: KeyboardEvent) {
 <template>
   <Dialog v-model:open="open">
     <DialogContent
-      class="max-h-[90dvh] gap-0 overflow-hidden p-0 sm:max-w-[min(1200px,94vw)]"
+      class="h-[min(92dvh,920px)] max-h-[92dvh] gap-0 overflow-hidden p-0 sm:max-w-[min(1200px,94vw)]"
       @keydown="onKeydown"
       @open-auto-focus.prevent
     >
@@ -89,7 +89,7 @@ function onKeydown(e: KeyboardEvent) {
             <p class="hint">{{ kindHint }}</p>
           </div>
 
-          <div class="grid gap-2">
+          <div class="grid gap-2" :title="t('editor.dialog.valueHint')">
             <Label as="span">{{ t('editor.dialog.value') }}</Label>
             <div class="flex flex-wrap items-center gap-2">
               <NumberInput v-model="question.value" class="value-input" :min="1" :step="100" :step-snapping="false" />
@@ -102,7 +102,6 @@ function onKeydown(e: KeyboardEvent) {
                 @click="question.value = p"
               >{{ p }}</button>
             </div>
-            <p class="hint">{{ t('editor.dialog.valueHint') }}</p>
           </div>
 
           <div v-if="question.kind === 'cat-in-bag'" class="grid gap-2">
@@ -181,14 +180,18 @@ function onKeydown(e: KeyboardEvent) {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  padding: 18px 20px;
+  gap: clamp(10px, 2vh, 18px);
+  padding: clamp(10px, 2vh, 18px) 20px;
 }
 .settings {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 20px;
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
   align-items: start;
+}
+.kind-box {
+  flex: 1 1 320px;
 }
 .kinds {
   display: grid;
@@ -256,18 +259,23 @@ function onKeydown(e: KeyboardEvent) {
   color: var(--gold);
 }
 .cols {
+  flex: 1;
+  min-height: 220px;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px;
+  gap: 16px;
 }
-@media (max-width: 1000px) {
+@media (max-width: 720px) {
   .cols { grid-template-columns: 1fr; }
 }
+/* each side scrolls on its own, so a long media list never pushes the other out of view */
 .col {
   display: flex;
   flex-direction: column;
   gap: 12px;
   min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
   padding: 14px;
   border-radius: 16px;
   border: 1px solid oklch(1 0 0 / 0.08);

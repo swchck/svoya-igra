@@ -8,6 +8,7 @@ import {
   closeBuzz,
   emptyLanStatus,
   onLanJoin,
+  onLanPick,
   onLanStatus,
   reopenBuzz,
   stageInfo,
@@ -28,8 +29,8 @@ function quietly(p: Promise<unknown>): void {
  * closes the buttons with each question, adds players who join by name and fills in final
  * bets sent from phones. The room stops with the stage.
  */
-export function useLanRoom(session: PlaySession, title: () => string) {
-  const { state, players } = session
+export function useLanRoom(session: PlaySession, title: () => string, pick: (questionId: string) => void = session.pick) {
+  const { state, players, round } = session
   const info = ref<LanInfo | null>(null)
   const status = ref<LanStatus>(emptyLanStatus())
   const starting = ref(false)
@@ -44,7 +45,11 @@ export function useLanRoom(session: PlaySession, title: () => string) {
 
   function sync() {
     if (!info.value) return
-    const stage = stageInfo({ phase: state.phase, players: players.value }, title())
+    const stage = stageInfo(
+      { phase: state.phase, players: players.value, teams: state.teams, played: state.played, chooserId: state.chooserId },
+      title(),
+      round.value,
+    )
     const key = JSON.stringify(stage)
     if (key === lastSync) return
     lastSync = key
@@ -77,7 +82,14 @@ export function useLanRoom(session: PlaySession, title: () => string) {
     if (info.value || starting.value) return
     starting.value = true
     try {
-      unlisten = [await onLanStatus(onStatus), await onLanJoin((j) => session.addPlayer({ id: j.playerId, name: j.name }))]
+      unlisten = [
+        await onLanStatus(onStatus),
+        await onLanJoin((j) => session.addPlayer({ id: j.playerId, name: j.name })),
+        await onLanPick((p) => {
+          // the phone saw an older board if the turn has already moved on
+          if (state.phase === 'board' && state.chooserId === p.playerId) pick(p.questionId)
+        }),
+      ]
       info.value = await startLan()
       lastSync = ''
       sync()
@@ -110,7 +122,7 @@ export function useLanRoom(session: PlaySession, title: () => string) {
     quietly(reopenBuzz(wrong))
   }
 
-  watch([() => state.phase, players, title], sync, { deep: true })
+  watch([() => state.phase, players, title, () => state.teams, () => state.chooserId, () => state.played, round], sync, { deep: true })
   watch(() => buzzWindow(state), syncBuzz)
   watch(() => state.phase, (phase) => phase === 'final-bets' && takeBets(status.value.bets))
   watch(winnerId, (id) => id && playSound('pick'))
