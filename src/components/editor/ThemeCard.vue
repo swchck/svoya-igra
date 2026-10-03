@@ -17,8 +17,8 @@ defineEmits<{
 
 const KIND_CELL = {
   normal: '',
-  auction: 'bg-accent',
-  'cat-in-bag': 'bg-fuchsia-500/25',
+  auction: 'q-auction',
+  'cat-in-bag': 'q-cat',
 } as const
 
 function addQuestion() {
@@ -41,7 +41,7 @@ function addQuestion() {
         :key="q.id"
         :class="
           cn(
-            'h-12 w-16 rounded-lg border border-border bg-board font-display text-lg font-semibold text-gold transition hover:-translate-y-px',
+            'q-tile h-12 w-16 rounded-lg font-display text-lg font-semibold text-gold transition hover:-translate-y-0.5 hover:brightness-115',
             KIND_CELL[q.kind],
             !q.text && 'text-gold/40 italic',
             selected === qIdx && 'ring-2 ring-ring ring-offset-2 ring-offset-background',
@@ -59,3 +59,24 @@ function addQuestion() {
     </div>
   </Card>
 </template>
+
+<style scoped>
+/* same tile as the stage board, so the editor reads as the board being built */
+.q-tile {
+  border: 1px solid oklch(1 0 0 / 0.16);
+  background:
+    linear-gradient(180deg, oklch(1 0 0 / 0.14), transparent 45%),
+    linear-gradient(180deg, var(--tile), var(--tile-deep));
+  box-shadow: inset 0 -3px 0 oklch(0.15 0.15 270 / 0.6);
+}
+.q-tile.q-auction {
+  background:
+    linear-gradient(180deg, oklch(1 0 0 / 0.14), transparent 45%),
+    linear-gradient(180deg, oklch(0.5 0.15 70), oklch(0.32 0.12 60));
+}
+.q-tile.q-cat {
+  background:
+    linear-gradient(180deg, oklch(1 0 0 / 0.14), transparent 45%),
+    linear-gradient(180deg, color-mix(in oklch, var(--magenta) 80%, black), oklch(0.3 0.16 340));
+}
+</style>

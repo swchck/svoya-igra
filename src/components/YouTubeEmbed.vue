@@ -1,22 +1,26 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
-import { Pause, Play, Square } from '@lucide/vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import type { MediaMode } from '@/types'
-import { Button } from '@/components/ui/button'
 import { parseYoutubeUrl } from '@/game/youtube'
+import type { MediaAction } from '@/play/mediaControl'
 import { youtubeEmbedUrl } from '@/platform'
+import SoundCard from './SoundCard.vue'
 
 const props = defineProps<{
   url: string
-  /** `video` shows the player; `audio` keeps it running behind a cover. */
+  /** `video` shows the player; `audio` keeps it running under a sound card. */
   mode?: MediaMode
   autoplay?: boolean
-  /** Seconds of playback from the start offset; unset plays to the end. */
-  duration?: number
+  start: number
+  end?: number
 }>()
+const emit = defineEmits<{ (e: 'status', status: { playing: boolean; blocked: boolean }): void }>()
 
 const iframe = ref<HTMLIFrameElement | null>(null)
 const playing = ref(false)
+const blocked = ref(false)
+const elapsed = ref(0)
+const videoLength = ref(0)
 
 const embed = computed(() => {
   const video = parseYoutubeUrl(props.url)
@@ -27,19 +31,34 @@ const embed = computed(() => {
     iv_load_policy: '3',
     playsinline: '1',
     enablejsapi: '1',
+    start: String(Math.floor(props.start)),
   })
-  if (video.start) params.set('start', String(video.start))
   // the player stops itself at `end`, unlike a timer it survives pauses and buffering
-  if (props.duration) params.set('end', String(video.start + props.duration))
+  if (props.end !== undefined) params.set('end', String(Math.ceil(props.end)))
   return youtubeEmbedUrl(video.id, params)
 })
 
-function send(func: 'pauseVideo' | 'playVideo' | 'stopVideo') {
-  iframe.value?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args: [] }), '*')
+const length = computed(() => {
+  const stop = props.end ?? videoLength.value
+  return stop > props.start ? stop - props.start : 0
+})
+
+function command(func: string, args: unknown[] = []) {
+  iframe.value?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args }), '*')
 }
+
+function run(action: MediaAction) {
+  if (action === 'pause') return command('pauseVideo')
+  if (action === 'restart' || (props.end !== undefined && elapsed.value >= length.value - 0.5)) {
+    command('seekTo', [props.start, true])
+  }
+  command('playVideo')
+}
+defineExpose({ run })
 
 // iframe API: the player reports its state once the page says it is listening
 let handshake: ReturnType<typeof setInterval> | undefined
+let startWatch: ReturnType<typeof setTimeout> | undefined
 function onLoad() {
   clearInterval(handshake)
   let tries = 0
@@ -51,27 +70,40 @@ function onLoad() {
 
 function onMessage(e: MessageEvent) {
   if (!iframe.value || e.source !== iframe.value.contentWindow || typeof e.data !== 'string') return
-  let data: { event?: string; info?: { playerState?: number } | number }
+  let data: { event?: string; info?: { playerState?: number; currentTime?: number; duration?: number } | number }
   try {
     data = JSON.parse(e.data)
   } catch {
     return
   }
-  if (data.event === 'onReady' || data.event === 'initialDelivery') clearInterval(handshake)
-  const state = typeof data.info === 'object' ? data.info?.playerState : data.event === 'onStateChange' ? data.info : undefined
+  if (data.event === 'onReady' || data.event === 'initialDelivery') {
+    clearInterval(handshake)
+    // in the app's WebView YouTube refuses to start without a click inside the window
+    if (props.autoplay && !startWatch) startWatch = setTimeout(() => (blocked.value = !playing.value), 4000)
+  }
+  const info = typeof data.info === 'object' ? data.info : undefined
+  if (info?.currentTime !== undefined) elapsed.value = Math.max(0, info.currentTime - props.start)
+  if (info?.duration) videoLength.value = info.duration
+  const state = info?.playerState ?? (data.event === 'onStateChange' && typeof data.info === 'number' ? data.info : undefined)
   // 1 playing, 3 buffering; everything else means silence
-  if (typeof state === 'number') playing.value = state === 1 || state === 3
+  if (typeof state === 'number') {
+    playing.value = state === 1 || state === 3
+    if (state === 1) blocked.value = false
+  }
 }
+
+watch([playing, blocked], ([p, b]) => emit('status', { playing: p, blocked: b }))
 
 window.addEventListener('message', onMessage)
 onBeforeUnmount(() => {
   window.removeEventListener('message', onMessage)
   clearInterval(handshake)
+  clearTimeout(startWatch)
 })
 </script>
 
 <template>
-  <div class="yt-wrap" :class="{ audio: mode === 'audio' }">
+  <div class="yt-wrap" :class="mode === 'audio' ? 'audio' : 'video'">
     <div v-if="!embed" class="yt-error">Ссылка на YouTube не распознана.</div>
     <template v-else>
       <div class="yt-frame-holder">
@@ -84,32 +116,39 @@ onBeforeUnmount(() => {
           frameborder="0"
           @load="onLoad"
         />
-        <div v-if="mode === 'audio'" class="yt-audio-mask">
-          <span class="yt-audio-icon">{{ playing ? '♪' : '⏸' }}</span>
-          <span class="yt-audio-label">Звук с YouTube</span>
-        </div>
+        <div v-if="blocked && mode !== 'audio'" class="yt-blocked">Нажмите на видео, чтобы запустить</div>
       </div>
-      <div v-if="mode === 'audio'" class="yt-audio-controls">
-        <Button v-if="playing" variant="secondary" @click="send('pauseVideo')"><Pause />Пауза</Button>
-        <Button v-else variant="secondary" @click="send('playVideo')"><Play />Воспроизвести</Button>
-        <Button variant="ghost" @click="send('stopVideo')"><Square />Стоп</Button>
-      </div>
+      <!-- clicks pass through the card to the player, which counts as the click YouTube waits for -->
+      <SoundCard
+        v-if="mode === 'audio'"
+        class="yt-cover"
+        passive
+        :playing="playing"
+        :blocked="blocked"
+        :elapsed="elapsed"
+        :length="length"
+        label="Звук с YouTube"
+      />
     </template>
   </div>
 </template>
 
 <style scoped>
 .yt-wrap {
+  position: relative;
   width: 100%;
-  max-width: 960px;
+  display: grid;
+  place-items: center;
 }
+/* --fit-w comes from a size container on the stage, so the player fits its height too */
 .yt-frame-holder {
   position: relative;
   aspect-ratio: 16 / 9;
-  width: 100%;
+  width: min(100%, var(--fit-w, 100%));
   background: #000;
-  border-radius: 12px;
+  border-radius: 18px;
   overflow: hidden;
+  box-shadow: 0 30px 80px -30px oklch(0.05 0.1 280 / 0.9);
 }
 .yt-frame {
   position: absolute;
@@ -118,37 +157,31 @@ onBeforeUnmount(() => {
   height: 100%;
   border: 0;
 }
-/* In audio mode: keep iframe alive (so audio plays) but hide it visually */
-.yt-wrap.audio .yt-frame-holder {
-  aspect-ratio: auto;
-  height: 96px;
+.audio {
+  width: min(720px, 100%);
+  height: auto;
 }
-.yt-wrap.audio .yt-frame {
-  /* keep mounted but invisible to user; controls stay reachable on focus */
-  opacity: 0.001;
-  pointer-events: none;
-}
-.yt-audio-mask {
+.audio .yt-frame-holder {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, rgba(0,0,80,0.85), rgba(0,0,40,0.85));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
+  width: auto;
+  aspect-ratio: auto;
+  border-radius: 28px;
+}
+.yt-cover {
+  position: relative;
+}
+.yt-blocked {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: oklch(0.15 0.1 280 / 0.85);
   color: var(--gold);
   font-family: var(--font-display);
-  font-size: 22px;
   pointer-events: none;
-}
-.yt-audio-icon {
-  font-size: 32px;
-}
-.yt-audio-controls {
-  margin-top: 10px;
-  display: flex;
-  gap: 8px;
-  justify-content: center;
 }
 .yt-error {
   color: var(--muted-foreground);

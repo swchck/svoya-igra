@@ -27,12 +27,19 @@
   --input: oklch(1 0 0 / 0.2);
   --ring: oklch(0.84 0.17 84);
 
-  /* game surfaces */
-  --gold: oklch(0.84 0.17 84);
+  /* game surfaces: the studio at night, its screen-blue board, gold numbers and two
+   * colored spotlights (magenta for losses and drama, cyan for wins and the host) */
+  --night: oklch(0.16 0.12 274);
+  --gold: oklch(0.86 0.17 85);
+  --gold-deep: oklch(0.7 0.16 65);
+  --magenta: oklch(0.66 0.26 352);
+  --cyan: oklch(0.84 0.14 208);
+  --tile: oklch(0.43 0.24 266);
+  --tile-deep: oklch(0.27 0.2 268);
   --board: oklch(0.2 0.15 268 / 0.6);
   --board-played: oklch(1 0 0 / 0.05);
-  --stage-top: oklch(0.47 0.27 268);
-  --stage-bottom: oklch(0.2 0.17 268);
+  --stage-top: oklch(0.42 0.26 268);
+  --stage-bottom: oklch(0.14 0.12 274);
 }
 
 @theme inline {
@@ -42,6 +49,10 @@
   --font-heading: var(--font-display);
 
   --color-gold: var(--gold);
+  --color-night: var(--night);
+  --color-magenta: var(--magenta);
+  --color-cyan: var(--cyan);
+  --color-tile: var(--tile);
   --color-board: var(--board);
   --color-board-played: var(--board-played);
 
@@ -94,4 +105,38 @@
     @apply font-display font-semibold tracking-wide text-gold uppercase;
     text-shadow: 0 4px 18px oklch(0.15 0.1 268 / 0.6);
   }
+
+  /* metallic gold with a light sweep, for the big titles on the stage */
+  .title-shine {
+    @apply font-display font-bold tracking-wide uppercase;
+    background: linear-gradient(
+        100deg,
+        var(--gold-deep) 0%,
+        var(--gold) 30%,
+        oklch(0.98 0.06 95) 45%,
+        var(--gold) 60%,
+        var(--gold-deep) 100%
+      )
+      0 0 / 250% 100%;
+    background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 6px 22px oklch(0.12 0.12 274 / 0.7));
+    animation: shine 5s ease-in-out infinite;
+  }
+
+  .glass {
+    background: oklch(0.2 0.14 272 / 0.62);
+    border: 1px solid oklch(1 0 0 / 0.12);
+    backdrop-filter: blur(14px) saturate(1.3);
+    box-shadow: 0 24px 60px -30px oklch(0.05 0.1 280 / 0.9);
+  }
+}
+
+@keyframes shine {
+  0%, 15% { background-position: 100% 0; }
+  60%, 100% { background-position: 0% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .title-shine { animation: none; background-position: 50% 0; }
 }

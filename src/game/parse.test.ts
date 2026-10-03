@@ -24,11 +24,20 @@ const legacy = {
 }
 
 describe('parseGame', () => {
+  it('turns an old play length into an end time after the link start', () => {
+    const game = structuredClone(legacy)
+    game.rounds[0].themes[0].questions[0].media = [
+      { id: 'mi_y', url: 'https://youtu.be/abcdefg?t=8', kind: 'youtube', duration: 5 },
+    ] as never
+    const media = parseGame(game).rounds[0].themes[0].questions[0].media!
+    expect(media.find((m) => m.id === 'mi_y')).toEqual({ id: 'mi_y', url: 'https://youtu.be/abcdefg?t=8', kind: 'youtube', end: 13 })
+  })
+
   it('moves single-media fields into media lists', () => {
     const q = parseGame(structuredClone(legacy)).rounds[0].themes[0].questions[0]
 
     expect(q.media?.map((m) => m.url)).toEqual(['https://youtu.be/abcdef', 'x.png'])
-    expect(q.media?.[0]).toMatchObject({ kind: 'youtube', mode: 'audio', duration: 10 })
+    expect(q.media?.[0]).toMatchObject({ kind: 'youtube', mode: 'audio', end: 10 })
     expect(q.answerMedia).toEqual([expect.objectContaining({ url: 'data:image/png;base64,AA==', kind: 'image' })])
     expect(q).not.toHaveProperty('mediaUrl')
     expect(q).not.toHaveProperty('answerMediaUrl')

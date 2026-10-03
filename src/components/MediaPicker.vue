@@ -9,10 +9,11 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import IconButton from '@/components/IconButton.vue'
-import NumberInput from '@/components/NumberInput.vue'
+import TimeInput from '@/components/TimeInput.vue'
 import { parseYoutubeUrl } from '@/game/youtube'
 import { isStoredMedia } from '@/media/ref'
 import { putMedia } from '@/media/store'
+import { formatTime, segmentOf } from '@/media/segment'
 import MediaElement from '@/components/MediaElement.vue'
 
 const props = defineProps<{ modelValue: MediaItem }>()
@@ -79,17 +80,12 @@ function setKind(v: MediaKind | 'auto') {
 function setMode(mode: MediaMode) { patch({ mode }) }
 
 function clear() {
-  patch({ url: '', mode: undefined, duration: undefined })
-}
-
-function setDuration(n: number | undefined) {
-  patch({ duration: n && n > 0 ? Math.round(n) : undefined })
+  patch({ url: '', mode: undefined, start: undefined, end: undefined })
 }
 
 const url = computed(() => props.modelValue.url)
 const kind = computed(() => props.modelValue.kind)
 const mode = computed(() => props.modelValue.mode)
-const duration = computed(() => props.modelValue.duration)
 const stored = computed(() => isStoredMedia(url.value))
 const isYoutube = computed(() => kind.value === 'youtube' || parseYoutubeUrl(url.value) !== null)
 </script>
@@ -133,10 +129,22 @@ const isYoutube = computed(() => kind.value === 'youtube' || parseYoutubeUrl(url
       </ToggleGroup>
     </div>
 
-    <div v-if="(isYoutube || kind === 'audio' || kind === 'video') && url" class="flex flex-wrap items-center gap-3">
-      <Label>Длительность, с</Label>
-      <NumberInput class="w-36" :model-value="duration" placeholder="до конца" @update:model-value="setDuration" />
-      <span class="text-sm text-muted-foreground">Если пусто, играет до конца</span>
+    <div v-if="(isYoutube || kind === 'audio' || kind === 'video') && url" class="flex flex-wrap items-center gap-2">
+      <Label>Играть с</Label>
+      <TimeInput
+        label="Начало отрезка"
+        :model-value="modelValue.start"
+        :placeholder="isYoutube ? formatTime(segmentOf(modelValue).start) : '0:00'"
+        @update:model-value="(v) => patch({ start: v })"
+      />
+      <Label>по</Label>
+      <TimeInput
+        label="Конец отрезка"
+        :model-value="modelValue.end"
+        placeholder="конец"
+        @update:model-value="(v) => patch({ end: v })"
+      />
+      <span class="text-sm text-muted-foreground">Время в формате 1:30. Пустое поле: с начала или до конца.</span>
     </div>
 
     <div v-if="url" class="preview flex max-h-80 justify-center overflow-hidden rounded-lg bg-black/25 p-2">
