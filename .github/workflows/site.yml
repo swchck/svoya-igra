@@ -1,0 +1,45 @@
+name: Site
+
+# The promo site on GitHub Pages. It reads the latest release at runtime, so a new
+# release does not need a redeploy; this runs when the site itself changes.
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'site/**'
+      - 'src/styles.css'
+      - 'src/components/ui/**'
+      - 'assets/**'
+      - 'package-lock.json'
+      - '.github/workflows/site.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run site:build
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: site/dist
+      - uses: actions/deploy-pages@v5
+        id: deployment

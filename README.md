@@ -66,6 +66,7 @@ npm run app:dev    # приложение с горячей перезагруз
 npm run dev        # только интерфейс в браузере, http://localhost:5173
 npm run check      # typecheck + lint + тесты
 npm run app:build  # установщики для текущей ОС в src-tauri/target/release/bundle
+npm run site:dev   # промо-сайт, http://localhost:5174
 ```
 
 Устройство:
@@ -77,6 +78,8 @@ npm run app:build  # установщики для текущей ОС в src-ta
 - `src/composables/usePlaySession.ts` — правила партии; `src/play` — сохранение партии
   и связь сцены с окном ведущего;
 - `src/components/ui` — компоненты shadcn-vue, остальное в `src/components`;
+- `site` — промо-сайт для GitHub Pages; тема и компоненты общие с приложением,
+  кнопки скачивания ведут на последний релиз (workflow `Site`);
 - `src-tauri` — оболочка: открытие файлов из ОС, локальный мост для YouTube
   (`youtube_bridge.rs` — почему он нужен, написано в начале файла).
 

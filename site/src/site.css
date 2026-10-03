@@ -1,0 +1,4 @@
+@import '../../src/styles.css';
+
+/* the site's Vite root is site/, so point Tailwind at the shared UI components too */
+@source '../../src/components';

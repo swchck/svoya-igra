@@ -9,7 +9,7 @@ defineProps<{
 </script>
 
 <template>
-  <div class="m-view" :class="{ many: items.length > 1 }">
+  <div class="m-view" :class="{ many: items.length > 1 }" :style="{ '--cols': Math.min(items.length, 3) }">
     <div v-for="it in items" :key="it.id" class="m-cell">
       <MediaElement :item="it" :autoplay="autoplay" />
     </div>
@@ -32,8 +32,8 @@ defineProps<{
   justify-content: center;
 }
 .m-view.many .m-cell {
-  flex: 1 1 calc(50% - 12px);
-  min-width: 240px;
+  flex: 1 1 calc(100% / var(--cols) - 12px);
+  min-width: 200px;
   width: auto;
 }
 .m-cell :deep(img),
@@ -44,6 +44,6 @@ defineProps<{
   object-fit: contain;
 }
 .m-view.many .m-cell :deep(img),
-.m-view.many .m-cell :deep(video) { max-height: 36vh; }
+.m-view.many .m-cell :deep(video) { max-height: calc(48vh - var(--cols) * 4vh); }
 .m-cell :deep(audio) { width: min(560px, 100%); }
 </style>

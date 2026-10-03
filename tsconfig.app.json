@@ -26,13 +26,18 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "~site/*": [
+        "./site/src/*"
       ]
     }
   },
   "include": [
     "src/**/*.ts",
     "src/**/*.tsx",
-    "src/**/*.vue"
+    "src/**/*.vue",
+    "site/src/**/*.ts",
+    "site/src/**/*.vue"
   ],
   "exclude": [
     "src/**/*.test.ts"
