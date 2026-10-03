@@ -1,14 +1,20 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Game } from '../types'
 import { useGamesStore } from '../stores/games'
-import { makeEmptyGame, withFreshIds } from '../game/model'
-import { exportGameFile, GAME_FILE_ACCEPT, importGameFile, type GameFileFormat } from '../io/gameFile'
+import { makeEmptyGame } from '../game/model'
+import { exportGameFile, GAME_FILE_ACCEPT, importGameFile, importSampleGame, type GameFileFormat } from '../io/gameFile'
 
 const router = useRouter()
 const store = useGamesStore()
 const fileInput = ref<HTMLInputElement | null>(null)
+const SAMPLE_TITLE = 'Своя игра — 1996 и не только'
+
+// no editor is open while the library is on screen, so unsaved attachments can't be lost
+onMounted(() => {
+  store.pruneMedia().catch(() => {})
+})
 
 async function createNew() {
   try {
@@ -38,10 +44,10 @@ async function exportAs(g: Game, format: GameFileFormat) {
 
 async function loadSample() {
   try {
-    const { getSampleGame } = await import('../samples/sample1996')
-    const game = withFreshIds(getSampleGame())
-    for (const old of store.games.filter((g) => g.title === game.title)) await store.remove(old.id)
-    await store.save(game)
+    const previous = store.games.filter((g) => g.title === SAMPLE_TITLE)
+    // save before removing: removal prunes media, and the new copy's files must be referenced by then
+    await store.save(await importSampleGame())
+    for (const old of previous) await store.remove(old.id)
     alert('Образец игры загружен (предыдущая копия заменена)')
   } catch (err) {
     alert('Не удалось загрузить пример: ' + (err as Error).message)

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { Game } from '../types'
-import { deleteGame, loadGames, upsertGame } from '../storage'
+import { deleteGame, loadGames, pruneMedia, upsertGame } from '../storage'
 
 export const useGamesStore = defineStore('games', () => {
   const games = ref<Game[]>([])
@@ -22,10 +22,11 @@ export const useGamesStore = defineStore('games', () => {
     await ready
     await deleteGame(id)
     games.value = games.value.filter((g) => g.id !== id)
+    await pruneMedia()
   }
 
   // a save landing before the initial load would otherwise be overwritten by its result
   const ready = refresh().catch((err: Error) => { loadError.value = err })
 
-  return { games, loadError, refresh, save, remove }
+  return { games, loadError, refresh, save, remove, pruneMedia: () => ready.then(pruneMedia) }
 })

@@ -8,6 +8,9 @@ export async function initPlatform(): Promise<void> {
   // rejects with error 153; the dev server is plain http and embeds directly
   if (isTauri() && !import.meta.env.DEV) {
     youtubeBridge = await invoke<string>('youtube_bridge_url')
+  } else {
+    // browsers may evict IndexedDB under storage pressure unless it is marked persistent
+    navigator.storage?.persist?.().catch(() => {})
   }
 }
 

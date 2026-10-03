@@ -2,7 +2,9 @@
 import { computed, ref } from 'vue'
 import type { MediaItem, MediaKind, MediaMode } from '../types'
 import { parseYoutubeUrl } from '../game/youtube'
-import YouTubeEmbed from './YouTubeEmbed.vue'
+import { isStoredMedia } from '../media/ref'
+import { putMedia } from '../media/store'
+import MediaElement from './MediaElement.vue'
 
 const props = defineProps<{ modelValue: MediaItem }>()
 
@@ -38,15 +40,6 @@ function modeFor(kind: MediaKind): MediaMode | undefined {
   return kind === 'youtube' ? props.modelValue.mode ?? 'video' : undefined
 }
 
-function readAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result as string)
-    reader.onerror = () => reject(reader.error)
-    reader.readAsDataURL(file)
-  })
-}
-
 async function onFile(e: Event) {
   const input = e.target as HTMLInputElement
   const file = input.files?.[0]
@@ -57,7 +50,11 @@ async function onFile(e: Event) {
     alert('Поддерживаются изображения, аудио и видео.')
     return
   }
-  patch({ url: await readAsDataUrl(file), kind, mode: undefined })
+  try {
+    patch({ url: await putMedia(file), kind, mode: undefined })
+  } catch (err) {
+    alert('Не удалось сохранить файл: ' + (err as Error).message)
+  }
 }
 
 function setUrl(url: string) {
@@ -85,6 +82,7 @@ const url = computed(() => props.modelValue.url)
 const kind = computed(() => props.modelValue.kind)
 const mode = computed(() => props.modelValue.mode)
 const duration = computed(() => props.modelValue.duration)
+const stored = computed(() => isStoredMedia(url.value))
 const isYoutube = computed(() => kind.value === 'youtube' || parseYoutubeUrl(url.value) !== null)
 </script>
 
@@ -93,8 +91,8 @@ const isYoutube = computed(() => kind.value === 'youtube' || parseYoutubeUrl(url
     <div class="si-row">
       <input
         class="si-input"
-        :value="url"
-        placeholder="URL картинки / аудио / видео / YouTube"
+        :value="stored ? '' : url"
+        :placeholder="stored ? 'Загруженный файл — введите URL, чтобы заменить' : 'URL картинки / аудио / видео / YouTube'"
         @input="setUrl(($event.target as HTMLInputElement).value)"
       />
       <select
@@ -156,11 +154,7 @@ const isYoutube = computed(() => kind.value === 'youtube' || parseYoutubeUrl(url
     </div>
 
     <div v-if="url" class="preview">
-      <YouTubeEmbed v-if="isYoutube" :url="url" :mode="mode || 'video'" :autoplay="false" />
-      <img v-else-if="kind === 'image'" :src="url" alt="" />
-      <audio v-else-if="kind === 'audio'" :src="url" controls />
-      <video v-else-if="kind === 'video'" :src="url" controls />
-      <span v-else class="muted">{{ url }}</span>
+      <MediaElement :item="modelValue" preview />
     </div>
   </div>
 </template>
@@ -211,7 +205,7 @@ const isYoutube = computed(() => kind.value === 'youtube' || parseYoutubeUrl(url
   max-height: 320px;
   overflow: hidden;
 }
-.preview img, .preview video { max-height: 280px; max-width: 100%; }
-.preview audio { width: 100%; }
+.preview :deep(img), .preview :deep(video) { max-height: 280px; max-width: 100%; }
+.preview :deep(audio) { width: 100%; }
 .muted { color: var(--si-mute); font-size: 13px; word-break: break-all; }
 </style>

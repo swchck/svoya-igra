@@ -1,6 +1,8 @@
 import type { Game } from './types'
 import { dbDelete, dbGet, dbGetAll, dbPut } from './db'
 import { parseGame } from './game/parse'
+import { mediaItems } from './game/model'
+import { deleteUnreferencedMedia } from './media/store'
 
 const LEGACY_KEY = 'svoya-igra:games:v1'
 
@@ -58,4 +60,14 @@ export async function upsertGame(game: Game): Promise<Game> {
 
 export async function deleteGame(id: string): Promise<void> {
   await dbDelete(id)
+}
+
+/**
+ * Deletes attachments no saved game refers to: leftovers of deleted games and of
+ * media removed in the editor. Must not run while an editor may hold a freshly
+ * stored attachment its game has not been saved with yet.
+ */
+export async function pruneMedia(): Promise<number> {
+  const games = await loadGames()
+  return deleteUnreferencedMedia(games.flatMap((g) => mediaItems(g).map((m) => m.url)))
 }

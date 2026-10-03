@@ -27,8 +27,8 @@
       "csp": {
         "default-src": "'self'",
         "script-src": "'self'",
-        "style-src": "'self' 'unsafe-inline' https://fonts.googleapis.com",
-        "font-src": "'self' https://fonts.gstatic.com",
+        "style-src": "'self' 'unsafe-inline'",
+        "font-src": "'self'",
         "img-src": "'self' data: blob: https:",
         "media-src": "'self' data: blob: https:",
         "frame-src": "http://127.0.0.1:* https://www.youtube-nocookie.com",

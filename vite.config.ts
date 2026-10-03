@@ -1,33 +1,16 @@
 /// <reference types="vitest/config" />
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import { viteSingleFile } from 'vite-plugin-singlefile'
-
-// PORTABLE=1 npm run build → один автономный index.html со всем встроенным.
-const portable = process.env.PORTABLE === '1'
 
 export default defineConfig({
-  base: portable ? './' : '/',
-  plugins: [vue(), ...(portable ? [viteSingleFile()] : [])],
-  server: { host: true, port: 5173 },
+  // relative asset paths: the desktop shell serves the build from its own scheme
+  base: './',
+  plugins: [vue()],
+  clearScreen: false,
+  server: { host: true, port: 5173, strictPort: true },
   test: {
     environment: 'happy-dom',
     setupFiles: ['fake-indexeddb/auto'],
     include: ['src/**/*.test.ts'],
   },
-  build: portable
-    ? {
-        // Вшиваем все ассеты как base64. Потолок специально огромный — пусть будет один файл.
-        assetsInlineLimit: 100 * 1024 * 1024,
-        cssCodeSplit: false,
-        chunkSizeWarningLimit: 50_000,
-        rollupOptions: {
-          output: {
-            inlineDynamicImports: true,
-          },
-        },
-        outDir: 'dist-portable',
-        emptyOutDir: true,
-      }
-    : undefined,
 })

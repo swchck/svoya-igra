@@ -37,7 +37,7 @@ describe('MediaPicker', () => {
 
     const events = w.emitted('update:modelValue')!
     expect(events).toHaveLength(1)
-    expect((events[0][0] as MediaItem).url).toMatch(/^data:image\/png;base64,/)
+    expect(events[0][0]).toMatchObject({ kind: 'image', url: expect.stringMatching(/^media:\/\//) })
   })
 })
 

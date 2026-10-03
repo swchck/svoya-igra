@@ -20,11 +20,8 @@ jobs:
       - run: npm ci
       - name: Build standard
         run: npm run build
-      - name: Build portable
-        run: npm run build:portable
       - name: Package artifacts
         run: |
-          cp dist-portable/index.html svoya-igra-portable.html
           zip -r svoya-igra-dist.zip dist/
       - name: Create release
         env:
@@ -34,5 +31,4 @@ jobs:
           gh release create "${{ github.ref_name }}" \
             --title "Своя игра ${{ github.ref_name }}" \
             --generate-notes \
-            svoya-igra-portable.html \
             svoya-igra-dist.zip

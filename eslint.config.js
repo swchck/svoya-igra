@@ -4,7 +4,7 @@ import vue from 'eslint-plugin-vue'
 import globals from 'globals'
 
 export default tseslint.config(
-  { ignores: ['dist/**', 'dist-portable/**', 'src-tauri/target/**', 'site/dist/**'] },
+  { ignores: ['dist/**', 'src-tauri/target/**', 'site/dist/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   ...vue.configs['flat/recommended'],
