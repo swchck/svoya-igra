@@ -9,7 +9,8 @@ defineProps<{
 </script>
 
 <template>
-  <div class="m-view" :class="{ many: items.length > 1 }" :style="{ '--cols': Math.min(items.length, 3) }">
+  <!-- each cell is a size container: pictures, videos and the YouTube player fit both ways -->
+  <div class="m-view" :style="{ '--cols': Math.min(items.length, 3) }">
     <div v-for="it in items" :key="it.id" class="m-cell">
       <MediaElement :item="it" :autoplay="autoplay" />
     </div>
@@ -18,32 +19,24 @@ defineProps<{
 
 <style scoped>
 .m-view {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  justify-content: center;
-  align-items: center;
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
+  gap: clamp(8px, 1.4vw, 20px);
   width: 100%;
-  max-width: 1100px;
+  height: 100%;
 }
 .m-cell {
-  width: 100%;
-  display: flex;
-  justify-content: center;
-}
-.m-view.many .m-cell {
-  flex: 1 1 calc(100% / var(--cols) - 12px);
-  min-width: 200px;
-  width: auto;
+  container-type: size;
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  --fit-w: calc(100cqh * 16 / 9);
 }
 .m-cell :deep(img),
 .m-cell :deep(video) {
-  max-width: 100%;
-  max-height: 50vh;
-  border-radius: 12px;
-  object-fit: contain;
+  max-width: 100cqw;
+  max-height: 100cqh;
+  box-shadow: 0 30px 80px -30px oklch(0.05 0.1 280 / 0.9);
 }
-.m-view.many .m-cell :deep(img),
-.m-view.many .m-cell :deep(video) { max-height: calc(48vh - var(--cols) * 4vh); }
-.m-cell :deep(audio) { width: min(560px, 100%); }
 </style>

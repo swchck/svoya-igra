@@ -1,14 +1,16 @@
 name: Site
 
-# The promo site on GitHub Pages. It reads the latest release at runtime, so a new
-# release does not need a redeploy; this runs when the site itself changes.
+# The promo site on GitHub Pages, with the web build of the app under /app/. The site
+# reads the latest release at runtime, so a new release does not need a redeploy.
 on:
   push:
     branches: [master]
     paths:
       - 'site/**'
-      - 'src/styles.css'
-      - 'src/components/ui/**'
+      - 'src/**'
+      - 'public/**'
+      - 'index.html'
+      - 'vite.config.ts'
       - 'assets/**'
       - 'package-lock.json'
       - '.github/workflows/site.yml'

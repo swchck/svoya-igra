@@ -10,8 +10,10 @@ export interface MediaItem {
   kind: MediaKind
   /** YouTube only: show the video or play its sound behind a cover. */
   mode?: MediaMode
-  /** Seconds of playback before stopping; unset plays to the end. */
-  duration?: number
+  /** Where playback starts, in seconds; unset is the beginning (or a YouTube link's `t`). */
+  start?: number
+  /** Where playback stops, in seconds from the beginning; unset plays to the end. */
+  end?: number
 }
 
 export interface Question {

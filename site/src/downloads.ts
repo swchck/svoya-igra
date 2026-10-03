@@ -1,8 +1,11 @@
 import { ref } from 'vue'
+import { intlLocale } from './i18n'
 
 const REPO = 'swchck/svoya-igra'
 export const REPO_URL = `https://github.com/${REPO}`
 export const RELEASES_URL = `${REPO_URL}/releases`
+/** The web build of the app, deployed next to the site by `npm run site:build`. */
+export const APP_URL = './app/'
 
 export type PlatformId = 'mac-arm' | 'mac-x64' | 'windows' | 'appimage' | 'deb' | 'rpm'
 
@@ -10,22 +13,25 @@ export interface Download {
   id: PlatformId
   os: 'macOS' | 'Windows' | 'Linux'
   label: string
+  /** Key under site.download.hints. */
   hint: string
   file: string
 }
 
 // file names are fixed by scripts/release-assets.mjs, so these links survive every release
 export const DOWNLOADS: Download[] = [
-  { id: 'mac-arm', os: 'macOS', label: 'macOS · Apple Silicon', hint: 'Mac на M1 и новее', file: 'Svoya-Igra_macOS-arm64.dmg' },
-  { id: 'mac-x64', os: 'macOS', label: 'macOS · Intel', hint: 'Mac с процессором Intel', file: 'Svoya-Igra_macOS-x64.dmg' },
-  { id: 'windows', os: 'Windows', label: 'Windows', hint: 'Windows 10 и 11, 64 бит', file: 'Svoya-Igra_Windows-x64-setup.exe' },
-  { id: 'appimage', os: 'Linux', label: 'Linux · AppImage', hint: 'без установки', file: 'Svoya-Igra_Linux-x64.AppImage' },
-  { id: 'deb', os: 'Linux', label: 'Linux · .deb', hint: 'Ubuntu, Debian, Mint', file: 'Svoya-Igra_Linux-x64.deb' },
-  { id: 'rpm', os: 'Linux', label: 'Linux · .rpm', hint: 'Fedora, openSUSE', file: 'Svoya-Igra_Linux-x64.rpm' },
+  { id: 'mac-arm', os: 'macOS', label: 'macOS · Apple Silicon', hint: 'macArm', file: 'Svoya-Igra_macOS-arm64.dmg' },
+  { id: 'mac-x64', os: 'macOS', label: 'macOS · Intel', hint: 'macX64', file: 'Svoya-Igra_macOS-x64.dmg' },
+  { id: 'windows', os: 'Windows', label: 'Windows', hint: 'windows', file: 'Svoya-Igra_Windows-x64-setup.exe' },
+  { id: 'appimage', os: 'Linux', label: 'Linux · AppImage', hint: 'appimage', file: 'Svoya-Igra_Linux-x64.AppImage' },
+  { id: 'deb', os: 'Linux', label: 'Linux · .deb', hint: 'deb', file: 'Svoya-Igra_Linux-x64.deb' },
+  { id: 'rpm', os: 'Linux', label: 'Linux · .rpm', hint: 'rpm', file: 'Svoya-Igra_Linux-x64.rpm' },
 ]
 
+/** Returns a link that downloads the installer itself, never a release page. */
 export function downloadUrl(d: Download): string {
-  return `${RELEASES_URL}/latest/download/${d.file}`
+  // GitHub redirects /latest/download/<file> straight to the asset, so the link works blind too
+  return latestRelease.value?.files.get(d.file) ?? `${RELEASES_URL}/latest/download/${d.file}`
 }
 
 /** True when the latest release ships this installer, or when that can't be checked. */
@@ -60,8 +66,10 @@ export async function detectPlatform(): Promise<PlatformId | null> {
 
 export interface LatestRelease {
   version: string
-  date: string
-  files: Set<string>
+  /** Publication time, ms. */
+  publishedAt: number
+  /** Installer file name to its direct download URL. */
+  files: Map<string, string>
 }
 
 /** The latest published release, null before the first one, undefined while loading or unknown. */
@@ -79,17 +87,22 @@ export async function loadLatestRelease(): Promise<void> {
       return
     }
     if (!res.ok) throw new Error(`GitHub API ${res.status}`)
-    const data = (await res.json()) as { tag_name: string; published_at: string; assets: { name: string }[] }
+    const data = (await res.json()) as { tag_name: string; published_at: string; assets: { name: string; browser_download_url: string }[] }
     latestRelease.value = {
       version: data.tag_name.replace(/^v/, ''),
-      // ru-RU appends " г." and the sentence around it ends with its own period
-      date: new Date(data.published_at)
-        .toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
-        .replace(/\s*г\.$/, ''),
-      files: new Set(data.assets.map((a) => a.name)),
+      publishedAt: Date.parse(data.published_at),
+      files: new Map(data.assets.map((a) => [a.name, a.browser_download_url])),
     }
   } catch {
     // 60 anonymous requests an hour per IP run out fast behind an office NAT
     releaseUnknown.value = true
   }
+}
+
+/** Formats a release date for a sentence that ends with its own period. */
+export function formatReleaseDate(ms: number): string {
+  // ru and sr append " г." / "." to long dates, which would double the full stop
+  return new Date(ms)
+    .toLocaleDateString(intlLocale(), { day: 'numeric', month: 'long', year: 'numeric' })
+    .replace(/\s*г\.$|\.$/, '')
 }

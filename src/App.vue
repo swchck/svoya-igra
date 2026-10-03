@@ -1,10 +1,18 @@
 <script setup lang="ts">
+import { watchEffect } from 'vue'
 import { RouterView } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
 import ConfirmHost from '@/components/ConfirmHost.vue'
 import { useDesktopIntegration } from '@/composables/useDesktopIntegration'
 import 'vue-sonner/style.css'
+
+const { t } = useI18n()
+
+watchEffect(() => {
+  document.title = t('system.appName')
+})
 
 useDesktopIntegration()
 </script>

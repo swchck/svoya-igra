@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { Trash2 } from '@lucide/vue'
+import { MonitorPlay, Trash2 } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 import type { FinalQuestion } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -7,28 +8,31 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import MediaList from '@/components/MediaList.vue'
 
+const { t } = useI18n()
 const final = defineModel<FinalQuestion>({ required: true })
-defineEmits<{ (e: 'remove'): void }>()
+defineEmits<{ (e: 'remove'): void; (e: 'preview'): void }>()
 </script>
 
 <template>
   <div class="flex flex-col gap-5">
-    <div class="grid gap-1.5">
-      <Label for="f-theme">Тема финала</Label>
-      <Input id="f-theme" v-model="final.theme" placeholder="Тема" />
+    <div class="grid gap-2">
+      <Label for="f-theme">{{ t('editor.final.theme') }}</Label>
+      <Input id="f-theme" v-model="final.theme" class="h-11 font-display text-lg tracking-wide uppercase" :placeholder="t('editor.final.themePlaceholder')" />
     </div>
-    <div class="grid gap-1.5">
-      <Label for="f-text">Вопрос</Label>
-      <Textarea id="f-text" v-model="final.text" class="min-h-24 font-serif text-base" placeholder="Финальный вопрос…" />
+    <div class="grid gap-2">
+      <Label for="f-text">{{ t('editor.final.question') }}</Label>
+      <Textarea id="f-text" v-model="final.text" class="min-h-28 font-serif text-lg [field-sizing:content]" :placeholder="t('editor.final.questionPlaceholder')" />
     </div>
-    <MediaList v-model="final.media" label="Медиа к финалу" />
-    <div class="grid gap-1.5">
-      <Label for="f-answer">Ответ</Label>
-      <Textarea id="f-answer" v-model="final.answer" class="min-h-20 font-serif text-base" placeholder="Ответ…" />
+    <MediaList v-model="final.media" :label="t('editor.final.questionMedia')" />
+    <div class="grid gap-2">
+      <Label for="f-answer">{{ t('editor.final.answer') }}</Label>
+      <Textarea id="f-answer" v-model="final.answer" class="min-h-16 font-display text-xl text-gold [field-sizing:content]" :placeholder="t('editor.final.answerPlaceholder')" />
     </div>
-    <MediaList v-model="final.answerMedia" label="Медиа к ответу" />
-    <div>
-      <Button variant="destructive" @click="$emit('remove')"><Trash2 />Удалить финал</Button>
+    <MediaList v-model="final.answerMedia" :label="t('editor.final.answerMedia')" />
+    <div class="flex flex-wrap gap-2">
+      <Button variant="secondary" @click="$emit('preview')"><MonitorPlay />{{ t('editor.final.preview') }}</Button>
+      <span class="flex-1" />
+      <Button variant="ghost" class="text-destructive" @click="$emit('remove')"><Trash2 />{{ t('editor.final.remove') }}</Button>
     </div>
   </div>
 </template>

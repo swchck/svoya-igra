@@ -1,4 +1,5 @@
 import { invoke, isTauri } from '@tauri-apps/api/core'
+import { t } from './i18n'
 
 /* Everything that differs between the desktop shell and a plain browser tab. */
 
@@ -50,7 +51,7 @@ export async function pickGameFile(): Promise<File | null> {
   const path = await open({
     multiple: false,
     directory: false,
-    filters: [{ name: 'Своя игра', extensions: GAME_EXTENSIONS }],
+    filters: [{ name: t('system.fileFilterName'), extensions: GAME_EXTENSIONS }],
   })
   return path ? readPath(path) : null
 }

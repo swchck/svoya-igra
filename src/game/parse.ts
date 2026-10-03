@@ -1,5 +1,7 @@
 import type { FinalQuestion, Game, MediaItem, MediaKind, MediaMode, Question } from '../types'
+import { t } from '../i18n'
 import { uid } from './model'
+import { parseYoutubeUrl } from './youtube'
 
 /** Single-attachment fields that predate media lists; old saves and exports still carry them. */
 interface LegacyMedia {
@@ -16,6 +18,9 @@ interface LegacyAnswerMedia {
   answerMediaDuration?: number
 }
 
+/** `duration` counted seconds from the start before media got a free start and end. */
+type StoredMediaItem = MediaItem & { duration?: number }
+
 type StoredQuestion = Question & LegacyMedia & LegacyAnswerMedia
 type StoredFinal = FinalQuestion & LegacyMedia
 
@@ -23,16 +28,22 @@ function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null
 }
 
+function upgradeItem({ duration, ...item }: StoredMediaItem): MediaItem {
+  if (!duration || item.end !== undefined) return item
+  const from = item.start ?? (item.kind === 'youtube' ? parseYoutubeUrl(item.url)?.start ?? 0 : 0)
+  return { ...item, end: from + duration }
+}
+
 function mergeMedia(
-  list: MediaItem[] | undefined,
+  list: StoredMediaItem[] | undefined,
   url: string | undefined,
   kind: MediaKind | undefined,
   mode: MediaMode | undefined,
   duration: number | undefined,
 ): MediaItem[] | undefined {
-  const items = (list ?? []).map((m) => ({ ...m, id: m.id || uid('mi_') }))
+  const items = (list ?? []).map((m) => upgradeItem({ ...m, id: m.id || uid('mi_') }))
   if (url && !items.some((m) => m.url === url)) {
-    items.unshift({ id: uid('mi_'), url, kind: kind ?? 'image', mode, duration })
+    items.unshift(upgradeItem({ id: uid('mi_'), url, kind: kind ?? 'image', mode, duration }))
   }
   return items.length ? items : undefined
 }
@@ -62,7 +73,7 @@ function normalizeFinal(f: StoredFinal): FinalQuestion {
  * @throws Error with a user-facing message when the data is not a game.
  */
 export function parseGame(data: unknown): Game {
-  const invalid = () => new Error('Файл повреждён или это не игра')
+  const invalid = () => new Error(t('system.errors.invalidGame'))
   if (!isObject(data) || typeof data.id !== 'string' || !Array.isArray(data.rounds)) throw invalid()
   for (const r of data.rounds) {
     if (!isObject(r) || !Array.isArray(r.themes)) throw invalid()

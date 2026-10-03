@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { Check, X } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 import type { Player } from '@/types'
 import type { Sign } from '@/composables/usePlaySession'
 import { Button } from '@/components/ui/button'
 
+const { t } = useI18n()
 defineProps<{
   players: Player[]
   value: number
@@ -28,6 +30,6 @@ defineEmits<{ (e: 'verdict', playerId: string, sign: Sign): void; (e: 'nobody'):
         </div>
       </div>
     </div>
-    <Button variant="ghost" @click="$emit('nobody')">Никто не ответил</Button>
+    <Button variant="ghost" @click="$emit('nobody')">{{ t('play.verdict.nobody') }}</Button>
   </div>
 </template>

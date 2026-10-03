@@ -13,7 +13,7 @@ export default defineConfig({
   server: { host: true, port: 5173, strictPort: true },
   test: {
     environment: 'happy-dom',
-    setupFiles: ['fake-indexeddb/auto'],
+    setupFiles: ['fake-indexeddb/auto', './src/i18n/test-setup.ts'],
     include: ['src/**/*.test.ts'],
   },
 })

@@ -1,5 +1,7 @@
 import { isTauri } from '@tauri-apps/api/core'
+import { t } from '@/i18n'
 import type { Phase, SessionSnapshot } from '@/composables/usePlaySession'
+import type { MediaAction, MediaStatus } from './mediaControl'
 
 /** Session methods the host window may call on the stage. */
 export const HOST_COMMANDS = [
@@ -19,9 +21,15 @@ export type HostCommand = (typeof HOST_COMMANDS)[number]
 
 export type PlayMessage =
   | { type: 'hello' }
+  /** The host repeats this every HOST_PING_MS while its window is open. */
+  | { type: 'ping' }
   | { type: 'state'; snapshot: SessionSnapshot }
   /** `phase` is what the host saw when it sent the command. */
   | { type: 'command'; name: HostCommand; args: unknown[]; phase: Phase }
+  | { type: 'media'; status: Record<string, MediaStatus> }
+  | { type: 'media-command'; id: string; action: MediaAction }
+
+export const HOST_PING_MS = 2000
 
 export interface PlayChannel {
   post(message: PlayMessage): void
@@ -63,7 +71,7 @@ export async function openHostWindow(gameId: string, title: string): Promise<voi
     }
     new WebviewWindow(label, {
       url: `index.html${route}`,
-      title: `Ведущий · ${title}`,
+      title: t('system.hostWindowTitle', { title }),
       width: 960,
       height: 780,
       minWidth: 720,

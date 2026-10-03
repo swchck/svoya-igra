@@ -1,0 +1,84 @@
+import type ru from '../ru/play'
+
+export default {
+  board: {
+    playedAria: '{theme}: played',
+    cellAria: '{theme}, {value}',
+  },
+  podiums: {
+    score: 'Score',
+    leader: 'Leader',
+  },
+  results: {
+    title: 'Results',
+    home: 'Back to home',
+  },
+  setup: {
+    title: 'Players',
+    nameLabel: 'Player name',
+    remove: 'Remove player',
+    add: 'Player',
+    defaultName: 'Player {n}',
+  },
+  card: {
+    correctAnswer: 'Correct answer',
+  },
+  special: {
+    topic: 'Category: {topic}',
+  },
+  intro: {
+    roundThemes: 'Round categories',
+  },
+  auction: {
+    winner: 'Who won the bidding',
+    stakeRange: 'Bet (from {min} to {max})',
+    allIn: 'All in',
+    play: 'Play for {amount}',
+  },
+  cat: {
+    give: 'Who gets the question for {value}?',
+  },
+  verdict: {
+    nobody: 'Nobody answered',
+  },
+  finalBets: {
+    hint: 'Bet from 0 up to the current score. A player with no points bets 0.',
+    outOf: 'of {score}',
+    show: 'Show the question',
+  },
+  finalVerdict: {
+    bet: 'bet {bet}',
+    correct: 'Correct',
+    incorrect: 'Incorrect',
+    done: 'Tally the results',
+  },
+  stage: {
+    auction: 'Auction',
+    catInBag: 'Cat in the bag',
+    catText: 'The question goes to another player',
+    final: 'Final',
+    finalTopic: 'Final: {theme}',
+    finalBetsText: 'Players place their bets',
+    defaultTitle: 'Svoya Igra',
+    leave: 'Leave',
+    hostConnected: 'Host window connected',
+    hostWindow: 'Host window',
+    exitFullscreen: 'Exit full screen',
+    fullscreen: 'Full screen',
+    start: 'Start the game',
+    hintToBoard: 'Space or click: to the board',
+    hintToBets: 'Space or click: to the bets',
+    skipRound: 'Skip round',
+    showAnswer: 'Show answer',
+    leaveConfirm: {
+      title: 'Leave the game?',
+      description: 'The score is saved, so you can continue the game later.',
+      confirm: 'Leave',
+    },
+    skipConfirm: {
+      title: 'Skip the round?',
+      description: 'The remaining questions of this round will not be played.',
+      confirm: 'Skip',
+    },
+  },
+} satisfies typeof ru

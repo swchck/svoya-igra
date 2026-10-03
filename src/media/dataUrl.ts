@@ -1,3 +1,5 @@
+import { t } from '../i18n'
+
 const MIME_BY_EXT: Record<string, string> = {
   png: 'image/png',
   jpg: 'image/jpeg',
@@ -36,7 +38,7 @@ export function mimeFromName(name: string): string {
 /** Decodes a data: URL synchronously. */
 export function dataUrlToBlob(url: string): Blob {
   const match = /^data:([^;,]+)?((?:;[^;,]+)*?)(;base64)?,(.*)$/s.exec(url)
-  if (!match) throw new Error('Не удалось прочитать встроенный файл')
+  if (!match) throw new Error(t('system.errors.embeddedUnreadable'))
   const payload = match[4]
   const bytes = match[3]
     ? Uint8Array.from(atob(payload), (c) => c.charCodeAt(0))

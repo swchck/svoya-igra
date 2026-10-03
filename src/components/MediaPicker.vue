@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { toast } from 'vue-sonner'
+import { useI18n } from 'vue-i18n'
 import { FolderOpen, X } from '@lucide/vue'
 import type { MediaItem, MediaKind, MediaMode } from '@/types'
 import { Button } from '@/components/ui/button'
@@ -9,12 +10,15 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import IconButton from '@/components/IconButton.vue'
-import NumberInput from '@/components/NumberInput.vue'
+import TimeInput from '@/components/TimeInput.vue'
 import { parseYoutubeUrl } from '@/game/youtube'
 import { isStoredMedia } from '@/media/ref'
 import { putMedia } from '@/media/store'
+import { detectKind } from '@/media/kind'
+import { formatTime, segmentOf } from '@/media/segment'
 import MediaElement from '@/components/MediaElement.vue'
 
+const { t } = useI18n()
 const props = defineProps<{ modelValue: MediaItem }>()
 
 // one event per user action: separate url/kind/mode events would each be merged
@@ -29,22 +33,6 @@ function patch(p: Partial<MediaItem>) {
 
 function pick() { fileInput.value?.click() }
 
-function detectKind(input: { file?: File; url?: string }): MediaKind | undefined {
-  if (input.url && parseYoutubeUrl(input.url)) return 'youtube'
-  if (input.file) {
-    if (input.file.type.startsWith('image/')) return 'image'
-    if (input.file.type.startsWith('audio/')) return 'audio'
-    if (input.file.type.startsWith('video/')) return 'video'
-  }
-  if (input.url) {
-    const lower = input.url.toLowerCase()
-    if (/\.(png|jpe?g|gif|webp|svg)(\?|$)/.test(lower)) return 'image'
-    if (/\.(mp3|wav|ogg|m4a)(\?|$)/.test(lower)) return 'audio'
-    if (/\.(mp4|webm|mov|m4v)(\?|$)/.test(lower)) return 'video'
-  }
-  return undefined
-}
-
 function modeFor(kind: MediaKind): MediaMode | undefined {
   return kind === 'youtube' ? props.modelValue.mode ?? 'video' : undefined
 }
@@ -56,13 +44,13 @@ async function onFile(e: Event) {
   if (!file) return
   const kind = detectKind({ file })
   if (!kind) {
-    toast.error('Неподдерживаемый файл', { description: 'Подойдут картинки, звук и видео.' })
+    toast.error(t('media.picker.unsupportedTitle'), { description: t('media.picker.unsupportedHint') })
     return
   }
   try {
     patch({ url: await putMedia(file), kind, mode: undefined })
   } catch (err) {
-    toast.error('Не удалось сохранить файл', { description: (err as Error).message })
+    toast.error(t('media.picker.saveFailed'), { description: (err as Error).message })
   }
 }
 
@@ -79,17 +67,12 @@ function setKind(v: MediaKind | 'auto') {
 function setMode(mode: MediaMode) { patch({ mode }) }
 
 function clear() {
-  patch({ url: '', mode: undefined, duration: undefined })
-}
-
-function setDuration(n: number | undefined) {
-  patch({ duration: n && n > 0 ? Math.round(n) : undefined })
+  patch({ url: '', mode: undefined, start: undefined, end: undefined })
 }
 
 const url = computed(() => props.modelValue.url)
 const kind = computed(() => props.modelValue.kind)
 const mode = computed(() => props.modelValue.mode)
-const duration = computed(() => props.modelValue.duration)
 const stored = computed(() => isStoredMedia(url.value))
 const isYoutube = computed(() => kind.value === 'youtube' || parseYoutubeUrl(url.value) !== null)
 </script>
@@ -101,42 +84,54 @@ const isYoutube = computed(() => kind.value === 'youtube' || parseYoutubeUrl(url
         name="media-url"
         class="min-w-48 flex-1"
         :model-value="stored ? '' : url"
-        :placeholder="stored ? 'Файл загружен. Вставьте ссылку, чтобы заменить его' : 'Ссылка на картинку, звук, видео или YouTube'"
-        aria-label="Ссылка на медиа"
+        :placeholder="stored ? t('media.picker.urlPlaceholderStored') : t('media.picker.urlPlaceholder')"
+        :aria-label="t('media.picker.urlLabel')"
         @update:model-value="(v) => setUrl(String(v))"
       />
       <Select :model-value="kind" @update:model-value="(v) => setKind(v as MediaKind | 'auto')">
-        <SelectTrigger class="w-36" aria-label="Тип медиа"><SelectValue /></SelectTrigger>
+        <SelectTrigger class="w-36" :aria-label="t('media.picker.kindLabel')"><SelectValue /></SelectTrigger>
         <SelectContent>
-          <SelectItem value="auto">Определить</SelectItem>
-          <SelectItem value="image">Картинка</SelectItem>
-          <SelectItem value="audio">Звук</SelectItem>
-          <SelectItem value="video">Видео</SelectItem>
+          <SelectItem value="auto">{{ t('media.kind.auto') }}</SelectItem>
+          <SelectItem value="image">{{ t('media.kind.image') }}</SelectItem>
+          <SelectItem value="audio">{{ t('media.kind.audio') }}</SelectItem>
+          <SelectItem value="video">{{ t('media.kind.video') }}</SelectItem>
           <SelectItem value="youtube">YouTube</SelectItem>
         </SelectContent>
       </Select>
-      <Button variant="secondary" @click="pick"><FolderOpen />Файл…</Button>
-      <IconButton v-if="url" label="Очистить" @click="clear"><X /></IconButton>
+      <Button variant="secondary" @click="pick"><FolderOpen />{{ t('media.picker.file') }}</Button>
+      <IconButton v-if="url" :label="t('media.picker.clear')" @click="clear"><X /></IconButton>
       <input ref="fileInput" type="file" class="hidden" accept="image/*,audio/*,video/*" @change="onFile" />
     </div>
 
     <div v-if="isYoutube && url" class="flex flex-wrap items-center gap-3">
-      <Label>Режим</Label>
+      <Label>{{ t('media.mode.label') }}</Label>
       <ToggleGroup
         type="single"
         variant="outline"
         :model-value="mode ?? 'video'"
         @update:model-value="(v) => v && setMode(v as MediaMode)"
       >
-        <ToggleGroupItem value="video">Видео</ToggleGroupItem>
-        <ToggleGroupItem value="audio">Только звук</ToggleGroupItem>
+        <ToggleGroupItem value="video">{{ t('media.mode.video') }}</ToggleGroupItem>
+        <ToggleGroupItem value="audio">{{ t('media.mode.audioOnly') }}</ToggleGroupItem>
       </ToggleGroup>
     </div>
 
-    <div v-if="(isYoutube || kind === 'audio' || kind === 'video') && url" class="flex flex-wrap items-center gap-3">
-      <Label>Длительность, с</Label>
-      <NumberInput class="w-36" :model-value="duration" placeholder="до конца" @update:model-value="setDuration" />
-      <span class="text-sm text-muted-foreground">Если пусто, играет до конца</span>
+    <div v-if="(isYoutube || kind === 'audio' || kind === 'video') && url" class="flex flex-wrap items-center gap-2">
+      <Label>{{ t('media.picker.playFrom') }}</Label>
+      <TimeInput
+        :label="t('media.picker.startLabel')"
+        :model-value="modelValue.start"
+        :placeholder="isYoutube ? formatTime(segmentOf(modelValue).start) : '0:00'"
+        @update:model-value="(v) => patch({ start: v })"
+      />
+      <Label>{{ t('media.picker.playTo') }}</Label>
+      <TimeInput
+        :label="t('media.picker.endLabel')"
+        :model-value="modelValue.end"
+        :placeholder="t('media.picker.endPlaceholder')"
+        @update:model-value="(v) => patch({ end: v })"
+      />
+      <span class="text-sm text-muted-foreground">{{ t('media.picker.timeHint') }}</span>
     </div>
 
     <div v-if="url" class="preview flex max-h-80 justify-center overflow-hidden rounded-lg bg-black/25 p-2">

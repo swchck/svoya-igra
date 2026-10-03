@@ -1,4 +1,5 @@
 import type { Game } from '../types'
+import { t } from '../i18n'
 import { mediaItems, withFreshIds } from '../game/model'
 import { parseGame } from '../game/parse'
 import { plainCopy } from '../lib/plain'
@@ -21,7 +22,7 @@ export async function importGameFile(file: File): Promise<Game> {
   try {
     data = JSON.parse(await file.text())
   } catch {
-    throw new Error('Это не файл игры. Подойдут .gamezip и .json')
+    throw new Error(t('system.errors.notGameFile'))
   }
   const game = withFreshIds(parseGame(data))
   for (const item of mediaItems(game)) {
@@ -53,6 +54,6 @@ export async function exportGameFile(game: Game, format: GameFileFormat): Promis
 /** Loads the bundled sample game. */
 export async function importSampleGame(): Promise<Game> {
   const res = await fetch(`${import.meta.env.BASE_URL}samples/sample-1996.gamezip`)
-  if (!res.ok) throw new Error(`пример не загрузился, ошибка ${res.status}`)
+  if (!res.ok) throw new Error(t('system.errors.sampleFailed', { status: res.status }))
   return importGameZip(await res.blob())
 }

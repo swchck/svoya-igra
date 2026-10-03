@@ -1,6 +1,6 @@
 /** Turns a title into a safe file name stem. */
 export function fileSlug(title: string): string {
-  const s = title.trim().toLowerCase().replace(/[^a-zа-яё0-9-]+/gi, '-').replace(/^-+|-+$/g, '')
+  const s = title.trim().toLowerCase().replace(/[^\p{L}\p{N}-]+/gu, '-').replace(/^-+|-+$/g, '')
   return s || 'svoya-igra'
 }
 

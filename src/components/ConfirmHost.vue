@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,6 +13,7 @@ import {
 import { buttonVariants } from '@/components/ui/button'
 import { useConfirmHost } from '@/composables/useConfirm'
 
+const { t } = useI18n()
 const { pending, answer } = useConfirmHost()
 
 // reka closes the dialog before the action button's own click handler runs; settling
@@ -29,12 +31,12 @@ function onOpenChange(open: boolean) {
         <AlertDialogDescription v-if="pending.description">{{ pending.description }}</AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>
-        <AlertDialogCancel @click="answer(false)">{{ pending.cancelLabel ?? 'Отмена' }}</AlertDialogCancel>
+        <AlertDialogCancel @click="answer(false)">{{ pending.cancelLabel ?? t('system.confirm.cancel') }}</AlertDialogCancel>
         <AlertDialogAction
           :class="pending.destructive ? buttonVariants({ variant: 'destructive' }) : undefined"
           @click="answer(true)"
         >
-          {{ pending.confirmLabel ?? 'Да' }}
+          {{ pending.confirmLabel ?? t('system.confirm.yes') }}
         </AlertDialogAction>
       </AlertDialogFooter>
     </AlertDialogContent>

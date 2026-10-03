@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { makeEmptyGame, mediaItems, moveItem, withFreshIds } from './model'
+import { isQuestionReady, makeEmptyGame, makeEmptyQuestion, mediaItems, moveItem, moveItemTo, withFreshIds } from './model'
 
 describe('moveItem', () => {
   it('swaps with the neighbour and reports the new index', () => {
@@ -39,5 +39,31 @@ describe('withFreshIds', () => {
     const ids = (g: typeof game) => [g.id, g.rounds[0].id, g.rounds[0].themes[0].id, g.rounds[0].themes[0].questions[0].id, g.finalRound!.id]
     expect(ids(copy).every((id, i) => id !== ids(game)[i])).toBe(true)
     expect(copy.title).toBe('Копия')
+  })
+})
+
+describe('moveItemTo', () => {
+  it('drags an item over others, both ways', () => {
+    const list = ['a', 'b', 'c', 'd']
+    expect(moveItemTo(list, 0, 2)).toBe(2)
+    expect(list).toEqual(['b', 'c', 'a', 'd'])
+    moveItemTo(list, 3, 0)
+    expect(list).toEqual(['d', 'b', 'c', 'a'])
+  })
+
+  it('ignores positions outside the list', () => {
+    const list = ['a', 'b']
+    expect(moveItemTo(list, 0, 5)).toBe(0)
+    expect(list).toEqual(['a', 'b'])
+  })
+})
+
+describe('isQuestionReady', () => {
+  it('needs a question and an answer, as text or media', () => {
+    const q = makeEmptyQuestion(100)
+    expect(isQuestionReady(q)).toBe(false)
+    q.media = [{ id: 'm', url: 'x.mp3', kind: 'audio' }]
+    q.answer = 'Ответ'
+    expect(isQuestionReady(q)).toBe(true)
   })
 })
