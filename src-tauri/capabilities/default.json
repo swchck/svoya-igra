@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Main and host windows: core APIs, events between windows, opening the host window",
+  "description": "App windows: core APIs and events, opening the host window, native file dialogs, reading opened or picked game files, updates",
   "windows": [
     "main",
     "host-*"
@@ -9,6 +9,12 @@
   "permissions": [
     "core:default",
     "core:webview:allow-create-webview-window",
-    "core:window:allow-set-focus"
+    "core:window:allow-set-focus",
+    "dialog:allow-open",
+    "dialog:allow-save",
+    "fs:allow-read-file",
+    "fs:allow-write-file",
+    "updater:default",
+    "process:allow-restart"
   ]
 }

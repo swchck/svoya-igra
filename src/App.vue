@@ -3,7 +3,10 @@ import { RouterView } from 'vue-router'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
 import ConfirmHost from '@/components/ConfirmHost.vue'
+import { useDesktopIntegration } from '@/composables/useDesktopIntegration'
 import 'vue-sonner/style.css'
+
+useDesktopIntegration()
 </script>
 
 <template>

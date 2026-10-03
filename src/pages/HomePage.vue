@@ -17,12 +17,18 @@ import { useGamesStore } from '@/stores/games'
 import { confirmAction } from '@/composables/useConfirm'
 import { makeEmptyGame } from '@/game/model'
 import { exportGameFile, GAME_FILE_ACCEPT, importGameFile, importSampleGame, type GameFileFormat } from '@/io/gameFile'
+import { isDesktop, pickGameFile } from '@/platform'
 
 const router = useRouter()
 const store = useGamesStore()
 const fileInput = ref<HTMLInputElement | null>(null)
 const busy = ref(false)
 const SAMPLE_TITLE = 'Своя игра — 1996 и не только'
+const version = ref('')
+
+onMounted(async () => {
+  if (isDesktop) version.value = await (await import('@tauri-apps/api/app')).getVersion()
+})
 
 // no editor is open while the library is on screen, so unsaved attachments can't be lost
 onMounted(() => {
@@ -60,7 +66,7 @@ async function remove(g: Game) {
 
 async function exportAs(g: Game, format: GameFileFormat) {
   try {
-    await exportGameFile(g, format)
+    if (await exportGameFile(g, format)) toast.success('Файл сохранён')
   } catch (err) {
     failed('Ошибка экспорта', err)
   }
@@ -81,11 +87,27 @@ async function loadSample() {
   }
 }
 
+async function startImport() {
+  if (!isDesktop) {
+    fileInput.value?.click()
+    return
+  }
+  try {
+    const file = await pickGameFile()
+    if (file) await importFile(file)
+  } catch (err) {
+    failed('Не удалось открыть файл', err)
+  }
+}
+
 async function onFile(e: Event) {
   const input = e.target as HTMLInputElement
   const file = input.files?.[0]
   input.value = ''
-  if (!file) return
+  if (file) await importFile(file)
+}
+
+async function importFile(file: File) {
   busy.value = true
   try {
     const game = await store.save(await importGameFile(file))
@@ -123,7 +145,7 @@ function fmtDate(ts: number) {
 
     <div class="mb-8 flex flex-wrap justify-center gap-3">
       <Button size="lg" @click="createNew"><Plus />Новая игра</Button>
-      <Button size="lg" variant="outline" :disabled="busy" @click="fileInput?.click()"><Upload />Импорт</Button>
+      <Button size="lg" variant="outline" :disabled="busy" @click="startImport"><Upload />Импорт</Button>
       <Button size="lg" variant="ghost" :disabled="busy" @click="loadSample"><Sparkles />Пример (1996)</Button>
       <input ref="fileInput" type="file" class="hidden" :accept="GAME_FILE_ACCEPT" @change="onFile" />
     </div>
@@ -173,5 +195,6 @@ function fmtDate(ts: number) {
     <p class="mt-10 flex items-center justify-center gap-2 text-sm text-muted-foreground">
       <Download class="size-4" />Игры хранятся на этом компьютере. Для переноса используйте экспорт в .gamezip.
     </p>
+    <p v-if="version" class="mt-2 text-center text-xs text-muted-foreground/70">Версия {{ version }}</p>
   </main>
 </template>

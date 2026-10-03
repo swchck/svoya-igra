@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { defineComponent, h, ref } from 'vue'
 import type { MediaItem } from '../types'
@@ -34,7 +34,8 @@ describe('MediaPicker', () => {
     Object.defineProperty(input.element, 'files', { value: [file] })
 
     await input.trigger('change')
-    await new Promise((r) => setTimeout(r, 10))
+    // storing the file is async, so wait for the emit rather than for a guessed delay
+    await vi.waitFor(() => expect(w.emitted('update:modelValue')).toBeTruthy())
 
     const events = w.emitted('update:modelValue')!
     expect(events).toHaveLength(1)

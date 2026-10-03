@@ -68,7 +68,30 @@
         "displayLanguageSelector": false,
         "installMode": "currentUser"
       }
-    }
+    },
+    "createUpdaterArtifacts": false,
+    "fileAssociations": [
+      {
+        "ext": [
+          "gamezip"
+        ],
+        "name": "Своя игра",
+        "description": "Игра для «Своей игры»",
+        "role": "Editor",
+        "mimeType": "application/x-svoya-igra+zip"
+      }
+    ]
   },
-  "mainBinaryName": "svoya-igra"
+  "mainBinaryName": "svoya-igra",
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDBGM0REQUE0OEJGQUZFNkIKUldSci92cUxwTm85RDZaY1pKRGdMQnFPcm1EaXNhQldWY2Z3VTNBQjdCOVJwSEZiSzltblZJVzcK",
+      "endpoints": [
+        "https://github.com/swchck/svoya-igra/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
 }

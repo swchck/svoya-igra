@@ -120,7 +120,7 @@ async function exportAs(format: GameFileFormat) {
   if (!game.value || exporting.value) return
   exporting.value = true
   try {
-    await exportGameFile(game.value, format)
+    if (await exportGameFile(game.value, format)) toast.success('Файл сохранён')
   } catch (err) {
     toast.error('Ошибка экспорта', { description: (err as Error).message })
   } finally {

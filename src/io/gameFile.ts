@@ -6,7 +6,8 @@ import { blobToDataUrl, dataUrlToBlob } from '../media/dataUrl'
 import { isStoredMedia } from '../media/ref'
 import { getMedia, putMedia } from '../media/store'
 import { exportGameZip, importGameZip } from './archive'
-import { fileSlug, saveBlob } from './files'
+import { saveFile } from '../platform'
+import { fileSlug } from './files'
 
 export type GameFileFormat = 'gamezip' | 'json'
 
@@ -40,13 +41,13 @@ async function toPortableJson(game: Game): Promise<string> {
   return JSON.stringify(copy, null, 2)
 }
 
-/** Saves the game to a file in the given format. */
-export async function exportGameFile(game: Game, format: GameFileFormat): Promise<void> {
+/** Saves the game to a file in the given format; false when the user cancelled. */
+export async function exportGameFile(game: Game, format: GameFileFormat): Promise<boolean> {
   const blob =
     format === 'gamezip'
       ? await exportGameZip(game)
       : new Blob([await toPortableJson(game)], { type: 'application/json' })
-  saveBlob(blob, `${fileSlug(game.title)}.${format}`)
+  return saveFile(blob, `${fileSlug(game.title)}.${format}`)
 }
 
 /** Loads the bundled sample game. */
