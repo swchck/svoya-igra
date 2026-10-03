@@ -16,6 +16,10 @@ export const HOST_COMMANDS = [
   'setFinalVerdict',
   'scoreFinal',
   'adjustScore',
+  'undo',
+  'timerStart',
+  'timerPause',
+  'timerReset',
 ] as const
 export type HostCommand = (typeof HOST_COMMANDS)[number]
 

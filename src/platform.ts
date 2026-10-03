@@ -37,7 +37,7 @@ export function youtubeEmbedUrl(id: string, params: URLSearchParams): string {
   return `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?${params}`
 }
 
-const GAME_EXTENSIONS = ['gamezip', 'json']
+const GAME_EXTENSIONS = ['gamezip', 'siq', 'json']
 
 async function readPath(path: string): Promise<File> {
   const { readFile } = await import('@tauri-apps/plugin-fs')

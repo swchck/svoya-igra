@@ -3,11 +3,14 @@ import SoundToggle from '@/components/SoundToggle.vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Eye, Minus, Plus, SkipForward } from '@lucide/vue'
+import { Eye, Keyboard, Minus, Plus, SkipForward, Undo2 } from '@lucide/vue'
 import type { Game, MediaItem } from '@/types'
 import { Button } from '@/components/ui/button'
 import { getGame } from '@/storage'
-import { usePlaySession, type Phase, type SessionSnapshot } from '@/composables/usePlaySession'
+import { usePlaySession, type Phase, type SessionSnapshot, type Sign } from '@/composables/usePlaySession'
+import { accentStyle } from '@/play/accents'
+import { playerColor } from '@/play/palette'
+import { useRemaining } from '@/play/timer'
 import { HOST_PING_MS, openPlayChannel, type HostCommand, type PlayChannel } from '@/play/channel'
 import type { MediaAction, MediaStatus } from '@/play/mediaControl'
 import BoardGrid from '@/components/play/BoardGrid.vue'
@@ -19,6 +22,8 @@ import FinalBetsPanel from '@/components/play/FinalBetsPanel.vue'
 import FinalVerdictPanel from '@/components/play/FinalVerdictPanel.vue'
 import MarkdownView from '@/components/MarkdownView.vue'
 import HostMediaControls from '@/components/play/HostMediaControls.vue'
+import HostTimer from '@/components/play/HostTimer.vue'
+import StatsTable from '@/components/play/StatsTable.vue'
 
 const props = defineProps<{ id: string }>()
 const router = useRouter()
@@ -28,7 +33,7 @@ const game = ref<Game | null>(null)
 const connected = ref(false)
 // a mirror of the stage's session: snapshots overwrite it, commands go back to the stage
 const mirror = usePlaySession(game)
-const { state, players, round, activeQuestion, activeValue } = mirror
+const { state, players, round, activeQuestion, activeValue, canUndo } = mirror
 const mediaStatus = ref<Record<string, MediaStatus>>({})
 
 const phaseLabel = computed<Record<Phase, string>>(() => ({
@@ -63,8 +68,22 @@ function onScreen(): MediaItem[] {
 }
 /** The clips on the stage right now, so the host can start and stop them. */
 const stageMedia = computed(() => onScreen().filter((m) => m.kind !== 'image'))
+
+const accent = computed(() => accentStyle(game.value?.settings))
+const answerMs = computed(() => (game.value?.settings?.answerSeconds ?? 0) * 1000)
+const remaining = useRemaining(() => state.timer)
+const timerRunning = computed(() => state.timer.endsAt !== null && remaining.value > 0)
+const showTimer = computed(() => answerMs.value > 0 && (state.phase === 'question' || state.phase === 'final-question'))
+
+const selectedId = ref<string>()
+const hintOpen = ref(false)
+/** Who +/- apply to: the stake holder when one answers alone, else the host's pick. */
+const targetId = computed(() => state.stake?.playerId ?? selectedId.value)
+
 const scoreStep = computed(() => (isQuestionPhase.value && activeValue.value ? activeValue.value : 100))
 const ranking = computed(() => [...players.value].sort((a, b) => b.score - a.score))
+// colors and numbers follow the setup order, which ranking reshuffles
+const seats = computed(() => new Map(players.value.map((p, i) => [p.id, { color: playerColor(p, i), n: i + 1 }])))
 
 let channel: PlayChannel | null = null
 function send(name: HostCommand, ...args: unknown[]) {
@@ -72,6 +91,46 @@ function send(name: HostCommand, ...args: unknown[]) {
 }
 function mediaAction(id: string, action: MediaAction) {
   channel?.post({ type: 'media-command', id, action })
+}
+
+/** Marks the target player right or wrong in whichever phase takes a verdict. */
+function verdictKey(sign: Sign) {
+  const id = targetId.value
+  if (!id || !players.value.some((p) => p.id === id)) return
+  if (state.phase === 'answer') send('close', { playerId: id, sign })
+  else if (state.phase === 'final-answer') send('setFinalVerdict', id, sign)
+}
+
+const ADVANCE_PHASES: Phase[] = ['round-intro', 'question', 'final-intro', 'final-bets', 'final-question']
+const CLOSABLE_PHASES: Phase[] = ['auction', 'cat', 'question', 'answer']
+
+function onKey(e: KeyboardEvent) {
+  if (!connected.value || e.altKey) return
+  const target = e.target instanceof Element ? e.target : null
+  if (target?.closest('input, textarea, select, [contenteditable], [role=dialog], [role=slider]')) return
+  if (e.ctrlKey || e.metaKey) {
+    // the layout-independent code, so Cyrillic keyboards undo as well
+    if (e.code === 'KeyZ' && !e.shiftKey) {
+      e.preventDefault()
+      send('undo')
+    }
+    return
+  }
+  const digit = /^[1-9]$/.test(e.key) ? Number(e.key) : 0
+  if (digit) selectedId.value = players.value[digit - 1]?.id ?? selectedId.value
+  else if (e.key === '+' || e.key === '=') verdictKey(1)
+  else if (e.key === '-') verdictKey(-1)
+  else if (e.key === '?') hintOpen.value = !hintOpen.value
+  else if (e.key === 'Escape') {
+    if (hintOpen.value) hintOpen.value = false
+    else if (CLOSABLE_PHASES.includes(state.phase)) send('close')
+  } else if (e.key === ' ' && !target?.closest('button, a, summary')) {
+    // a focused button takes its own Space
+    if (state.phase === 'title') send('start')
+    else if (ADVANCE_PHASES.includes(state.phase)) send('advance')
+    else return
+    e.preventDefault()
+  }
 }
 
 function apply(snapshot: SessionSnapshot) {
@@ -83,6 +142,7 @@ function apply(snapshot: SessionSnapshot) {
 
 let pinger: ReturnType<typeof setInterval> | undefined
 onMounted(async () => {
+  window.addEventListener('keydown', onKey)
   game.value = (await getGame(props.id)) ?? null
   if (!game.value) {
     router.replace({ name: 'home' })
@@ -96,17 +156,21 @@ onMounted(async () => {
   pinger = setInterval(() => channel?.post({ type: 'ping' }), HOST_PING_MS)
 })
 onUnmounted(() => {
+  window.removeEventListener('keydown', onKey)
   clearInterval(pinger)
   channel?.close()
 })
 </script>
 
 <template>
-  <main v-if="game" class="host">
+  <main v-if="game" class="host" :style="accent">
     <header class="top">
       <span class="brand">{{ t('host.brand') }}</span>
       <span class="game">{{ game.title }}</span>
       <span class="flex-1" />
+      <Button variant="ghost" size="icon" :aria-pressed="hintOpen" :aria-label="t('host.hotkeys.toggle')" :title="t('host.hotkeys.toggle')" @click="hintOpen = !hintOpen">
+        <Keyboard />
+      </Button>
       <SoundToggle />
       <span v-if="connected" class="phase"><span class="dot" />{{ phaseLabel[state.phase] }}</span>
       <span v-else class="phase off">{{ t('host.offline') }}</span>
@@ -119,7 +183,7 @@ onUnmounted(() => {
     <div v-else class="layout">
       <section class="glass panel main">
         <div v-if="state.phase === 'title'" class="center">
-          <p class="muted">{{ t('host.namesHint') }}</p>
+          <p class="muted">{{ state.teams ? t('host.namesHintTeams') : t('host.namesHint') }}</p>
           <Button size="lg" class="big" @click="send('start')">{{ t('host.start') }}</Button>
         </div>
 
@@ -146,6 +210,7 @@ onUnmounted(() => {
             <MarkdownView class="answer-text rich" :source="activeQuestion.answer" />
           </div>
           <HostMediaControls v-if="stageMedia.length" :items="stageMedia" :status="mediaStatus" @action="mediaAction" />
+          <HostTimer v-if="showTimer" :remaining-ms="remaining" :total-ms="answerMs" :running="timerRunning" @start="send('timerStart')" @pause="send('timerPause')" @reset="send('timerReset')" />
 
           <AuctionPanel
             v-if="state.phase === 'auction'"
@@ -180,6 +245,7 @@ onUnmounted(() => {
             <MarkdownView class="answer-text rich" :source="game.finalRound.answer" />
           </div>
           <HostMediaControls v-if="stageMedia.length" :items="stageMedia" :status="mediaStatus" @action="mediaAction" />
+          <HostTimer v-if="showTimer" :remaining-ms="remaining" :total-ms="answerMs" :running="timerRunning" @start="send('timerStart')" @pause="send('timerPause')" @reset="send('timerReset')" />
           <FinalBetsPanel
             v-if="state.phase === 'final-bets'"
             :players="players"
@@ -202,14 +268,26 @@ onUnmounted(() => {
 
         <div v-else-if="state.phase === 'results'" class="center">
           <p class="title-gold text-4xl">{{ t('host.resultsOnStage') }}</p>
+          <StatsTable v-if="Object.keys(state.stats).length" compact :players="ranking" :stats="state.stats" />
         </div>
       </section>
 
       <aside class="glass panel scores" :aria-label="t('host.score')">
-        <h2 class="aside-title">{{ t('host.score') }}</h2>
+        <div class="aside-head">
+          <h2 class="aside-title">{{ state.teams ? t('host.teamsScore') : t('host.score') }}</h2>
+          <Button variant="ghost" size="sm" :disabled="!canUndo" :title="t('host.undoHint')" @click="send('undo')"><Undo2 />{{ t('host.undo') }}</Button>
+        </div>
         <TransitionGroup name="rank" tag="ol" class="rank">
-          <li v-for="p in ranking" :key="p.id" :class="{ active: p.id === state.stake?.playerId }">
-            <span class="who">{{ p.name }}</span>
+          <li
+            v-for="p in ranking"
+            :key="p.id"
+            :class="{ active: p.id === state.stake?.playerId, selected: p.id === targetId }"
+            :style="{ '--pc': seats.get(p.id)?.color }"
+          >
+            <span class="who">
+              <button type="button" class="seat" :aria-pressed="p.id === targetId" :aria-label="p.name" @click="selectedId = p.id">{{ seats.get(p.id)?.n }}</button>
+              <span class="label">{{ p.avatar }} {{ p.name }}</span>
+            </span>
             <span class="pts" :class="{ neg: p.score < 0 }"><AnimatedNumber :value="p.score" /></span>
             <span class="adjust">
               <Button size="icon-sm" variant="secondary" :aria-label="`${p.name}: −${scoreStep}`" @click="send('adjustScore', p.id, -scoreStep)"><Minus /></Button>
@@ -220,6 +298,19 @@ onUnmounted(() => {
         <p class="hint">{{ t('host.scoreHint', { step: scoreStep }) }}</p>
       </aside>
     </div>
+
+    <aside v-if="hintOpen" class="glass hotkeys" role="region" :aria-label="t('host.hotkeys.title')">
+      <h2 class="aside-title">{{ t('host.hotkeys.title') }}</h2>
+      <dl>
+        <div><dt><kbd>1</kbd>–<kbd>9</kbd></dt><dd>{{ t('host.hotkeys.pick') }}</dd></div>
+        <div><dt><kbd>+</kbd></dt><dd>{{ t('host.hotkeys.correct') }}</dd></div>
+        <div><dt><kbd>−</kbd></dt><dd>{{ t('host.hotkeys.wrong') }}</dd></div>
+        <div><dt><kbd>Space</kbd></dt><dd>{{ t('host.hotkeys.advance') }}</dd></div>
+        <div><dt><kbd>Esc</kbd></dt><dd>{{ t('host.hotkeys.close') }}</dd></div>
+        <div><dt><kbd>Ctrl</kbd>+<kbd>Z</kbd></dt><dd>{{ t('host.hotkeys.undo') }}</dd></div>
+        <div><dt><kbd>?</kbd></dt><dd>{{ t('host.hotkeys.help') }}</dd></div>
+      </dl>
+    </aside>
   </main>
 </template>
 
@@ -437,15 +528,94 @@ onUnmounted(() => {
   background: linear-gradient(180deg, var(--tile), var(--tile-deep));
   border: 1px solid oklch(1 0 0 / 0.14);
 }
+.rank li {
+  border-left: 5px solid var(--pc);
+}
+.rank li.selected {
+  box-shadow: 0 0 0 2px var(--pc);
+}
 .rank li.active {
   box-shadow: 0 0 0 2px var(--cyan);
 }
 .who {
   grid-area: who;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-weight: 600;
+}
+.label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 600;
+}
+.seat {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  border: 1px solid oklch(1 0 0 / 0.3);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+.seat[aria-pressed='true'] {
+  background: var(--pc);
+  border-color: var(--pc);
+  color: var(--night);
+}
+.seat:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.aside-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.hotkeys {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 20;
+  width: min(340px, calc(100vw - 36px));
+  padding: 14px 16px;
+  border-radius: 16px;
+}
+.hotkeys dl {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 0;
+  font-size: 14px;
+}
+.hotkeys dl > div {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+.hotkeys dt {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  justify-content: flex-end;
+}
+.hotkeys dd {
+  margin: 0;
+  color: var(--muted-foreground);
+}
+kbd {
+  min-width: 24px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  border: 1px solid oklch(1 0 0 / 0.3);
+  border-bottom-width: 2px;
+  background: oklch(1 0 0 / 0.08);
+  font-family: inherit;
+  font-size: 12px;
+  text-align: center;
 }
 .pts {
   grid-area: pts;

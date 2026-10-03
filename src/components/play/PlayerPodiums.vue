@@ -4,6 +4,7 @@ import { Crown } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
 import type { Player } from '@/types'
 import { confettiAt } from '@/lib/motion'
+import { playerColor } from '@/play/palette'
 import AnimatedNumber from './AnimatedNumber.vue'
 
 const { t } = useI18n()
@@ -56,15 +57,16 @@ watch(
   <section class="podiums" :aria-label="t('play.podiums.score')">
     <TransitionGroup name="desk">
       <div
-        v-for="p in players"
+        v-for="(p, i) in players"
         :key="p.id"
         :ref="(el) => el && (desks[p.id] = el as HTMLElement)"
         class="desk"
+        :style="{ '--pc': playerColor(p, i) }"
         :class="{ active: p.id === activeId, leader: p.id === leaderId, shake: shaking[p.id], negative: p.score < 0 }"
         @animationend="shaking[p.id] = false"
       >
         <Crown v-if="p.id === leaderId" class="crown" :aria-label="t('play.podiums.leader')" />
-        <span class="name">{{ p.name }}</span>
+        <span class="name"><span v-if="p.avatar" class="avatar" aria-hidden="true">{{ p.avatar }}</span>{{ p.name }}</span>
         <span class="score"><AnimatedNumber :value="p.score" /></span>
         <span v-for="b in bursts[p.id]" :key="b.key" class="delta" :class="b.delta > 0 ? 'up' : 'down'">
           {{ b.delta > 0 ? '+' : '−' }}{{ Math.abs(b.delta) }}
@@ -94,7 +96,7 @@ watch(
     linear-gradient(180deg, oklch(1 0 0 / 0.1), transparent 40%),
     linear-gradient(180deg, var(--tile), var(--tile-deep));
   border: 1px solid oklch(1 0 0 / 0.16);
-  border-bottom: 4px solid var(--gold-deep);
+  border-bottom: 4px solid var(--pc);
   box-shadow: 0 18px 40px -22px oklch(0.05 0.1 280 / 0.95);
   transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
 }
@@ -102,9 +104,6 @@ watch(
   transform: translateY(-6px);
   border-color: var(--cyan);
   box-shadow: 0 0 0 2px var(--cyan), 0 18px 50px -18px color-mix(in oklch, var(--cyan) 80%, transparent);
-}
-.desk.leader {
-  border-bottom-color: var(--gold);
 }
 .crown {
   position: absolute;
@@ -122,6 +121,10 @@ watch(
   white-space: nowrap;
   font-size: clamp(14px, 1.4vw, 20px);
   font-weight: 600;
+  color: color-mix(in oklch, var(--pc) 70%, var(--foreground));
+}
+.avatar {
+  margin-right: 0.35em;
 }
 .score {
   font-family: var(--font-display);

@@ -50,6 +50,7 @@ export function mediaItems(game: Game): MediaItem[] {
     }
   }
   if (game.finalRound) items.push(...(game.finalRound.media ?? []), ...(game.finalRound.answerMedia ?? []))
+  if (game.settings?.logo) items.push(game.settings.logo)
   return items
 }
 

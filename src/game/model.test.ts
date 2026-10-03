@@ -30,6 +30,12 @@ describe('mediaItems', () => {
     expect(items.map((m) => m.id)).toEqual(['1', '2', '3'])
     expect(q.media[0].url).toBe('changed')
   })
+
+  it('includes the logo, so pruning and export keep its file', () => {
+    const game = makeEmptyGame()
+    game.settings = { logo: { id: 'logo', url: 'media://m_1', kind: 'image' } }
+    expect(mediaItems(game).map((m) => m.id)).toEqual(['logo'])
+  })
 })
 
 describe('withFreshIds', () => {

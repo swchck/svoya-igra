@@ -5,6 +5,9 @@ export default {
   sound: {
     on: 'Game sounds on',
     off: 'Game sounds off',
+    volume: 'Sound volume',
+    mute: 'Mute sounds',
+    unmute: 'Unmute sounds',
   },
   markdown: {
     toolbar: 'Formatting',

@@ -22,10 +22,14 @@ export default {
   errors: {
     invalidGame: 'The file is damaged or is not a game',
     noGameJson: 'The archive has no game description (game.json)',
-    notGameFile: 'This is not a game file. Use .gamezip or .json',
+    notGameFile: 'This is not a game file. Use .gamezip, .json or a SIGame .siq package',
     sampleFailed: 'the sample failed to load, error {status}',
     embeddedUnreadable: 'Could not read the embedded file',
+    siqBroken: 'The file is damaged or is not a SIGame package (.siq)',
+    siqNoContent: 'The package has no content.xml',
+    siqEmpty: 'The package has no questions',
   },
+  siq: { catTheme: 'Category: {theme}' },
   fileFilterName: 'Svoya Igra',
   hostWindowTitle: 'Host · {title}',
 } satisfies typeof ru

@@ -55,6 +55,29 @@ describe('parseGame', () => {
     expect(parseGame(data).rounds[0].themes[0].questions[0].media).toHaveLength(1)
   })
 
+  it('round-trips valid settings and leaves old games without any', () => {
+    const settings = {
+      answerSeconds: 30,
+      timerAutoStart: true,
+      accent: 'ruby',
+      logo: { id: 'mi_l', url: 'media://m_1', kind: 'image' },
+      introText: 'Welcome',
+    }
+    expect(parseGame({ ...structuredClone(legacy), settings }).settings).toEqual(settings)
+    expect(parseGame(structuredClone(legacy))).not.toHaveProperty('settings')
+  })
+
+  it('drops invalid settings', () => {
+    const bad = { answerSeconds: -3, timerAutoStart: 'yes', accent: 'pink', logo: { url: 5 }, introText: '  ' }
+    expect(parseGame({ ...structuredClone(legacy), settings: bad })).not.toHaveProperty('settings')
+    expect(parseGame({ ...structuredClone(legacy), settings: 'x' })).not.toHaveProperty('settings')
+  })
+
+  it('caps the answer time', () => {
+    const game = parseGame({ ...structuredClone(legacy), settings: { answerSeconds: 99999 } })
+    expect(game.settings?.answerSeconds).toBe(600)
+  })
+
   it.each([null, 'game', { id: 'g' }, { id: 'g', rounds: [{ themes: 'no' }] }])('rejects %j', (data) => {
     expect(() => parseGame(data)).toThrow('Файл повреждён или это не игра')
   })

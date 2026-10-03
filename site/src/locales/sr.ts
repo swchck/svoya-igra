@@ -55,12 +55,12 @@ export default {
     title: 'Šta aplikacija ume',
     editor: {
       title: 'Uređivač u obliku table',
-      text: 'Igra se pravi na istoj tabli koju će videti igrači. Kliknite na polje i otvara se prozor pitanja: levo pitanje, desno odgovor, svako sa formatiranim tekstom, slikama, zvukom i videom. Runde, teme i pitanja se prevlače mišem, a izmene se odmah čuvaju.',
+      text: 'Igra se pravi na istoj tabli koju će videti igrači. Kliknite na polje i otvara se prozor pitanja: levo pitanje, desno odgovor, svako sa formatiranim tekstom, slikama, zvukom i videom. Runde, teme i pitanja se prevlače mišem, a izmene se odmah čuvaju i ranije verzije igre mogu da se vrate.',
       alt: 'Uređivač sa tablom runde i otvorenim pitanjem',
     },
     board: {
       title: 'Scena za publiku',
-      text: 'Tabla se širi preko celog ekrana ili projektora. Izabrano polje se otvara u pitanje, a rezultati igrača na dnu se menjaju čim voditelj prizna odgovor. Zvučni efekti prate izbor pitanja, odgovore i poene, a mogu se isključiti.',
+      text: 'Tabla se širi preko celog ekrana ili projektora. Izabrano polje se otvara u pitanje, a rezultati igrača na dnu se menjaju čim voditelj prizna odgovor. Igra se pojedinačno ili u timovima, svako sa svojom bojom i znakom. Tajmer za odgovor je po želji, a zvučni efekti prate izbor pitanja, odgovore i poene.',
       alt: 'Tabla runde sa rezultatima igrača',
     },
     question: {
@@ -70,7 +70,7 @@ export default {
     },
     host: {
       title: 'Pult voditelja',
-      text: 'U drugom prozoru voditelj vidi tačan odgovor, bira pitanja, pušta zvuk i video i priznaje odgovore. Dok je pult otvoren, na sceni nema nijednog dugmeta.',
+      text: 'U drugom prozoru voditelj vidi tačan odgovor, bira pitanja, pušta zvuk i video i priznaje odgovore. Dok je pult otvoren, na sceni nema nijednog dugmeta. Greškom dodeljeni poeni se vraćaju jednim klikom, a česte radnje imaju prečice na tastaturi.',
       alt: 'Prozor voditelja sa pitanjem i tačnim odgovorom',
     },
   },
@@ -108,9 +108,33 @@ export default {
   },
   faq: {
     title: 'Pitanja',
+    screen: {
+      q: 'Kako da prikažem igru na velikom ekranu?',
+      a: 'Kliknite „Igraj“, prevucite prozor na televizor ili projektor i raširite ga preko celog ekrana. Dugme „Prozor voditelja“ otvara pult sa tačnim odgovorima, dugmadima za zvuk i video i rezultatom. Pult držite na laptopu, publika ga ne vidi.',
+    },
+    internet: {
+      q: 'Da li mi treba internet?',
+      a: 'Ne. Slike, zvuk i video sa računara čuvaju se u samoj igri. Mreža je potrebna samo za snimke sa YouTube-a i slike sa linkova.',
+    },
+    siq: {
+      q: 'Mogu li da igram gotov SIGame paket?',
+      a: 'Da. Kliknite „Uvoz“ na početnom ekranu i izaberite fajl .siq. Prenose se runde, teme, pitanja, slike i zvuk. Od finala ostaje prva tema, jer je naše finale jedno pitanje.',
+    },
+    share: {
+      q: 'Kako da pošaljem igru drugom voditelju?',
+      a: 'U uređivaču kliknite „Izvoz“ i sačuvajte igru kao fajl .gamezip. U njemu su sva pitanja zajedno sa slikama i zvukom. Dvoklik na fajl otvara igru u aplikaciji.',
+    },
+    languages: {
+      q: 'Na kojim jezicima radi aplikacija?',
+      a: 'Na ruskom, engleskom i srpskom. Jezik se menja u meniju na početnom ekranu, a sajt i onlajn verzija pamte izbor.',
+    },
+    sounds: {
+      q: 'Mogu li da isključim zvučne efekte?',
+      a: 'Da. Dugme sa zvučnikom postoji na ekranu igre i u pultu voditelja. Ono ne utiče na zvuk u vašim pitanjima, na primer na muziku u rundi „Pogodi melodiju“.',
+    },
     online: {
       q: 'Po čemu se onlajn verzija razlikuje od aplikacije?',
-      a: 'To je ista aplikacija, samo u pregledaču. Igre se čuvaju u ovom pregledaču, pa nestaju ako obrišete podatke sajta: važne igre sačuvajte u .gamezip. Pult voditelja se otvara u posebnom prozoru pregledača. Otvaranje .gamezip fajla dvoklikom radi samo u instaliranoj aplikaciji.',
+      a: 'To je ista aplikacija, samo u pregledaču. Igre se čuvaju u ovom pregledaču, pa nestaju ako obrišete podatke sajta: važne igre sačuvajte u .gamezip. Pult voditelja se otvara u posebnom prozoru pregledača. Otvaranje .gamezip fajla dvoklikom radi samo u instaliranoj aplikaciji. Onlajn verziju možete da instalirate na računar ili telefon kao aplikaciju i tada se otvara i bez interneta.',
     },
     mac: {
       q: 'macOS kaže da ne može da proveri programera',
@@ -126,7 +150,7 @@ export default {
     },
     storage: {
       q: 'Gde se čuvaju moje igre?',
-      a: 'U podacima aplikacije na vašem računaru. Da biste preneli igru ili je poslali drugom voditelju, izvezite je u fajl .gamezip.',
+      a: 'Instalirana aplikacija čuva igre na vašem računaru, a onlajn verzija u pregledaču. Nema naloga ni oblaka, pa igre ne napuštaju uređaj.',
     },
     price: {
       q: 'Koliko košta?',

@@ -3,7 +3,7 @@ import { computed, nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   ArrowDown, ArrowUp, AudioLines, Check, ChevronDown, Clapperboard, EllipsisVertical, FolderOpen, GripVertical, Image as ImageIcon,
-  Link as LinkIcon, Trash2, Video,
+  Link as LinkIcon, Crop, Trash2, Video,
 } from '@lucide/vue'
 import type { MediaItem, MediaKind, MediaMode } from '@/types'
 import { Button } from '@/components/ui/button'
@@ -21,6 +21,7 @@ import { isStoredMedia } from '@/media/ref'
 import { formatTime, segmentOf } from '@/media/segment'
 import MediaThumb from './MediaThumb.vue'
 import SegmentEditor from './SegmentEditor.vue'
+import CropDialog from './CropDialog.vue'
 import { DRAG_TYPE } from './drag'
 import { isWebLink, useMediaIngest } from './useMediaIngest'
 
@@ -84,6 +85,11 @@ async function onFile(e: Event) {
   if (!file) return
   const [next] = await fromFiles([file])
   if (next) patch({ url: next.url, kind: next.kind, mode: undefined, start: undefined, end: undefined })
+}
+
+const cropping = ref(false)
+function onCropped(url: string) {
+  patch({ url })
 }
 
 const editingLink = ref(false)
@@ -173,6 +179,7 @@ const segmentText = computed(
       <div class="flex flex-wrap items-center gap-2">
         <Button size="sm" variant="secondary" @click="fileInput?.click()"><FolderOpen />{{ t('media.card.replaceFile') }}</Button>
         <Button size="sm" variant="secondary" @click="startLink"><LinkIcon />{{ t('media.card.changeLink') }}</Button>
+        <Button v-if="item.kind === 'image'" size="sm" variant="secondary" @click="cropping = true"><Crop />{{ t('media.card.crop') }}</Button>
         <input ref="fileInput" type="file" class="hidden" accept="image/*,audio/*,video/*" @change="onFile" />
 
         <DropdownMenu>
@@ -225,6 +232,8 @@ const segmentText = computed(
       <SegmentEditor v-if="timed" :item="item" @patch="patch" />
       <div v-else class="image-preview"><MediaElement :item="item" preview /></div>
     </div>
+
+    <CropDialog v-if="cropping" v-model:open="cropping" :item="item" @apply="onCropped" />
   </div>
 </template>
 

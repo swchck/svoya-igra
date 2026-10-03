@@ -5,5 +5,8 @@ import editor from './editor'
 import media from './media'
 import play from './play'
 import host from './host'
+import print from './print'
+import settings from './settings'
+import pwa from './pwa'
 
-export default { common, home, system, editor, media, play, host }
+export default { common, home, system, editor, media, play, host, print, settings, pwa }

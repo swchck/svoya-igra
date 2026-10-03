@@ -2,7 +2,7 @@
 import { computed, onMounted, onUnmounted, provide, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ArrowLeft, Cat, Gavel, Maximize, Minimize, MonitorSmartphone, SkipForward } from '@lucide/vue'
+import { ArrowLeft, Cat, Gavel, Maximize, Minimize, MonitorSmartphone, SkipForward, Undo2 } from '@lucide/vue'
 import type { Game } from '@/types'
 import { Button } from '@/components/ui/button'
 import { confirmAction } from '@/composables/useConfirm'
@@ -12,9 +12,13 @@ import { HOST_COMMANDS, HOST_PING_MS, openHostWindow, openPlayChannel, type Play
 import { createMediaRegistry, MEDIA_REGISTRY } from '@/play/mediaControl'
 import { plainCopy } from '@/lib/plain'
 import { prefersReducedMotion } from '@/lib/motion'
-import { useStageSounds } from '@/play/sounds'
+import { useStageSounds, useTimerSounds } from '@/play/sounds'
+import { accentStyle } from '@/play/accents'
+import { useRemaining } from '@/play/timer'
 import SoundToggle from '@/components/SoundToggle.vue'
 import StageBackdrop from './StageBackdrop.vue'
+import StageLogo from './StageLogo.vue'
+import AnswerTimer from './AnswerTimer.vue'
 import PlayerPodiums from './PlayerPodiums.vue'
 import PlayerSetup from './PlayerSetup.vue'
 import IntroSlide from './IntroSlide.vue'
@@ -39,6 +43,13 @@ const session = usePlaySession(
 const { state, players, round, activeQuestion, activeValue, ranking, inProgress } = session
 
 useStageSounds(() => state.phase, players)
+
+const settings = computed(() => props.game.settings)
+const accent = computed(() => accentStyle(settings.value))
+const answerMs = computed(() => (settings.value?.answerSeconds ?? 0) * 1000)
+const remaining = useRemaining(() => state.timer)
+useTimerSounds(remaining, () => state.timer.endsAt !== null)
+const showTimer = computed(() => answerMs.value > 0 && (state.phase === 'question' || state.phase === 'final-question'))
 
 const media = createMediaRegistry()
 provide(MEDIA_REGISTRY, media)
@@ -188,7 +199,10 @@ function wake() {
 
 function onKey(e: KeyboardEvent) {
   if (e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable], [role=dialog]')) return
-  if ((e.key === ' ' || e.key === 'Enter') && session.advance()) e.preventDefault()
+  // the layout-independent code, so Cyrillic keyboards undo as well
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.code === 'KeyZ') {
+    if (session.undo()) e.preventDefault()
+  } else if ((e.key === ' ' || e.key === 'Enter') && session.advance()) e.preventDefault()
   else if (e.key === 'Escape' && state.phase === 'answer') session.close()
 }
 
@@ -226,7 +240,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="stage" :class="{ 'chrome-hidden': !chromeVisible && state.phase !== 'title' }">
+  <div class="stage" :class="{ 'chrome-hidden': !chromeVisible && state.phase !== 'title' }" :style="accent">
     <StageBackdrop :dim="state.phase === 'question' || state.phase === 'answer'" />
 
     <header class="chrome">
@@ -241,12 +255,19 @@ onUnmounted(() => {
       </Button>
     </header>
 
+    <StageLogo v-if="settings?.logo && state.phase !== 'title'" :logo="settings.logo" class="corner-logo" />
+
     <main ref="stageMain" class="scene-area">
+      <div v-if="showTimer" class="timer-slot">
+        <AnswerTimer :remaining-ms="remaining" :total-ms="answerMs" :running="state.timer.endsAt !== null && remaining > 0" />
+      </div>
       <Transition name="scene" mode="out-in">
         <section v-if="state.phase === 'title'" :key="sceneKey" class="title-scene">
+          <StageLogo v-if="settings?.logo" :logo="settings.logo" class="title-logo" />
           <h1 class="title-shine game-title">{{ game.title || t('play.stage.defaultTitle') }}</h1>
           <p v-if="game.subtitle" class="subtitle">{{ game.subtitle }}</p>
-          <PlayerSetup v-model="players" @add="session.addPlayer" @remove="(p) => session.removePlayer(p.id)" />
+          <p v-if="settings?.introText" class="intro-text">{{ settings.introText }}</p>
+          <PlayerSetup v-model="players" :teams="state.teams" @update:teams="session.setTeams" @add="session.addPlayer" @remove="(p) => session.removePlayer(p.id)" />
           <Button size="lg" class="start" @click="session.start">{{ t('play.stage.start') }}</Button>
         </section>
 
@@ -261,7 +282,10 @@ onUnmounted(() => {
 
         <section v-else-if="state.phase === 'board' && round" :key="sceneKey" class="board-scene">
           <BoardGrid :round="round" :played="state.played" :cascade="cascadeBoard" @pick="(q) => pick(q.id)" />
-          <Button v-if="!hostConnected" variant="ghost" class="skip" @click="skipRound">{{ t('play.stage.skipRound') }}<SkipForward /></Button>
+          <div v-if="!hostConnected" class="board-actions">
+            <Button v-if="session.canUndo.value" variant="ghost" @click="session.undo"><Undo2 />{{ t('play.stage.undo') }}</Button>
+            <Button variant="ghost" @click="skipRound">{{ t('play.stage.skipRound') }}<SkipForward /></Button>
+          </div>
         </section>
 
         <SpecialSlide
@@ -378,7 +402,10 @@ onUnmounted(() => {
           v-else-if="state.phase === 'results'"
           :key="sceneKey"
           :ranking="ranking"
+          :stats="state.stats"
+          :can-undo="session.canUndo.value && !hostConnected"
           show-home
+          @undo="session.undo"
           @home="router.push({ name: 'home' })"
         />
       </Transition>
@@ -439,15 +466,18 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: clamp(14px, 3vh, 30px);
-  padding: 2vh 4vw;
+  justify-content: safe center;
+  gap: clamp(8px, 2vh, 30px);
+  padding: 1vh 4vw 2vh;
   text-align: center;
   overflow-y: auto;
 }
+.title-scene > * {
+  flex-shrink: 0;
+}
 .game-title {
   margin: 0;
-  font-size: clamp(44px, 8vw, 140px);
+  font-size: clamp(40px, min(8vw, 13vh), 140px);
   line-height: 0.95;
 }
 .subtitle {
@@ -475,8 +505,39 @@ onUnmounted(() => {
   min-height: 0;
   max-width: 1600px;
 }
-.skip {
+.board-actions {
   flex: none;
+  display: flex;
+  gap: 8px;
+}
+.corner-logo {
+  --logo-height: clamp(26px, 4.4vh, 44px);
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.timer-slot {
+  --timer-size: clamp(64px, 12vh, 124px);
+  position: absolute;
+  z-index: 2;
+  top: 4px;
+  right: clamp(12px, 2vw, 32px);
+}
+.scene-area > .timer-slot {
+  height: auto;
+}
+.title-logo {
+  --logo-height: clamp(48px, 9vh, 110px);
+}
+.intro-text {
+  margin: 0;
+  max-width: 48ch;
+  font-size: clamp(16px, 1.6vw, 26px);
+  color: var(--foreground);
+  white-space: pre-line;
 }
 .dock {
   border-radius: 22px;

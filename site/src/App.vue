@@ -36,7 +36,7 @@ const FACTS = [
   { id: 'file', icon: Archive },
 ] as const
 const STEPS = ['build', 'show', 'host'] as const
-const FAQ = ['online', 'mac', 'windows', 'appimage', 'storage', 'price'] as const
+const FAQ = ['screen', 'internet', 'siq', 'share', 'storage', 'online', 'languages', 'sounds', 'mac', 'windows', 'appimage', 'price'] as const
 const FAQ_COMMANDS: Partial<Record<(typeof FAQ)[number], string>> = {
   mac: 'xattr -dr com.apple.quarantine "/Applications/Своя Игра.app"',
   appimage: 'chmod +x Svoya-Igra_Linux-x64.AppImage',

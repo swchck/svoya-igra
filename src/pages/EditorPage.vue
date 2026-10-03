@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
-import { ArrowLeft, ArrowRight, Download, FileJson, Loader2, MoreHorizontal, Package, Play, Plus, Trash2, Trophy } from '@lucide/vue'
+import {
+  ArrowLeft, ArrowRight, CircleAlert, CircleCheck, Download, FileJson, History, Loader2, MoreHorizontal, Package, Play, Plus, Printer,
+  Trash2, TriangleAlert, Trophy,
+} from '@lucide/vue'
 import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import type { Game } from '@/types'
@@ -17,13 +20,21 @@ import { confirmAction } from '@/composables/useConfirm'
 import { useGamesStore } from '@/stores/games'
 import { getGame } from '@/storage'
 import { makeEmptyFinal, makeEmptyRound, moveItem, moveItemTo } from '@/game/model'
+import type { Issue } from '@/game/validate'
+import type { Snapshot } from '@/history'
+import { plainCopy } from '@/lib/plain'
 import { exportGameFile, type GameFileFormat } from '@/io/gameFile'
 import { useAutosave } from '@/composables/useAutosave'
+import { useGameIssues } from '@/composables/useGameIssues'
+import { useHistory } from '@/composables/useHistory'
 import RoundStrip from '@/components/editor/RoundStrip.vue'
 import BoardEditor from '@/components/editor/BoardEditor.vue'
 import QuestionDialog from '@/components/editor/QuestionDialog.vue'
 import FinalForm from '@/components/editor/FinalForm.vue'
 import StagePreview from '@/components/editor/StagePreview.vue'
+import HistoryDialog from '@/components/editor/HistoryDialog.vue'
+import IssuesDialog from '@/components/editor/IssuesDialog.vue'
+import GameSettingsDialog from '@/components/editor/GameSettingsDialog.vue'
 
 const props = defineProps<{ id: string }>()
 const router = useRouter()
@@ -34,6 +45,8 @@ const game = ref<Game | null>(null)
 const tab = ref<number | 'final'>(0)
 const selectedId = ref<string | null>(null)
 const previewOpen = ref(false)
+const historyOpen = ref(false)
+const issuesOpen = ref(false)
 
 getGame(props.id).then((g) => {
   if (!g) return router.replace({ name: 'home' })
@@ -41,6 +54,8 @@ getGame(props.id).then((g) => {
 })
 
 const { status: saveStatus, error: saveError, flush: flushSave } = useAutosave(game, (g) => store.save(g))
+const { snapshot } = useHistory(game, saveStatus)
+const { issues, errors, warnings } = useGameIssues(game)
 const saveLabel = computed(
   () =>
     ({
@@ -108,6 +123,7 @@ async function removeRound() {
     destructive: true,
   })
   if (!ok) return
+  await snapshot('before-delete')
   game.value.rounds.splice(tab.value, 1)
   tab.value = Math.min(tab.value, game.value.rounds.length - 1)
 }
@@ -122,6 +138,7 @@ async function removeTheme(index: number) {
     destructive: true,
   })
   if (!ok) return
+  await snapshot('before-delete')
   if (theme.questions.some((q) => q.id === selectedId.value)) selectedId.value = null
   round.value?.themes.splice(index, 1)
 }
@@ -135,6 +152,7 @@ async function removeQuestion() {
   const c = current.value
   if (!c) return
   if (!(await confirmAction({ title: t('editor.page.removeQuestionTitle'), confirmLabel: t('editor.page.delete'), destructive: true }))) return
+  await snapshot('before-delete')
   const neighbour = order.value[at.value + 1] ?? order.value[at.value - 1]
   c.t.questions.splice(c.t.questions.indexOf(c.q), 1)
   selectedId.value = neighbour && neighbour.q !== c.q ? neighbour.q.id : null
@@ -143,6 +161,7 @@ async function removeQuestion() {
 async function removeFinal() {
   if (!game.value) return
   if (await confirmAction({ title: t('editor.page.removeFinalTitle'), confirmLabel: t('editor.page.delete'), destructive: true })) {
+    await snapshot('before-delete')
     game.value.finalRound = undefined
   }
 }
@@ -160,14 +179,63 @@ onBeforeRouteLeave(async () => {
   })
 })
 
+function issueSummary() {
+  return t('editor.issues.summary', { errors: t('editor.issues.errors', errors.value), warnings: t('editor.issues.warnings', warnings.value) })
+}
+
 async function play() {
   if (!game.value) return
+  if (errors.value) {
+    const ok = await confirmAction({
+      title: t('editor.page.playWithErrors.title'),
+      description: t('editor.page.playWithErrors.description', { summary: issueSummary() }),
+      confirmLabel: t('editor.page.playWithErrors.confirm'),
+      cancelLabel: t('editor.page.playWithErrors.cancel'),
+      destructive: true,
+    })
+    if (!ok) {
+      issuesOpen.value = true
+      return
+    }
+  }
   await flushSave()
   if (saveStatus.value === 'error') {
     toast.error(t('editor.page.notSaved'), { description: saveError.value?.message })
     return
   }
   router.push({ name: 'play', params: { id: game.value.id } })
+}
+
+async function goToIssue(issue: Issue) {
+  const g = game.value
+  if (!g) return
+  if (issue.final) {
+    tab.value = 'final'
+    return
+  }
+  const index = g.rounds.findIndex((r) => r.id === issue.roundId)
+  if (index < 0) return
+  tab.value = index
+  // switching rounds clears the selection, so the question is picked once that has run
+  await nextTick()
+  selectedId.value = issue.questionId ?? null
+}
+
+async function restore(snap: Snapshot) {
+  if (!game.value) return
+  try {
+    await snapshot('before-restore')
+    game.value = plainCopy(snap.game)
+    tab.value = 0
+    selectedId.value = null
+    historyOpen.value = false
+    // replacing the object is not an edit, so autosave would not write it
+    await flushSave()
+    if (saveStatus.value === 'error') toast.error(t('editor.page.notSaved'), { description: saveError.value?.message })
+    else toast.success(t('editor.page.restored'))
+  } catch (err) {
+    toast.error(t('editor.page.restoreFailed'), { description: (err as Error).message })
+  }
 }
 
 const exporting = ref(false)
@@ -195,6 +263,18 @@ async function exportAs(format: GameFileFormat) {
       <span class="save" :class="saveStatus" role="status" :title="saveError?.message">
         <span class="save-dot" />{{ saveLabel }}
       </span>
+      <button
+        type="button"
+        class="issues"
+        :class="errors ? 'error' : warnings ? 'warning' : 'clean'"
+        :aria-label="issues.length ? t('editor.page.issuesBadge', { summary: issueSummary() }) : t('editor.page.issuesClean')"
+        @click="issuesOpen = true"
+      >
+        <CircleAlert v-if="errors" class="size-4" /><TriangleAlert v-else-if="warnings" class="size-4" /><CircleCheck v-else class="size-4" />
+        <span v-if="issues.length" class="tabular-nums">{{ issues.length }}</span>
+      </button>
+      <Button variant="ghost" @click="historyOpen = true"><History />{{ t('editor.page.history') }}</Button>
+      <GameSettingsDialog v-model="game.settings" />
       <DropdownMenu>
         <DropdownMenuTrigger as-child>
           <Button variant="secondary" :disabled="exporting">
@@ -204,6 +284,8 @@ async function exportAs(format: GameFileFormat) {
         <DropdownMenuContent align="end" class="min-w-52">
           <DropdownMenuItem @select="exportAs('gamezip')"><Package />{{ t('editor.page.exportGamezip') }}</DropdownMenuItem>
           <DropdownMenuItem @select="exportAs('json')"><FileJson />{{ t('editor.page.exportJson') }}</DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem @select="router.push({ name: 'print', params: { id: game.id } })"><Printer />{{ t('editor.page.cheatSheet') }}</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
       <Button size="lg" @click="play"><Play />{{ t('editor.page.play') }}</Button>
@@ -261,6 +343,9 @@ async function exportAs(format: GameFileFormat) {
         </div>
       </section>
     </div>
+
+    <HistoryDialog v-model:open="historyOpen" :game-id="game.id" @restore="restore" />
+    <IssuesDialog v-model:open="issuesOpen" :issues="issues" @goto="goToIssue" />
 
     <StagePreview
       v-if="current && tab !== 'final'"
@@ -353,6 +438,23 @@ async function exportAs(format: GameFileFormat) {
   background: var(--gold);
   animation: pulse 0.9s ease-in-out infinite;
 }
+.issues {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  background: color-mix(in oklch, currentColor 14%, transparent);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.issues.error { color: var(--destructive); }
+.issues.warning { color: var(--gold); }
+.issues.clean { color: var(--cyan); padding: 0 9px; }
+.issues:hover { background: color-mix(in oklch, currentColor 24%, transparent); }
 .save.error {
   color: var(--destructive);
   font-weight: 600;

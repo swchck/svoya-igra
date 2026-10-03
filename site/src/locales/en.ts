@@ -55,12 +55,12 @@ export default {
     title: 'What the app does',
     editor: {
       title: 'An editor shaped like the board',
-      text: 'You build the game on the same board your players will see. Click a cell to open the question window: the question on the left, the answer on the right, each with formatted text, pictures, sound and video. Drag rounds, categories and questions to reorder them. Changes save as you type.',
+      text: 'You build the game on the same board your players will see. Click a cell to open the question window: the question on the left, the answer on the right, each with formatted text, pictures, sound and video. Drag rounds, categories and questions to reorder them. Changes save as you type, and earlier versions of the game can be restored.',
       alt: 'The editor with a round board and an open question',
     },
     board: {
       title: 'A stage for the audience',
-      text: 'The board fills the screen or the projector. The picked cell flies out into the question, and the scores at the bottom update as soon as the host marks an answer. Sound effects mark picks, answers and points, and you can turn them off.',
+      text: 'The board fills the screen or the projector. The picked cell flies out into the question, and the scores at the bottom update as soon as the host marks an answer. Play solo or in teams, each with its own color and badge. An answer timer is optional, and sound effects mark picks, answers and points.',
       alt: 'The round board with player scores',
     },
     question: {
@@ -70,7 +70,7 @@ export default {
     },
     host: {
       title: 'The host’s console',
-      text: 'In a second window the host sees the correct answer, picks questions, plays sound and video and marks answers. While the console is open, the stage shows no buttons at all.',
+      text: 'In a second window the host sees the correct answer, picks questions, plays sound and video and marks answers. While the console is open, the stage shows no buttons at all. Points given by mistake come back with one click, and the common actions have keyboard shortcuts.',
       alt: 'The host window with a question and its correct answer',
     },
   },
@@ -108,9 +108,33 @@ export default {
   },
   faq: {
     title: 'FAQ',
+    screen: {
+      q: 'How do I show the game on a big screen?',
+      a: 'Click Play, drag the window to the TV or projector and make it full screen. The Host window button opens the console with the correct answers, sound and video controls and the score. Keep the console on a laptop; the audience never sees it.',
+    },
+    internet: {
+      q: 'Do I need an internet connection?',
+      a: 'No. Pictures, sound and video from your computer are stored inside the game. You only need a connection for YouTube clips and pictures from links.',
+    },
+    siq: {
+      q: 'Can I play a ready-made SIGame package?',
+      a: 'Yes. Click Import on the home screen and pick a .siq file. Rounds, categories, questions, pictures and sound come across. The final keeps its first category, because our final is a single question.',
+    },
+    share: {
+      q: 'How do I send a game to another host?',
+      a: 'In the editor, click Export and save the game as a .gamezip file. It holds every question together with its pictures and sound. Double-click the file to open the game in the app.',
+    },
+    languages: {
+      q: 'Which languages does the app support?',
+      a: 'Russian, English and Serbian. Switch the language in the menu on the home screen; the site and the online version remember your choice.',
+    },
+    sounds: {
+      q: 'Can I turn the sound effects off?',
+      a: 'Yes. There is a speaker button on the game screen and in the host console. It does not affect the sound in your questions, such as the music in a guess-the-melody round.',
+    },
     online: {
       q: 'How is the online version different from the app?',
-      a: 'It is the same app running in your browser. Games are stored in this browser, so clearing site data deletes them: save the ones you care about to .gamezip. The host console opens in a separate browser window. Opening .gamezip files with a double-click only works in the installed app.',
+      a: 'It is the same app running in your browser. Games are stored in this browser, so clearing site data deletes them: save the ones you care about to .gamezip. The host console opens in a separate browser window. Opening .gamezip files with a double-click only works in the installed app. You can install the online version on a computer or phone like an app, and then it opens without an internet connection too.',
     },
     mac: {
       q: 'macOS says it cannot verify the developer',
@@ -126,7 +150,7 @@ export default {
     },
     storage: {
       q: 'Where are my games stored?',
-      a: 'In the app’s data on your computer. To move a game or send it to another host, export it to a .gamezip file.',
+      a: 'The installed app keeps games on your computer, the online version keeps them in the browser. There is no account or cloud, so your games never leave the device.',
     },
     price: {
       q: 'How much does it cost?',

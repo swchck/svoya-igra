@@ -5,6 +5,9 @@ export default {
   sound: {
     on: 'Zvuci igre su uključeni',
     off: 'Zvuci igre su isključeni',
+    volume: 'Jačina zvukova',
+    mute: 'Isključi zvukove',
+    unmute: 'Uključi zvukove',
   },
   markdown: {
     toolbar: 'Formatiranje',

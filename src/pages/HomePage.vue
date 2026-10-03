@@ -16,7 +16,7 @@ import {
 import { useGamesStore } from '@/stores/games'
 import { confirmAction } from '@/composables/useConfirm'
 import { makeEmptyGame } from '@/game/model'
-import { exportGameFile, GAME_FILE_ACCEPT, importGameFile, importSampleGame, type GameFileFormat } from '@/io/gameFile'
+import { exportGameFile, GAME_FILE_ACCEPT, importGameFileWithNotes, importSampleGame, type GameFileFormat } from '@/io/gameFile'
 import { isDesktop, pickGameFile } from '@/platform'
 import StageBackdrop from '@/components/play/StageBackdrop.vue'
 import MiniBoard from '@/components/MiniBoard.vue'
@@ -115,8 +115,9 @@ async function onFile(e: Event) {
 async function importFile(file: File) {
   busy.value = true
   try {
-    const game = await store.save(await importGameFile(file))
-    toast.success(t('home.toast.imported'), { description: game.title })
+    const { game: imported, notes } = await importGameFileWithNotes(file)
+    const game = await store.save(imported)
+    toast.success(t('home.toast.imported'), { description: [game.title, ...notes].join(' · ') })
   } catch (err) {
     failed(t('home.toast.importFailed'), err)
   } finally {

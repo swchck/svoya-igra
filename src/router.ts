@@ -7,6 +7,7 @@ export const router = createRouter({
     { path: '/editor/:id', name: 'editor', component: () => import('./pages/EditorPage.vue'), props: true },
     { path: '/play/:id', name: 'play', component: () => import('./pages/PlayPage.vue'), props: true },
     { path: '/host/:id', name: 'host', component: () => import('./pages/HostPage.vue'), props: true },
+    { path: '/print/:id', name: 'print', component: () => import('./pages/PrintPage.vue'), props: true },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 })
