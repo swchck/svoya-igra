@@ -152,6 +152,14 @@ export default {
       q: 'Where are my games stored?',
       a: 'The installed app keeps games on your computer, the online version keeps them in the browser. There is no account or cloud, so your games never leave the device.',
     },
+    phones: {
+      q: 'Can players buzz in from their phones?',
+      a: 'Yes, in the desktop app. The host shows a QR code, players open it on the same Wi‑Fi, and each phone becomes a buzzer: whoever presses first answers. Phones also pick the next question and place final wagers. Nothing to install on the phones.',
+    },
+    rules: {
+      q: 'Can I change the rules?',
+      a: 'Yes, in Settings. You can drop the penalty for wrong answers, choose who picks first, and decide when phone buzzers open: right away, on the host\'s signal, or when the timer starts.',
+    },
     price: {
       q: 'How much does it cost?',
       a: 'Nothing. The app is free and its source code is on GitHub.',

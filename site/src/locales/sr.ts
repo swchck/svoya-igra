@@ -152,6 +152,14 @@ export default {
       q: 'Gde se čuvaju moje igre?',
       a: 'Instalirana aplikacija čuva igre na vašem računaru, a onlajn verzija u pregledaču. Nema naloga ni oblaka, pa igre ne napuštaju uređaj.',
     },
+    phones: {
+      q: 'Mogu li igrači da odgovaraju telefonima?',
+      a: 'Da, u verziji za računar. Voditelj pokaže QR kod, igrači ga otvore u istoj Wi‑Fi mreži i telefon postaje dugme: ko prvi pritisne, odgovara. Telefonom se bira i sledeće pitanje i stavlja ulog u finalu. Na telefon ne treba ništa instalirati.',
+    },
+    rules: {
+      q: 'Mogu li da promenim pravila?',
+      a: 'Da, u podešavanjima. Možete ukinuti kaznu za pogrešan odgovor, odrediti ko prvi bira pitanje i kada se otvara dugmad na telefonima: odmah, na znak voditelja ili kad krene tajmer.',
+    },
     price: {
       q: 'Koliko košta?',
       a: 'Ništa. Aplikacija je besplatna, a izvorni kod je otvoren na GitHub-u.',
