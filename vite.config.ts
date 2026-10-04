@@ -50,6 +50,13 @@ export default defineConfig({
     }),
   ],
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
+  // only the Composition API and t() are used, no legacy API, <i18n-t> or v-t: lets the
+  // bundler drop that part of vue-i18n
+  define: {
+    __VUE_I18N_LEGACY_API__: 'false',
+    __VUE_I18N_FULL_INSTALL__: 'false',
+    __INTLIFY_PROD_DEVTOOLS__: 'false',
+  },
   clearScreen: false,
   server: { host: true, port: 5173, strictPort: true },
   test: {

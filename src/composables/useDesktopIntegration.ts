@@ -3,7 +3,6 @@ import { useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 import { t } from '@/i18n'
 import { useGamesStore } from '@/stores/games'
-import { importGameFile } from '@/io/gameFile'
 import { findUpdate, isDesktop, isMainWindow, onOpenedFiles } from '@/platform'
 
 /** Desktop-only wiring of the main window: files opened through the OS and update offers. */
@@ -15,6 +14,7 @@ export function useDesktopIntegration() {
   let stop: (() => void) | undefined
 
   async function importOpened(files: File[]) {
+    const { importGameFile } = await import('@/io/gameFile')
     for (const file of files) {
       try {
         const game = await store.save(await importGameFile(file))

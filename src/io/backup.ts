@@ -3,7 +3,7 @@ import { t } from '../i18n'
 import type { Game } from '../types'
 import { getMedia, putMedia } from '../media/store'
 import { exportGameZip, importGameZip } from './archive'
-import { fileSlug } from './files'
+import { BACKUP_EXTENSION, fileSlug } from './files'
 
 /*
  * .gamebackup — every game of the library in one file:
@@ -12,9 +12,6 @@ import { fileSlug } from './files'
  * Reusing .gamezip keeps one media format to maintain and lets a user pull a single game
  * out of a backup with any zip tool.
  */
-
-/** The backup file's extension, without the dot. */
-export const BACKUP_EXTENSION = 'gamebackup'
 
 const GAMES_DIR = 'games/'
 
@@ -27,11 +24,6 @@ function zipAsync(files: Zippable): Promise<Uint8Array> {
 
 function unzipAsync(bytes: Uint8Array): Promise<Unzipped> {
   return new Promise((resolve, reject) => unzip(bytes, (err, data) => (err ? reject(err) : resolve(data))))
-}
-
-/** Reports whether the file name looks like a library backup. */
-export function isBackupFileName(name: string): boolean {
-  return name.toLowerCase().endsWith(`.${BACKUP_EXTENSION}`)
 }
 
 /** Returns a dated backup file name, such as svoya-igra-2026-10-04.gamebackup. */

@@ -8,7 +8,7 @@ import { ACCENTS } from '@/play/accents'
 import { prefs, type ImageQuality } from '@/prefs'
 import { Button } from '@/components/ui/button'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { BACKUP_EXTENSION } from '@/io/backup'
+import { BACKUP_EXTENSION } from '@/io/files'
 import { useBackup } from '@/composables/useBackup'
 import { isDesktop, pickGameFile } from '@/platform'
 

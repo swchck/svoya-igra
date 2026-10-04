@@ -3,7 +3,6 @@ import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 import { useGamesStore } from '@/stores/games'
 import { loadGames } from '@/storage'
-import { backupFileName, exportBackup, importBackup } from '@/io/backup'
 import { saveFile } from '@/platform'
 
 /** Saves the whole library to one file and restores it, reporting progress as toasts. */
@@ -27,6 +26,7 @@ export function useBackup() {
         toast.info(t('prefsLibrary.toast.nothingToSave'), { id })
         return
       }
+      const { backupFileName, exportBackup } = await import('@/io/backup')
       const blob = await exportBackup(games, (done, total) => toast.loading(t('prefsLibrary.toast.packingProgress', { done, total }), { id }))
       if (await saveFile(blob, backupFileName())) toast.success(t('prefsLibrary.toast.saved', { n: games.length }, games.length), { id })
       else toast.dismiss(id)
@@ -43,6 +43,7 @@ export function useBackup() {
     busy.value = true
     const id = toast.loading(t('prefsLibrary.toast.unpacking'))
     try {
+      const { importBackup } = await import('@/io/backup')
       const { games, failed } = await importBackup(file, (done, total) =>
         toast.loading(t('prefsLibrary.toast.unpackingProgress', { done, total }), { id }),
       )

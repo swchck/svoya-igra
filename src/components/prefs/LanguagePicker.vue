@@ -7,8 +7,8 @@ defineProps<{ size?: 'large' | 'compact' }>()
 const emit = defineEmits<{ (e: 'pick', locale: Locale): void }>()
 const { locale } = useI18n()
 
-function pick(code: Locale) {
-  setLocale(code)
+async function pick(code: Locale) {
+  await setLocale(code)
   emit('pick', code)
 }
 </script>

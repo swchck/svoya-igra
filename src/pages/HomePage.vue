@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { defineAsyncComponent, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
@@ -16,15 +16,18 @@ import {
 import { useGamesStore } from '@/stores/games'
 import { confirmAction } from '@/composables/useConfirm'
 import { useBackup } from '@/composables/useBackup'
-import { isBackupFileName } from '@/io/backup'
 import { makeEmptyGame, newGameSettings } from '@/game/model'
 import { prefs } from '@/prefs'
-import { exportGameFile, GAME_FILE_ACCEPT, importGameFileWithNotes, importSampleGame, type GameFileFormat } from '@/io/gameFile'
+import type { GameFileFormat } from '@/io/gameFile'
+import { GAME_FILE_ACCEPT, isBackupFileName } from '@/io/files'
 import { isDesktop, pickGameFile } from '@/platform'
 import StageBackdrop from '@/components/play/StageBackdrop.vue'
 import MiniBoard from '@/components/MiniBoard.vue'
 import { currentLocale } from '@/i18n'
-import ShareGameDialog from '@/components/lan/ShareGameDialog.vue'
+
+// the file formats and the Wi-Fi share are only needed once a button asks for them
+const gameFile = () => import('@/io/gameFile')
+const ShareGameDialog = defineAsyncComponent(() => import('@/components/lan/ShareGameDialog.vue'))
 
 const router = useRouter()
 const { t } = useI18n()
@@ -82,6 +85,7 @@ async function remove(g: Game) {
 
 async function exportAs(g: Game, format: GameFileFormat) {
   try {
+    const { exportGameFile } = await gameFile()
     if (await exportGameFile(g, format)) toast.success(t('home.toast.fileSaved'))
   } catch (err) {
     failed(t('home.toast.exportFailed'), err)
@@ -93,6 +97,7 @@ async function loadSample() {
   try {
     const previous = store.games.filter((g) => SAMPLE_TITLES.includes(g.title))
     // save before removing: removal prunes media, and the new copy's files must be referenced by then
+    const { importSampleGame } = await gameFile()
     await store.save(await importSampleGame())
     for (const old of previous) await store.remove(old.id)
     toast.success(t('home.toast.sampleLoaded'), previous.length ? { description: t('home.toast.sampleReplaced') } : undefined)
@@ -127,6 +132,7 @@ async function importFile(file: File) {
   if (isBackupFileName(file.name)) return restoreBackup(file)
   busy.value = true
   try {
+    const { importGameFileWithNotes } = await gameFile()
     const { game: imported, notes } = await importGameFileWithNotes(file)
     const game = await store.save(imported)
     toast.success(t('home.toast.imported'), { description: [game.title, ...notes].join(' · ') })

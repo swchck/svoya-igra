@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest'
 import { strToU8, unzipSync, zipSync } from 'fflate'
 import type { Game } from '../types'
 import { makeEmptyGame, mediaItems } from '../game/model'
-import { backupFileName, exportBackup, importBackup, isBackupFileName } from './backup'
+import { backupFileName, exportBackup, importBackup } from './backup'
+import { isBackupFileName } from './files'
 
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 4, 5, 6])
 
