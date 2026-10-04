@@ -14,7 +14,7 @@ import { fileSlug } from './files'
 export type GameFileFormat = 'gamezip' | 'json'
 
 /** Accepted by the import file picker. */
-export const GAME_FILE_ACCEPT = '.gamezip,.zip,.json,.siq,application/json,application/zip,application/x-svoya-igra+zip'
+export const GAME_FILE_ACCEPT = '.gamezip,.gamebackup,.zip,.json,.siq,application/json,application/zip,application/x-svoya-igra+zip'
 
 /** A game read from a file, with notes on what the file held that the game could not. */
 export interface ImportedGame {

@@ -2,7 +2,7 @@
 import { computed, onMounted, onUnmounted, provide, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ArrowLeft, Cat, Gavel, Maximize, Minimize, MonitorSmartphone, SkipForward, Smartphone, Undo2, X } from '@lucide/vue'
+import { ArrowLeft, Cat, Gavel, Maximize, Minimize, MonitorSmartphone, SkipForward, Smartphone, Undo2, Unlock, X } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 import type { Game } from '@/types'
 import { Button } from '@/components/ui/button'
@@ -16,7 +16,8 @@ import { plainCopy } from '@/lib/plain'
 import { prefersReducedMotion } from '@/lib/motion'
 import { useStageSounds, useTimerSounds } from '@/play/sounds'
 import { accentStyle } from '@/play/accents'
-import { lanAvailable, phonesPreferred, setPhonesPreferred } from '@/play/lan'
+import { buzzable, lanAvailable, phonesPreferred, setPhonesPreferred } from '@/play/lan'
+import { prefs } from '@/prefs'
 import { useLanRoom } from '@/play/useLanRoom'
 import { useRemaining } from '@/play/timer'
 import SoundToggle from '@/components/SoundToggle.vue'
@@ -82,6 +83,9 @@ async function begin() {
 
 const settings = computed(() => props.game.settings)
 const accent = computed(() => accentStyle(settings.value))
+const stageScale = computed(() => Math.min(1.4, Math.max(0.8, prefs.stageScale || 1)))
+const buzzHeld = computed(() => !!lanInfo.value && buzzable(state) && !state.buzzArmed)
+const wrongLabel = computed(() => (prefs.wrongPenalty ? t('lan.buzz.wrong', { value: activeValue.value }) : t('lan.buzz.wrongFree')))
 const answerMs = computed(() => (settings.value?.answerSeconds ?? 0) * 1000)
 const remaining = useRemaining(() => state.timer)
 useTimerSounds(remaining, () => state.timer.endsAt !== null)
@@ -243,6 +247,7 @@ function onKey(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.code === 'KeyZ') {
     if (session.undo()) e.preventDefault()
   } else if ((e.key === ' ' || e.key === 'Enter') && session.advance()) e.preventDefault()
+  else if (e.code === 'KeyB' && !e.ctrlKey && !e.metaKey && !e.altKey) session.openBuzz()
   else if (e.key === 'Escape' && state.phase === 'answer') session.close()
 }
 
@@ -282,7 +287,11 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="stage" :class="{ 'chrome-hidden': !chromeVisible && state.phase !== 'title' }" :style="accent">
+  <div
+    class="stage"
+    :class="{ 'chrome-hidden': !chromeVisible && state.phase !== 'title', 'cursor-hidden': prefs.hideCursor && !chromeVisible && state.phase !== 'title' }"
+    :style="[accent, { '--stage-scale': stageScale }]"
+  >
     <StageBackdrop :dim="state.phase === 'question' || state.phase === 'answer'" />
 
     <header class="chrome" data-tauri-drag-region>
@@ -389,8 +398,11 @@ onUnmounted(() => {
           :media="activeQuestion.media"
         >
           <div v-if="!hostConnected" class="flex flex-wrap justify-center gap-3">
+            <Button v-if="buzzHeld" size="lg" variant="secondary" class="h-12 px-6 text-lg" :title="t('lan.buzz.openHint')" @click="session.openBuzz">
+              <Unlock />{{ t('lan.buzz.openNow') }}
+            </Button>
             <Button v-if="buzzedId" size="lg" variant="destructive" class="h-12 px-6 text-lg" @click="lan.reopen(true)">
-              <X />{{ t('lan.buzz.wrong', { value: activeValue }) }}
+              <X />{{ wrongLabel }}
             </Button>
             <Button size="lg" class="h-12 px-8 text-lg" @click="session.advance">{{ t('play.stage.showAnswer') }}</Button>
           </div>
@@ -518,8 +530,10 @@ onUnmounted(() => {
 .chrome-hidden .chrome {
   opacity: 0;
 }
-.chrome-hidden {
-  cursor: none;
+/* !important: cells and buttons inside set their own pointer cursor */
+.cursor-hidden,
+.cursor-hidden :deep(*) {
+  cursor: none !important;
 }
 .host-on {
   display: inline-flex;

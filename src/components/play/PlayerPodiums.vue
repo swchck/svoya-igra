@@ -167,7 +167,7 @@ watch(
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: clamp(14px, 1.4vw, 20px);
+  font-size: calc(clamp(14px, 1.4vw, 20px) * var(--stage-scale, 1));
   font-weight: 600;
   color: color-mix(in oklch, var(--pc) 70%, var(--foreground));
 }
@@ -176,7 +176,7 @@ watch(
 }
 .score {
   font-family: var(--font-display);
-  font-size: clamp(28px, 3.4vw, 50px);
+  font-size: calc(clamp(28px, 3.4vw, 50px) * var(--stage-scale, 1));
   font-weight: 700;
   line-height: 1;
   color: var(--gold);

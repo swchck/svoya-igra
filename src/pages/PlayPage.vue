@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import type { Game } from '@/types'
 import { fitsGame, type SessionSnapshot } from '@/composables/usePlaySession'
 import { confirmAction } from '@/composables/useConfirm'
+import { useStageDisplay } from '@/composables/useStageDisplay'
 import { getGame } from '@/storage'
 import { clearSession, loadSession } from '@/play/savedSession'
 import PlayStage from '@/components/play/PlayStage.vue'
@@ -12,6 +13,7 @@ import PlayStage from '@/components/play/PlayStage.vue'
 const props = defineProps<{ id: string }>()
 const router = useRouter()
 const { t } = useI18n()
+useStageDisplay()
 
 const game = ref<Game | null>(null)
 const restored = ref<SessionSnapshot | undefined>()

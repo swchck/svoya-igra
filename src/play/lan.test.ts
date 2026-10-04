@@ -36,8 +36,10 @@ describe('stageInfo', () => {
       caps: {},
       board: null,
       chooser: null,
+      vibrate: true,
     })
     expect(lan.stageInfo({ ...base, phase: 'board' }, 'Quiz').allowJoin).toBe(false)
+    expect(lan.stageInfo({ ...base, phase: 'board' }, 'Quiz', undefined, false).vibrate).toBe(false)
   })
 
   it('shows the board and whose pick it is only while the board is up', () => {
@@ -71,11 +73,14 @@ describe('stageInfo', () => {
 })
 
 describe('buzzWindow', () => {
-  it('opens for a question anyone may answer', () => {
-    expect(lan.buzzWindow({ phase: 'question', activeQuestionId: 'q1', stake: null })).toBe('q1')
-    expect(lan.buzzWindow({ phase: 'question', activeQuestionId: 'q1', stake: { playerId: 'a', amount: 200 } })).toBeNull()
-    expect(lan.buzzWindow({ phase: 'answer', activeQuestionId: 'q1', stake: null })).toBeNull()
-    expect(lan.buzzWindow({ phase: 'board', activeQuestionId: null, stake: null })).toBeNull()
+  it('opens for an armed question anyone may answer', () => {
+    const open = { phase: 'question' as const, activeQuestionId: 'q1', stake: null, buzzArmed: true }
+    expect(lan.buzzWindow(open)).toBe('q1')
+    expect(lan.buzzWindow({ ...open, buzzArmed: false })).toBeNull()
+    expect(lan.buzzWindow({ ...open, stake: { playerId: 'a', amount: 200 } })).toBeNull()
+    expect(lan.buzzWindow({ ...open, phase: 'answer' })).toBeNull()
+    expect(lan.buzzWindow({ ...open, phase: 'board', activeQuestionId: null })).toBeNull()
+    expect(lan.buzzable({ phase: 'question', stake: null })).toBe(true)
   })
 
   it('names the winner only while the buttons are locked', () => {
@@ -96,12 +101,26 @@ describe('commands', () => {
     await lan.closeBuzz()
     await lan.stopLan()
     expect(invoke.mock.calls).toEqual([
-      ['lan_start'],
+      ['lan_start', { code: null }],
       ['lan_buzz_arm', { key: 'q1' }],
       ['lan_buzz_reopen', { exclude: true }],
       ['lan_buzz_close'],
       ['lan_stop'],
     ])
+  })
+
+  it('passes a kept room code to the server', async () => {
+    await lan.startLan('0427')
+    expect(invoke).toHaveBeenCalledWith('lan_start', { code: '0427' })
+  })
+
+  it('makes up a four-digit room code once and keeps it', () => {
+    localStorage.removeItem('svoya-igra:room-code')
+    const code = lan.fixedRoomCode()
+    expect(code).toMatch(/^\d{4}$/)
+    expect(lan.fixedRoomCode()).toBe(code)
+    localStorage.setItem('svoya-igra:room-code', 'oops')
+    expect(lan.fixedRoomCode()).toMatch(/^\d{4}$/)
   })
 
   it('sends a shared file as a raw body with its name in an ASCII header', async () => {

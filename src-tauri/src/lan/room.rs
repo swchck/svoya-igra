@@ -65,7 +65,7 @@ pub struct Board {
 }
 
 /// What the stage tells the room; pushed whenever players or the phase change.
-#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StageInfo {
     #[serde(default)]
@@ -88,6 +88,29 @@ pub struct StageInfo {
     /// Who picks the next question.
     #[serde(default)]
     pub chooser: Option<String>,
+    /// Phones may buzz in the hand; a stage that doesn't say leaves it on.
+    #[serde(default = "yes")]
+    pub vibrate: bool,
+}
+
+fn yes() -> bool {
+    true
+}
+
+impl Default for StageInfo {
+    fn default() -> Self {
+        Self {
+            title: String::new(),
+            roster: Vec::new(),
+            allow_join: false,
+            teams: false,
+            final_mode: None,
+            caps: HashMap::new(),
+            board: None,
+            chooser: None,
+            vibrate: yes(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -265,6 +288,7 @@ pub struct PhoneView {
     /// The name of whoever picks the next question, while the board is up.
     pub chooser: Option<String>,
     pub my_turn: bool,
+    pub vibrate: bool,
 }
 
 /// Counts wrong room codes per address, so the 4-digit code can't simply be swept.
@@ -694,6 +718,7 @@ impl Room {
             board: self.stage.board.clone(),
             chooser: self.stage.board.as_ref().and(self.stage.chooser.as_deref()).and_then(|id| self.seat(id)).map(|p| p.name.clone()),
             my_turn: self.stage.board.is_some() && !self.picked && my_id.is_some() && my_id == self.stage.chooser.as_deref(),
+            vibrate: self.stage.vibrate,
             me,
         }
     }
@@ -950,6 +975,17 @@ mod tests {
         room.set_stage(StageInfo { roster: roster(), ..StageInfo::default() });
         room.set_stage(StageInfo { roster: roster(), board: Some(board()), chooser: Some("a".into()), ..StageInfo::default() });
         assert!(room.view(Some("ta"), Instant::now()).my_turn, "the next board takes a pick again");
+    }
+
+    #[test]
+    fn passes_the_vibration_switch_to_phones() {
+        let (mut room, now) = room();
+        assert!(room.view(Some("ta"), now).vibrate, "on unless the stage says otherwise");
+        let quiet: StageInfo = serde_json::from_value(serde_json::json!({ "roster": [], "vibrate": false })).unwrap();
+        room.set_stage(StageInfo { roster: roster(), ..quiet });
+        assert!(!room.view(Some("ta"), now).vibrate);
+        let unsaid: StageInfo = serde_json::from_value(serde_json::json!({ "roster": [] })).unwrap();
+        assert!(unsaid.vibrate);
     }
 
     #[test]

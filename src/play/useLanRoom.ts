@@ -1,12 +1,14 @@
 import { computed, onScopeDispose, ref, watch } from 'vue'
 import type { PlaySession } from '@/composables/usePlaySession'
 import { playSound } from './sounds'
+import { prefs } from '@/prefs'
 import {
   armBuzz,
   buzzWindow,
   buzzWinner,
   closeBuzz,
   emptyLanStatus,
+  fixedRoomCode,
   onLanJoin,
   onLanPick,
   onLanStatus,
@@ -49,6 +51,7 @@ export function useLanRoom(session: PlaySession, title: () => string, pick: (que
       { phase: state.phase, players: players.value, teams: state.teams, played: state.played, chooserId: state.chooserId },
       title(),
       round.value,
+      prefs.phoneVibration,
     )
     const key = JSON.stringify(stage)
     if (key === lastSync) return
@@ -90,7 +93,7 @@ export function useLanRoom(session: PlaySession, title: () => string, pick: (que
           if (state.phase === 'board' && state.chooserId === p.playerId) pick(p.questionId)
         }),
       ]
-      info.value = await startLan()
+      info.value = await startLan(prefs.fixedRoomCode ? fixedRoomCode() : null)
       lastSync = ''
       sync()
       syncBuzz()
@@ -114,15 +117,20 @@ export function useLanRoom(session: PlaySession, title: () => string, pick: (que
     quietly(stopLan())
   }
 
-  /** Opens the buttons again; `wrong` costs whoever pressed first the question's value and shuts them out. */
+  /**
+   * Opens the buttons again; `wrong` shuts whoever pressed first out and, when the rules
+   * charge for wrong answers, costs them the question's value.
+   */
   function reopen(wrong: boolean) {
     if (!info.value) return
     const winner = winnerId.value
-    if (wrong && winner) session.adjustScore(winner, -session.activeValue.value)
+    if (wrong && winner && prefs.wrongPenalty) session.adjustScore(winner, -session.activeValue.value)
     quietly(reopenBuzz(wrong))
   }
 
-  watch([() => state.phase, players, title, () => state.teams, () => state.chooserId, () => state.played, round], sync, { deep: true })
+  watch([() => state.phase, players, title, () => state.teams, () => state.chooserId, () => state.played, round, () => prefs.phoneVibration], sync, {
+    deep: true,
+  })
   watch(() => buzzWindow(state), syncBuzz)
   watch(() => state.phase, (phase) => phase === 'final-bets' && takeBets(status.value.bets))
   watch(winnerId, (id) => id && playSound('pick'))

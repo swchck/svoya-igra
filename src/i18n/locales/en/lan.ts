@@ -39,6 +39,10 @@ export default {
     nobody: 'Nobody has buzzed yet.',
     wrong: 'Wrong (−{value}), reopen',
     reopen: 'Reopen',
+    wrongFree: 'Wrong, reopen',
+    openNow: 'Open buttons',
+    openHint: 'Or press B on the stage',
+    held: 'Waiting for the host',
     excluded: 'Already answered: {names}',
   },
   final: {

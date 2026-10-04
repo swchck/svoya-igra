@@ -39,6 +39,10 @@ export default {
     nobody: 'Još niko nije pritisnuo.',
     wrong: 'Netačno (−{value}), otvori ponovo',
     reopen: 'Otvori ponovo',
+    wrongFree: 'Netačno, otvori ponovo',
+    openNow: 'Otvori dugmad',
+    openHint: 'Ili pritisnite B na sceni',
+    held: 'Čekaju voditelja',
     excluded: 'Već odgovarali: {names}',
   },
   final: {

@@ -7,6 +7,9 @@ import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import StageBackdrop from '@/components/play/StageBackdrop.vue'
 import LanguagePicker from '@/components/prefs/LanguagePicker.vue'
+import SettingsPlay from '@/components/prefs/SettingsPlay.vue'
+import SettingsDisplay from '@/components/prefs/SettingsDisplay.vue'
+import SettingsLibrary from '@/components/prefs/SettingsLibrary.vue'
 import { playSound, setSoundEffects, setSoundVolume, soundEffectsOn, soundVolume } from '@/play/sounds'
 import { lanAvailable, phonesPreferred, setPhonesPreferred } from '@/play/lan'
 import { findUpdate, isDesktop, type AvailableUpdate } from '@/platform'
@@ -83,6 +86,10 @@ function back() {
           <Button variant="secondary" size="sm" :disabled="!soundEffectsOn" @click="playSound('results')"><Volume2 />{{ t('prefs.test') }}</Button>
         </div>
       </section>
+
+      <SettingsPlay />
+      <SettingsDisplay />
+      <SettingsLibrary />
 
       <section v-if="lanAvailable" class="glass section">
         <h2 class="section-title">{{ t('prefs.phones') }}</h2>

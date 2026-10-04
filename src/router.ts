@@ -10,6 +10,7 @@ export const router = createRouter({
     { path: '/host/:id', name: 'host', component: () => import('./pages/HostPage.vue'), props: true },
     { path: '/welcome', name: 'welcome', component: () => import('./pages/WelcomePage.vue') },
     { path: '/settings', name: 'settings', component: () => import('./pages/SettingsPage.vue') },
+    { path: '/flash', name: 'flash', component: () => import('./pages/FlashPage.vue') },
     { path: '/print/:id', name: 'print', component: () => import('./pages/PrintPage.vue'), props: true },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],

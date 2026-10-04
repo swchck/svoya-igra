@@ -3,6 +3,7 @@ import { effectScope, nextTick, ref } from 'vue'
 import type { Game } from '@/types'
 import { makeEmptyFinal, makeEmptyGame, makeEmptyRound } from '@/game/model'
 import { usePlaySession } from '@/composables/usePlaySession'
+import { prefs, resetPrefs } from '@/prefs'
 import type { LanStageInfo, LanStatus } from './lan'
 
 const invoke = vi.fn()
@@ -112,6 +113,48 @@ describe('useLanRoom', () => {
     await nextTick()
     expect(calls('lan_buzz_close').length).toBeGreaterThan(1)
     expect(room.winnerId.value).toBeUndefined()
+  })
+
+  it('follows the house rules for opening the buttons and charging wrong answers', async () => {
+    prefs.buzzOpen = 'host'
+    prefs.wrongPenalty = false
+    prefs.phoneVibration = false
+    try {
+      const { g, session, room } = setup()
+      await room.start()
+      session.start()
+      session.advance()
+      const q = g.rounds[0].themes[0].questions[0]
+      session.pick(q.id)
+      await nextTick()
+      expect(calls('lan_buzz_arm')).toEqual([])
+      expect(synced().at(-1)!.vibrate).toBe(false)
+
+      session.openBuzz()
+      await nextTick()
+      expect(calls('lan_buzz_arm')).toEqual([{ key: q.id }])
+
+      const [p1] = session.players.value
+      emit('lan://status', status({ buzz: { state: 'locked', order: [p1.id] } }))
+      await nextTick()
+      room.reopen(true)
+      expect(p1.score).toBe(0)
+      expect(calls('lan_buzz_reopen')).toEqual([{ exclude: true }])
+    } finally {
+      resetPrefs()
+    }
+  })
+
+  it('asks for the kept room code when the room keeps one', async () => {
+    prefs.fixedRoomCode = true
+    localStorage.setItem('svoya-igra:room-code', '0427')
+    try {
+      const { room } = setup()
+      await room.start()
+      expect(calls('lan_start')).toEqual([{ code: '0427' }])
+    } finally {
+      resetPrefs()
+    }
   })
 
   it('fills final bets from phones without undoing the host’s corrections', async () => {

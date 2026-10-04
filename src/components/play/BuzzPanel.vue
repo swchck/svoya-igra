@@ -1,14 +1,22 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RotateCcw, X } from '@lucide/vue'
+import { RotateCcw, Unlock, X } from '@lucide/vue'
 import type { Player } from '@/types'
 import { buzzWinner, pressedBy, type LanStatus } from '@/play/lan'
 import { playerColor } from '@/play/palette'
 import { Button } from '@/components/ui/button'
 
-const props = defineProps<{ players: Player[]; status: LanStatus; value: number }>()
-defineEmits<{ (e: 'reopen', wrong: boolean): void }>()
+const props = defineProps<{
+  players: Player[]
+  status: LanStatus
+  value: number
+  /** The buttons may open for this question; false while they wait for the host. */
+  armed: boolean
+  /** A wrong answer costs the question's value. */
+  penalty: boolean
+}>()
+defineEmits<{ (e: 'reopen', wrong: boolean): void; (e: 'open'): void }>()
 const { t } = useI18n()
 
 const seats = computed(() => new Map(props.players.map((p, i) => [p.id, { name: p.name, color: playerColor(p, i) }])))
@@ -20,7 +28,7 @@ const order = computed(() =>
 )
 const excluded = computed(() => props.status.buzz.excluded.map((id) => seats.value.get(id)?.name ?? '?').join(', '))
 const winner = computed(() => buzzWinner(props.status))
-const stateLabel = computed(() => t(`lan.buzz.${props.status.buzz.state}`))
+const stateLabel = computed(() => (props.armed ? t(`lan.buzz.${props.status.buzz.state}`) : t('lan.buzz.held')))
 </script>
 
 <template>
@@ -34,10 +42,15 @@ const stateLabel = computed(() => t(`lan.buzz.${props.status.buzz.state}`))
         <span class="place">{{ i + 1 }}</span><span class="name">{{ p.name }}</span>
       </li>
     </ol>
-    <p v-else class="muted">{{ t('lan.buzz.nobody') }}</p>
+    <p v-else-if="armed" class="muted">{{ t('lan.buzz.nobody') }}</p>
     <p v-if="excluded" class="muted">{{ t('lan.buzz.excluded', { names: excluded }) }}</p>
-    <div class="actions">
-      <Button v-if="winner" variant="destructive" size="sm" @click="$emit('reopen', true)"><X />{{ t('lan.buzz.wrong', { value }) }}</Button>
+    <div v-if="!armed" class="actions">
+      <Button size="sm" :title="t('lan.buzz.openHint')" @click="$emit('open')"><Unlock />{{ t('lan.buzz.openNow') }}</Button>
+    </div>
+    <div v-else class="actions">
+      <Button v-if="winner" variant="destructive" size="sm" @click="$emit('reopen', true)">
+        <X />{{ penalty ? t('lan.buzz.wrong', { value }) : t('lan.buzz.wrongFree') }}
+      </Button>
       <Button variant="secondary" size="sm" @click="$emit('reopen', false)"><RotateCcw />{{ t('lan.buzz.reopen') }}</Button>
     </div>
   </section>

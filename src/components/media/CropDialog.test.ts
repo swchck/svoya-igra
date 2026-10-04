@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DOMWrapper, flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import type { MediaItem } from '@/types'
 import { getMedia, putMedia } from '@/media/store'
-import { optimizeImage } from '@/media/optimize'
+import { IMAGE_LEVELS, optimizeImage } from '@/media/optimize'
 import { cropBlob } from '@/media/crop'
 import CropDialog from './CropDialog.vue'
 
 vi.mock('@/media/store', () => ({ getMedia: vi.fn(), putMedia: vi.fn() }))
-vi.mock('@/media/optimize', () => ({ optimizeImage: vi.fn() }))
+vi.mock('@/media/optimize', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/media/optimize')>()), optimizeImage: vi.fn() }))
 vi.mock('@/media/crop', async (orig) => ({ ...(await orig<typeof import('@/media/crop')>()), cropBlob: vi.fn() }))
 vi.mock('vue-sonner', () => ({ toast: { error: vi.fn() } }))
 
@@ -85,7 +85,7 @@ describe('CropDialog', () => {
     await flushPromises()
 
     expect(cropBlob).toHaveBeenCalledWith(expect.any(Blob), { x: 100, y: 50, w: 800, h: 400 })
-    expect(optimizeImage).toHaveBeenCalled()
+    expect(optimizeImage).toHaveBeenCalledWith(expect.any(Blob), IMAGE_LEVELS.normal)
     expect(wrapper.emitted('apply')).toEqual([['media://m2']])
     expect(wrapper.emitted('update:open')?.at(-1)).toEqual([false])
   })

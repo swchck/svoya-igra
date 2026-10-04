@@ -179,3 +179,14 @@
 @media (prefers-reduced-motion: reduce) {
   .title-shine { animation: none; background-position: 50% 0; }
 }
+
+/* the in-app "less motion" switch; !important because component styles set their own timings
+   and the scoped prefers-reduced-motion blocks can't be triggered from a class */
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}

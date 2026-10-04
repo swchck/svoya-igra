@@ -4,7 +4,8 @@ import type { MediaItem } from '@/types'
 import { uid } from '@/game/model'
 import { detectKind } from '@/media/kind'
 import { putMedia } from '@/media/store'
-import { optimizeImage } from '@/media/optimize'
+import { IMAGE_LEVELS, optimizeImage } from '@/media/optimize'
+import { prefs } from '@/prefs'
 
 /** Turns dropped, picked or pasted files and links into media items, reporting rejects as toasts. */
 export function useMediaIngest() {
@@ -19,7 +20,7 @@ export function useMediaIngest() {
         continue
       }
       try {
-        added.push({ id: uid('mi_'), url: await putMedia(kind === 'image' ? await optimizeImage(file) : file), kind })
+        added.push({ id: uid('mi_'), url: await putMedia(kind === 'image' ? await optimizeImage(file, IMAGE_LEVELS[prefs.imageQuality]) : file), kind })
       } catch (err) {
         toast.error(t('media.list.saveFailed', { name: file.name }), { description: (err as Error).message })
       }

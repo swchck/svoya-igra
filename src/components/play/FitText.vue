@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { prefs } from '@/prefs'
 
 const props = withDefaults(
   defineProps<{
@@ -23,8 +24,10 @@ function fit() {
   const host = node?.parentElement
   if (!node || !host) return
   const budget = host.clientHeight * props.share
-  let hi = Math.min(props.max, host.clientWidth * 0.055)
-  let lo = Math.min(props.min, hi)
+  // the stage's text size setting moves both bounds; the budget still has the last word
+  const scale = parseFloat(getComputedStyle(node).getPropertyValue('--stage-scale')) || 1
+  let hi = Math.min(props.max, host.clientWidth * 0.055) * scale
+  let lo = Math.min(props.min * scale, hi)
   node.style.fontSize = `${hi}px`
   if (node.scrollHeight <= budget) return
   for (let i = 0; i < 10; i++) {
@@ -44,7 +47,7 @@ onMounted(() => {
   if (el.value?.parentElement) observer.observe(el.value.parentElement)
 })
 watch(
-  () => [props.text, props.html, props.share],
+  () => [props.text, props.html, props.share, prefs.stageScale],
   () => nextTick(fit),
 )
 onBeforeUnmount(() => observer?.disconnect())

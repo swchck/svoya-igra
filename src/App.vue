@@ -6,6 +6,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
 import ConfirmHost from '@/components/ConfirmHost.vue'
 import { useDesktopIntegration } from '@/composables/useDesktopIntegration'
+import { syncMotionClass } from '@/lib/motion'
 import 'vue-sonner/style.css'
 
 const { t } = useI18n()
@@ -15,6 +16,7 @@ watchEffect(() => {
 })
 
 useDesktopIntegration()
+syncMotionClass()
 </script>
 
 <template>

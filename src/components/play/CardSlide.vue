@@ -68,7 +68,7 @@ const hasMedia = computed(() => !!props.media?.length)
   border-radius: 999px;
   overflow: hidden;
   font-family: var(--font-display);
-  font-size: clamp(15px, 1.7vw, 26px);
+  font-size: calc(clamp(15px, 1.7vw, 26px) * var(--stage-scale, 1));
   letter-spacing: 0.06em;
   text-transform: uppercase;
   box-shadow: 0 10px 30px -14px oklch(0.05 0.1 280 / 0.9);

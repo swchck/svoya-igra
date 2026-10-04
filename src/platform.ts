@@ -43,7 +43,7 @@ export function youtubeEmbedUrl(id: string, params: URLSearchParams): string {
   return `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?${params}`
 }
 
-const GAME_EXTENSIONS = ['gamezip', 'siq', 'json']
+const GAME_EXTENSIONS = ['gamezip', 'siq', 'json', 'gamebackup']
 
 async function readPath(path: string): Promise<File> {
   const { readFile } = await import('@tauri-apps/plugin-fs')
@@ -51,13 +51,16 @@ async function readPath(path: string): Promise<File> {
   return new File([bytes.slice().buffer], path.split(/[\\/]/).pop() ?? 'game.gamezip')
 }
 
-/** Desktop: shows the native open dialog for a game file. Returns null when cancelled. */
-export async function pickGameFile(): Promise<File | null> {
+/**
+ * Desktop: shows the native open dialog for a game file, or only for the given extensions.
+ * Returns null when cancelled.
+ */
+export async function pickGameFile(extensions: string[] = GAME_EXTENSIONS): Promise<File | null> {
   const { open } = await import('@tauri-apps/plugin-dialog')
   const path = await open({
     multiple: false,
     directory: false,
-    filters: [{ name: t('system.fileFilterName'), extensions: GAME_EXTENSIONS }],
+    filters: [{ name: t('system.fileFilterName'), extensions }],
   })
   return path ? readPath(path) : null
 }

@@ -1,4 +1,4 @@
-import type { FinalQuestion, Game, MediaItem, Question, Round, Theme } from '../types'
+import type { AccentName, FinalQuestion, Game, GameSettings, MediaItem, Question, Round, Theme } from '../types'
 import { t } from '../i18n'
 
 /** Returns a short random id with an optional prefix. */
@@ -39,6 +39,28 @@ export function makeEmptyGame(title = t('system.defaults.game')): Game {
     createdAt: now,
     updatedAt: now,
   }
+}
+
+/** What a brand-new game starts with, as chosen in the app preferences. */
+export interface NewGameDefaults {
+  answerSeconds: number
+  timerAutoStart: boolean
+  accent: AccentName
+}
+
+/**
+ * Returns the settings a brand-new game starts with, or undefined when every default is
+ * the plain one. Follows the settings dialog: no zero, false or gold values are stored.
+ */
+export function newGameSettings(defaults: NewGameDefaults): GameSettings | undefined {
+  const settings: GameSettings = {}
+  if (defaults.answerSeconds > 0) {
+    settings.answerSeconds = defaults.answerSeconds
+    // the dialog won't let auto-start be on without a timer, so neither do we
+    if (defaults.timerAutoStart) settings.timerAutoStart = true
+  }
+  if (defaults.accent !== 'gold') settings.accent = defaults.accent
+  return Object.keys(settings).length ? settings : undefined
 }
 
 /** Returns every media item of the game; mutating an item mutates the game. */

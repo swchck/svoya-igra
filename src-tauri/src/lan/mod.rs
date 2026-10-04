@@ -41,6 +41,14 @@ pub fn random_hex(bytes: usize) -> String {
     buf.iter().map(|b| format!("{b:02x}")).collect()
 }
 
+/// Returns `requested` when it is a valid room code (four ASCII digits), else a random one.
+fn room_code_or(requested: Option<&str>) -> String {
+    match requested {
+        Some(code) if code.len() == 4 && code.bytes().all(|b| b.is_ascii_digit()) => code.to_string(),
+        _ => room_code(),
+    }
+}
+
 fn room_code() -> String {
     let mut buf = [0u8; 4];
     getrandom::fill(&mut buf).expect("the OS random source is available");
@@ -98,12 +106,13 @@ fn base_url(port: u16) -> Result<String, String> {
     Ok(format!("http://{ip}:{port}"))
 }
 
-fn ensure_started<'a, R: Runtime>(app: &AppHandle<R>, slot: &'a mut Option<LanServer>) -> Result<&'a LanServer, String> {
+/// Starts the server unless it runs; a running server keeps its code whatever `code` says.
+fn ensure_started<'a, R: Runtime>(app: &AppHandle<R>, slot: &'a mut Option<LanServer>, code: Option<&str>) -> Result<&'a LanServer, String> {
     if slot.is_none() {
         let mut addrs: Vec<SocketAddr> = PORTS.map(|p| SocketAddr::from((Ipv4Addr::UNSPECIFIED, p))).collect();
         addrs.push(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)));
         let app = app.clone();
-        let server = server::start(&addrs, room_code(), move |notice| {
+        let server = server::start(&addrs, room_code_or(code), move |notice| {
             let _ = match notice {
                 Notice::Status(status) => app.emit(STATUS_EVENT, status),
                 Notice::Joined(player) => app.emit(JOIN_EVENT, player),
@@ -130,11 +139,12 @@ fn stop_if_idle(slot: &mut Option<LanServer>) {
     }
 }
 
-/// Turns the phone buzzers on, starting the server if needed.
+/// Turns the phone buzzers on, starting the server if needed. A server started here uses
+/// `code` as its room code when that is four digits, so saved links keep working.
 #[tauri::command]
-pub fn lan_start<R: Runtime>(app: AppHandle<R>, lan: State<'_, Lan>) -> Result<LanInfo, String> {
+pub fn lan_start<R: Runtime>(app: AppHandle<R>, lan: State<'_, Lan>, code: Option<String>) -> Result<LanInfo, String> {
     let mut slot = lock(&lan);
-    let port = ensure_started(&app, &mut slot)?.port;
+    let port = ensure_started(&app, &mut slot, code.as_deref())?.port;
     let url = base_url(port).inspect_err(|_| stop_if_idle(&mut slot))?;
     let server = slot.as_ref().expect("server is running");
     let code = server.code();
@@ -192,7 +202,7 @@ pub fn lan_share_start<R: Runtime>(app: AppHandle<R>, lan: State<'_, Lan>, reque
         .filter(|n| !n.is_empty() && !n.contains(['/', '\\']))
         .unwrap_or_else(|| "game.gamezip".into());
     let mut slot = lock(&lan);
-    let port = ensure_started(&app, &mut slot)?.port;
+    let port = ensure_started(&app, &mut slot, None)?.port;
     let url = base_url(port).inspect_err(|_| stop_if_idle(&mut slot))?;
     let server = slot.as_ref().expect("server is running");
     server.set_file(Some(SharedFile { name, bytes: Arc::from(bytes.as_slice()) }));
@@ -240,5 +250,15 @@ mod tests {
             assert!(code.bytes().all(|b| b.is_ascii_digit()));
         }
         assert_eq!(random_hex(16).len(), 32);
+    }
+
+    #[test]
+    fn keeps_a_requested_code_only_when_it_is_four_digits() {
+        assert_eq!(room_code_or(Some("0427")), "0427");
+        for bad in [None, Some(""), Some("123"), Some("12345"), Some("12a4"), Some("١٢٣٤")] {
+            let code = room_code_or(bad);
+            assert_eq!(code.len(), 4, "{bad:?}");
+            assert!(code.bytes().all(|b| b.is_ascii_digit()));
+        }
     }
 }

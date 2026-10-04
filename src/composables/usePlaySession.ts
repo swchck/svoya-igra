@@ -4,6 +4,7 @@ import { uid } from '../game/model'
 import { plainCopy } from '../lib/plain'
 import { t } from '../i18n'
 import { nextColorId } from '../play/palette'
+import { prefs, type Prefs } from '../prefs'
 
 export type Phase =
   | 'title'
@@ -53,6 +54,9 @@ export function timerRemaining(timer: TimerState, now: number): number {
   return timer.endsAt === null ? timer.left : Math.max(0, timer.endsAt - now)
 }
 
+/** The house rules a session plays by; read live, so a change applies from the next action. */
+export type PlayRules = Pick<Prefs, 'wrongPenalty' | 'firstChooser' | 'buzzOpen'>
+
 /** What undo needs to put the game back before a question was closed or the final scored. */
 interface TurnState {
   phase: Phase
@@ -61,6 +65,7 @@ interface TurnState {
   played: Record<string, true>
   stake: Stake | null
   chooserId: string | null
+  buzzArmed: boolean
   scores: Record<string, number>
   stats: Record<string, PlayerStats>
 }
@@ -80,6 +85,8 @@ export interface SessionSnapshot {
   stake: Stake | null
   /** Who picks the next question off the board. */
   chooserId: string | null
+  /** The phone buttons may open for the open question; see `buzzWindow`. */
+  buzzArmed: boolean
   finalBets: Record<string, number>
   finalVerdicts: Record<string, Sign>
   players: Player[]
@@ -103,6 +110,7 @@ function initialSnapshot(): SessionSnapshot {
     played: {},
     stake: null,
     chooserId: null,
+    buzzArmed: false,
     finalBets: {},
     finalVerdicts: {},
     players: [],
@@ -142,7 +150,7 @@ export function maxStake(player: Player | undefined, floor: number): number {
 }
 
 /** Runs one play-through of a game: phases, the board, stakes and the score. */
-export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapshot) {
+export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapshot, rules: () => PlayRules = () => prefs) {
   const base = initialSnapshot()
   const { players: initialPlayers, ...initialState } = plainCopy({ ...base, ...restored })
   if (!restored) for (let i = 0; i < 2; i++) initialPlayers.push(newPlayer(initialPlayers, false))
@@ -154,6 +162,8 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
   // sessions saved before the timer existed carry none
   if (!restored?.timer) state.timer = { endsAt: null, left: answerMs.value }
   state.chooserId ??= null
+  // sessions saved before the host could hold the buttons had them open on every question
+  if (restored && restored.buzzArmed === undefined) state.buzzArmed = true
 
   const round = computed(() => game.value?.rounds[state.roundIndex])
   const activeQuestion = computed<Question | null>(
@@ -187,6 +197,7 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
       played: state.played,
       stake: state.stake,
       chooserId: state.chooserId,
+      buzzArmed: state.buzzArmed,
       scores: Object.fromEntries(players.value.map((p) => [p.id, p.score])),
       stats: state.stats,
     })
@@ -215,7 +226,15 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
   /** Puts the clock back to the full time, running at once when the game starts it by itself. */
   function armTimer() {
     state.timer = { endsAt: null, left: answerMs.value }
+    const mode = rules().buzzOpen
+    // without a clock there is nothing to wait for
+    state.buzzArmed = mode === 'question' || (mode === 'timer' && answerMs.value === 0)
     if (game.value?.settings?.timerAutoStart) timerStart()
+  }
+
+  /** Opens the phone buttons for the open question, whatever the rules said. */
+  function openBuzz() {
+    if (state.phase === 'question') state.buzzArmed = true
   }
 
   const timerPhase = () => (state.phase === 'question' || state.phase === 'final-question') && answerMs.value > 0
@@ -227,6 +246,7 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
     if (state.timer.endsAt !== null && remaining > 0) return
     const left = remaining > 0 ? remaining : answerMs.value
     state.timer = { endsAt: now + left, left }
+    if (state.phase === 'question' && rules().buzzOpen === 'timer') state.buzzArmed = true
   }
 
   function timerPause() {
@@ -238,11 +258,13 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
     if (timerPhase()) state.timer = { endsAt: null, left: answerMs.value }
   }
 
-  /** The first round opens by lot; every later one by whoever trails. */
+  /** The first round opens as the rules say; every later one by whoever trails. */
   function start() {
     if (state.phase !== 'title') return
     const list = players.value
-    state.chooserId = list.length ? list[Math.floor(Math.random() * list.length)]!.id : null
+    const how = rules().firstChooser
+    const first = how === 'host' ? undefined : how === 'first' ? list[0] : list[Math.floor(Math.random() * list.length)]
+    state.chooserId = first?.id ?? null
     state.phase = 'round-intro'
   }
 
@@ -311,12 +333,14 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
     const allowed = verdict && (!state.stake || state.stake.playerId === verdict.playerId)
     const target = allowed ? player(verdict.playerId) : undefined
     if (target && (verdict!.sign === 1 || verdict!.sign === -1)) {
-      target.score += verdict!.sign * activeValue.value
-      recordAnswer(target.id, verdict!.sign, activeValue.value)
+      const points = verdict!.sign === -1 && !rules().wrongPenalty ? 0 : activeValue.value
+      target.score += verdict!.sign * points
+      recordAnswer(target.id, verdict!.sign, points)
       if (verdict!.sign === 1) state.chooserId = target.id
     }
     state.activeQuestionId = null
     state.stake = null
+    state.buzzArmed = false
     if (round.value && isRoundDone(round.value, state.played)) finishRound()
     else state.phase = 'board'
   }
@@ -437,6 +461,7 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
     timerStart,
     timerPause,
     timerReset,
+    openBuzz,
     addPlayer,
     removePlayer,
   }

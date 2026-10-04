@@ -72,6 +72,8 @@ export interface LanStageInfo {
   caps: Record<string, number>
   board: LanBoard | null
   chooser: string | null
+  /** Phones may buzz in the hand. */
+  vibrate: boolean
 }
 
 /** The status of a room nobody has joined yet. */
@@ -84,6 +86,7 @@ export function stageInfo(
   snapshot: Pick<SessionSnapshot, 'phase' | 'players' | 'teams' | 'played' | 'chooserId'>,
   title: string,
   round?: Round,
+  vibrate = true,
 ): LanStageInfo {
   const finalMode: FinalMode | null =
     snapshot.phase === 'final-bets' ? 'bet' : snapshot.phase === 'final-question' ? 'answer' : null
@@ -105,15 +108,18 @@ export function stageInfo(
           }
         : null,
     chooser: snapshot.chooserId,
+    vibrate,
   }
 }
 
-/**
- * The question the buttons are open for, or null when they should be closed. Auctions and
- * cats in the bag go to one player, so nobody races for them.
- */
-export function buzzWindow(snapshot: Pick<SessionSnapshot, 'phase' | 'activeQuestionId' | 'stake'>): string | null {
-  return snapshot.phase === 'question' && !snapshot.stake ? snapshot.activeQuestionId : null
+/** Reports whether anyone may race for the open question; auctions and cats in the bag go to one player. */
+export function buzzable(snapshot: Pick<SessionSnapshot, 'phase' | 'stake'>): boolean {
+  return snapshot.phase === 'question' && !snapshot.stake
+}
+
+/** The question the buttons are open for, or null while they should stay closed. */
+export function buzzWindow(snapshot: Pick<SessionSnapshot, 'phase' | 'activeQuestionId' | 'stake' | 'buzzArmed'>): string | null {
+  return buzzable(snapshot) && snapshot.buzzArmed ? snapshot.activeQuestionId : null
 }
 
 /** The player who pressed first while the buttons are locked on them. */
@@ -121,9 +127,28 @@ export function buzzWinner(status: LanStatus): string | undefined {
   return status.buzz.state === 'locked' ? status.buzz.order[0] : undefined
 }
 
-/** Turns the buzzers on, starting the server if needed. */
-export function startLan(): Promise<LanInfo> {
-  return invoke<LanInfo>('lan_start')
+const ROOM_CODE_KEY = 'svoya-igra:room-code'
+
+/** The room code kept for every game, made up on first use; null when it can't be stored. */
+export function fixedRoomCode(): string | null {
+  try {
+    let code = localStorage.getItem(ROOM_CODE_KEY)
+    if (!code || !/^\d{4}$/.test(code)) {
+      code = String(Math.floor(Math.random() * 10_000)).padStart(4, '0')
+      localStorage.setItem(ROOM_CODE_KEY, code)
+    }
+    return code
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Turns the buzzers on, starting the server if needed. A server started here takes `code` as
+ * its room code; one already running keeps its own.
+ */
+export function startLan(code?: string | null): Promise<LanInfo> {
+  return invoke<LanInfo>('lan_start', { code: code ?? null })
 }
 
 /** Turns the buzzers off; the server stops unless it shares a file. */

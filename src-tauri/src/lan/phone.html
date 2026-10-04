@@ -473,7 +473,7 @@ function apply(next) {
 }
 
 function vibrate(pattern) {
-  if (navigator.vibrate) navigator.vibrate(pattern);
+  if (navigator.vibrate && (!view || view.vibrate !== false)) navigator.vibrate(pattern);
 }
 
 function render() {

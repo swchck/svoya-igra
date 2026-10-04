@@ -10,5 +10,8 @@ import settings from './settings'
 import pwa from './pwa'
 import lan from './lan'
 import prefs from './prefs'
+import prefsLibrary from './prefsLibrary'
+import prefsPlay from './prefsPlay'
+import prefsDisplay from './prefsDisplay'
 
-export default { common, home, system, editor, media, play, host, print, settings, pwa, lan, prefs }
+export default { common, home, system, editor, media, play, host, print, settings, pwa, lan, prefs, prefsLibrary, prefsPlay, prefsDisplay }

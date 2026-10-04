@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { effectScope, nextTick, ref } from 'vue'
 import type { Phase } from '@/composables/usePlaySession'
 import type { Player } from '@/types'
+import { prefs, resetPrefs } from '@/prefs'
 import resultsUrl from '@/assets/sounds/results.mp3'
 import correctUrl from '@/assets/sounds/correct.mp3'
 import tickUrl from '@/assets/sounds/tick.mp3'
@@ -136,6 +137,19 @@ describe('useTimerSounds', () => {
     }
     expect(played.map((p) => p.src)).toEqual([tickUrl, tickUrl, tickUrl, timeupUrl])
     scope.stop()
+  })
+
+  it('rings without ticking when the tick is turned off', async () => {
+    prefs.tickSound = false
+    const { remaining, scope } = setup(3000)
+    for (const ms of [2000, 1000, 0]) {
+      remaining.value = ms
+      await nextTick()
+      await settle()
+    }
+    expect(played.map((p) => p.src)).toEqual([timeupUrl])
+    scope.stop()
+    resetPrefs()
   })
 
   it('is silent while paused or when the clock is reset', async () => {

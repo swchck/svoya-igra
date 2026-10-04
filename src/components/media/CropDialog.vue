@@ -9,7 +9,8 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { isStoredMedia } from '@/media/ref'
 import { getMedia, putMedia } from '@/media/store'
-import { optimizeImage } from '@/media/optimize'
+import { IMAGE_LEVELS, optimizeImage } from '@/media/optimize'
+import { prefs } from '@/prefs'
 import { applyRatio, cropBlob, moveRect, resizeRect, snapRect, type Handle, type Rect, type Size } from '@/media/crop'
 
 const props = defineProps<{ item: MediaItem }>()
@@ -131,7 +132,7 @@ async function apply() {
   busy.value = true
   try {
     const cropped = await cropBlob(source.value, snapRect(rect.value, size.value))
-    emit('apply', await putMedia(await optimizeImage(cropped)))
+    emit('apply', await putMedia(await optimizeImage(cropped, IMAGE_LEVELS[prefs.imageQuality])))
     open.value = false
   } catch (err) {
     toast.error(t('media.crop.failed'), { description: (err as Error).message })

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { reactive, ref } from 'vue'
 import type { Game, QuestionKind } from '../types'
 import { makeEmptyFinal, makeEmptyGame, makeEmptyRound } from '../game/model'
-import { fitsGame, timerRemaining, usePlaySession } from './usePlaySession'
+import { fitsGame, timerRemaining, usePlaySession, type PlayRules } from './usePlaySession'
 
 function tinyGame(withFinal = true): Game {
   const game = makeEmptyGame()
@@ -445,5 +445,78 @@ describe('answer timer', () => {
     s.state.phase = 'final-bets'
     s.advance()
     expect(s.state.timer.endsAt).not.toBeNull()
+  })
+})
+
+describe('house rules', () => {
+  const rules = (patch: Partial<PlayRules> = {}): (() => PlayRules) => {
+    const r: PlayRules = { wrongPenalty: true, firstChooser: 'random', buzzOpen: 'question', ...patch }
+    return () => r
+  }
+
+  function play(patch: Partial<PlayRules>, answerSeconds = 0) {
+    const game = tinyGame()
+    game.settings = { answerSeconds, timerAutoStart: false }
+    const s = usePlaySession(ref(game), undefined, rules(patch))
+    s.start()
+    s.advance()
+    return { s, q: game.rounds[0].themes[0].questions[0], players: s.players.value }
+  }
+
+  it('lets a wrong answer cost nothing but still counts it', () => {
+    const { s, q, players } = play({ wrongPenalty: false })
+    const [p1] = players
+    s.pick(q.id)
+    s.advance()
+    s.close({ playerId: p1.id, sign: -1 })
+    expect(p1.score).toBe(0)
+    expect(s.state.stats[p1.id]).toMatchObject({ wrong: 1, lost: 0 })
+  })
+
+  it('picks who opens the game by the rules', () => {
+    const first = play({ firstChooser: 'first' })
+    expect(first.s.state.chooserId).toBe(first.players[0].id)
+    expect(play({ firstChooser: 'host' }).s.state.chooserId).toBeNull()
+  })
+
+  it('opens the buttons with the question by default', () => {
+    const { s, q } = play({})
+    s.pick(q.id)
+    expect(s.state.buzzArmed).toBe(true)
+    s.advance()
+    s.close()
+    expect(s.state.buzzArmed).toBe(false)
+  })
+
+  it('keeps the buttons shut until the host opens them', () => {
+    const { s, q } = play({ buzzOpen: 'host' })
+    s.openBuzz()
+    expect(s.state.buzzArmed).toBe(false)
+    s.pick(q.id)
+    expect(s.state.buzzArmed).toBe(false)
+    s.openBuzz()
+    expect(s.state.buzzArmed).toBe(true)
+  })
+
+  it('opens the buttons with the clock, or at once when there is none', () => {
+    const timed = play({ buzzOpen: 'timer' }, 30)
+    timed.s.pick(timed.q.id)
+    expect(timed.s.state.buzzArmed).toBe(false)
+    timed.s.timerStart()
+    expect(timed.s.state.buzzArmed).toBe(true)
+
+    const untimed = play({ buzzOpen: 'timer' })
+    untimed.s.pick(untimed.q.id)
+    expect(untimed.s.state.buzzArmed).toBe(true)
+  })
+
+  it('brings the buttons back the way they were on undo', () => {
+    const { s, q } = play({ buzzOpen: 'host' })
+    s.pick(q.id)
+    s.openBuzz()
+    s.close()
+    expect(s.state.buzzArmed).toBe(false)
+    s.undo()
+    expect(s.state).toMatchObject({ phase: 'question', buzzArmed: true })
   })
 })

@@ -7,6 +7,7 @@ import { parseYoutubeUrl } from '../game/youtube'
 import { segmentOf } from '../media/segment'
 import { displayUrl } from '../media/store'
 import { MEDIA_REGISTRY, type MediaAction } from '../play/mediaControl'
+import { prefs } from '../prefs'
 import YouTubeEmbed from './YouTubeEmbed.vue'
 import SoundCard from './SoundCard.vue'
 
@@ -46,6 +47,12 @@ const playing = ref(false)
 const blocked = ref(false)
 const elapsed = ref(0)
 const clipLength = ref(0)
+
+// volume outside 0..1 throws, and a hand-edited setting could ask for that
+const volume = computed(() => Math.min(100, Math.max(0, prefs.mediaVolume || 0)))
+watchEffect(() => {
+  if (media.value) media.value.volume = volume.value / 100
+})
 
 async function playNative(fromStart = false) {
   const el = media.value
@@ -132,6 +139,7 @@ onBeforeUnmount(() => unregister?.())
       :start="segment.start"
       :end="segment.end"
       :autoplay="preview ? false : autoplay"
+      :volume="volume"
       @status="(s) => ((playing = s.playing), (blocked = s.blocked))"
       @duration="(d) => emit('duration', d)"
     />

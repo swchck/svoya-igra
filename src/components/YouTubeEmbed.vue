@@ -15,6 +15,8 @@ const props = defineProps<{
   autoplay?: boolean
   start: number
   end?: number
+  /** Player volume, 0 to 100; full when not given. */
+  volume?: number
 }>()
 const emit = defineEmits<{
   (e: 'status', status: { playing: boolean; blocked: boolean }): void
@@ -64,6 +66,11 @@ function run(action: MediaAction) {
 }
 defineExpose({ run })
 
+function applyVolume() {
+  if (props.volume !== undefined) command('setVolume', [props.volume])
+}
+watch(() => props.volume, applyVolume)
+
 // iframe API: the player reports its state once the page says it is listening
 let handshake: ReturnType<typeof setInterval> | undefined
 let startWatch: ReturnType<typeof setTimeout> | undefined
@@ -86,6 +93,7 @@ function onMessage(e: MessageEvent) {
   }
   if (data.event === 'onReady' || data.event === 'initialDelivery') {
     clearInterval(handshake)
+    applyVolume()
     // in the app's WebView YouTube refuses to start without a click inside the window
     if (props.autoplay && !startWatch) startWatch = setTimeout(() => (blocked.value = !playing.value), 4000)
   }

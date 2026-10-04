@@ -15,7 +15,10 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useGamesStore } from '@/stores/games'
 import { confirmAction } from '@/composables/useConfirm'
-import { makeEmptyGame } from '@/game/model'
+import { useBackup } from '@/composables/useBackup'
+import { isBackupFileName } from '@/io/backup'
+import { makeEmptyGame, newGameSettings } from '@/game/model'
+import { prefs } from '@/prefs'
 import { exportGameFile, GAME_FILE_ACCEPT, importGameFileWithNotes, importSampleGame, type GameFileFormat } from '@/io/gameFile'
 import { isDesktop, pickGameFile } from '@/platform'
 import StageBackdrop from '@/components/play/StageBackdrop.vue'
@@ -26,6 +29,7 @@ import ShareGameDialog from '@/components/lan/ShareGameDialog.vue'
 const router = useRouter()
 const { t } = useI18n()
 const store = useGamesStore()
+const { busy: restoring, restore: restoreBackup } = useBackup()
 const fileInput = ref<HTMLInputElement | null>(null)
 const busy = ref(false)
 // the titles in assets/sample/content.mjs plus the pre-translation sample, so older copies get replaced
@@ -53,7 +57,7 @@ function failed(action: string, err: unknown) {
 
 async function createNew() {
   try {
-    const g = await store.save(makeEmptyGame())
+    const g = await store.save({ ...makeEmptyGame(), settings: newGameSettings(prefs) })
     router.push({ name: 'editor', params: { id: g.id } })
   } catch (err) {
     failed(t('home.toast.createFailed'), err)
@@ -120,6 +124,7 @@ async function onFile(e: Event) {
 }
 
 async function importFile(file: File) {
+  if (isBackupFileName(file.name)) return restoreBackup(file)
   busy.value = true
   try {
     const { game: imported, notes } = await importGameFileWithNotes(file)
@@ -160,8 +165,8 @@ function fmtDate(ts: number) {
       <p class="hero-sub">{{ t('home.subtitle') }}</p>
       <div class="actions">
         <Button size="lg" class="h-12 px-6 text-base" @click="createNew"><Plus />{{ t('home.newGame') }}</Button>
-        <Button size="lg" variant="outline" class="h-12 px-6 text-base" :disabled="busy" @click="startImport"><Upload />{{ t('home.import') }}</Button>
-        <Button size="lg" variant="ghost" class="h-12 px-6 text-base" :disabled="busy" @click="loadSample"><Sparkles />{{ t('home.openSample') }}</Button>
+        <Button size="lg" variant="outline" class="h-12 px-6 text-base" :disabled="busy || restoring" @click="startImport"><Upload />{{ t('home.import') }}</Button>
+        <Button size="lg" variant="ghost" class="h-12 px-6 text-base" :disabled="busy || restoring" @click="loadSample"><Sparkles />{{ t('home.openSample') }}</Button>
         <input ref="fileInput" type="file" class="hidden" :accept="GAME_FILE_ACCEPT" @change="onFile" />
       </div>
     </header>

@@ -13,7 +13,8 @@ import { playerColor } from '@/play/palette'
 import { useRemaining } from '@/play/timer'
 import { HOST_PING_MS, openPlayChannel, type HostCommand, type PlayChannel } from '@/play/channel'
 import type { MediaAction, MediaStatus } from '@/play/mediaControl'
-import { buzzWindow, buzzWinner, type LanStatus } from '@/play/lan'
+import { buzzable, buzzWindow, buzzWinner, type LanStatus } from '@/play/lan'
+import { prefs } from '@/prefs'
 import BoardGrid from '@/components/play/BoardGrid.vue'
 import AnimatedNumber from '@/components/play/AnimatedNumber.vue'
 import AuctionPanel from '@/components/play/AuctionPanel.vue'
@@ -39,8 +40,8 @@ const { state, players, round, activeQuestion, activeValue, canUndo } = mirror
 const mediaStatus = ref<Record<string, MediaStatus>>({})
 /** The stage's phone buzzers; null while they are off. */
 const lan = ref<LanStatus | null>(null)
-const showBuzz = computed(() => !!lan.value && buzzWindow(state) !== null)
-const buzzedId = computed(() => (lan.value && showBuzz.value ? buzzWinner(lan.value) : undefined))
+const showBuzz = computed(() => !!lan.value && buzzable(state))
+const buzzedId = computed(() => (lan.value && buzzWindow(state) !== null ? buzzWinner(lan.value) : undefined))
 
 const phaseLabel = computed<Record<Phase, string>>(() => ({
   title: t('host.phase.title'),
@@ -250,7 +251,16 @@ onUnmounted(() => {
             @give="(id) => send('giveCat', id)"
           />
           <template v-else-if="state.phase === 'question'">
-            <BuzzPanel v-if="showBuzz && lan" :players="players" :status="lan" :value="activeValue" @reopen="(wrong) => send('buzzReopen', wrong)" />
+            <BuzzPanel
+              v-if="showBuzz && lan"
+              :players="players"
+              :status="lan"
+              :value="activeValue"
+              :armed="state.buzzArmed"
+              :penalty="prefs.wrongPenalty"
+              @reopen="(wrong) => send('buzzReopen', wrong)"
+              @open="send('openBuzz')"
+            />
             <Button size="lg" class="big self-center" @click="send('advance')">
               {{ t('host.showAnswer') }}
             </Button>

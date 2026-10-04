@@ -1,6 +1,7 @@
 import { ref, watch, type Ref } from 'vue'
 import type { Phase } from '@/composables/usePlaySession'
 import type { Player } from '@/types'
+import { prefs } from '@/prefs'
 import roundUrl from '@/assets/sounds/round.mp3'
 import pickUrl from '@/assets/sounds/pick.mp3'
 import specialUrl from '@/assets/sounds/special.mp3'
@@ -161,14 +162,14 @@ export function useStageSounds(phase: () => Phase, players: Ref<Player[]>): void
   )
 }
 
-/** Ticks through the last seconds of the answer clock and rings when it runs out. */
+/** Ticks through the last seconds of the answer clock, unless turned off, and rings when it runs out. */
 export function useTimerSounds(remainingMs: Ref<number>, running: () => boolean): void {
   watch(
     () => Math.ceil(remainingMs.value / 1000),
     (sec, before) => {
       if (!running() || sec >= before) return
       if (sec === 0) playSound('timeup')
-      else if (sec <= TICK_FROM) playSound('tick')
+      else if (sec <= TICK_FROM && prefs.tickSound) playSound('tick')
     },
   )
 }

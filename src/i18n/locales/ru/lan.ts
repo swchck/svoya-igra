@@ -37,6 +37,10 @@ export default {
     nobody: 'Пока никто не нажал.',
     wrong: 'Неверно (−{value}), открыть снова',
     reopen: 'Открыть снова',
+    wrongFree: 'Неверно, открыть снова',
+    openNow: 'Открыть кнопки',
+    openHint: 'Или клавиша B на сцене',
+    held: 'Ждут ведущего',
     excluded: 'Уже отвечали: {names}',
   },
   final: {
