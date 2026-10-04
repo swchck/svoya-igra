@@ -18,7 +18,7 @@ export interface LanInfo {
   code: string
 }
 
-export type BuzzState = 'closed' | 'open' | 'locked'
+type BuzzState = 'closed' | 'open' | 'locked'
 
 /** What the server reports about the phones in the room. */
 export interface LanStatus {
@@ -53,10 +53,10 @@ export interface LanPick {
   questionId: string
 }
 
-export type FinalMode = 'bet' | 'answer'
+type FinalMode = 'bet' | 'answer'
 
 /** The board as phones see it while the chooser picks. */
-export interface LanBoard {
+interface LanBoard {
   round: string
   themes: { name: string; questions: { id: string; value: number; played: boolean }[] }[]
 }

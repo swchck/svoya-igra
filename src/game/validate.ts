@@ -4,9 +4,9 @@ import { getMedia } from '../media/store'
 import { mediaItems } from './model'
 import { parseYoutubeUrl } from './youtube'
 
-export type IssueSeverity = 'error' | 'warning'
+type IssueSeverity = 'error' | 'warning'
 
-export type IssueCode =
+type IssueCode =
   | 'empty-round'
   | 'empty-theme-name'
   | 'empty-question'

@@ -1,5 +1,5 @@
 /** URL scheme for attachments kept in the media store: media://<id>. */
-export const MEDIA_PROTO = 'media://'
+const MEDIA_PROTO = 'media://'
 
 export function isStoredMedia(url: string): boolean {
   return url.startsWith(MEDIA_PROTO)

@@ -3,7 +3,7 @@ import { uid } from '../game/model'
 import { isStoredMedia, mediaId, mediaRef } from './ref'
 
 /** A stored attachment. */
-export interface MediaRecord {
+interface MediaRecord {
   id: string
   blob: Blob
 }

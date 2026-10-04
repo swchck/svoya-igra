@@ -75,7 +75,7 @@ export interface LatestRelease {
 /** The latest published release, null before the first one, undefined while loading or unknown. */
 export const latestRelease = ref<LatestRelease | null | undefined>(undefined)
 /** True when GitHub could not be asked (rate limit, offline): links are offered blind. */
-export const releaseUnknown = ref(false)
+const releaseUnknown = ref(false)
 
 export async function loadLatestRelease(): Promise<void> {
   try {

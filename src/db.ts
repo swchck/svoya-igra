@@ -6,7 +6,7 @@ import { migrateInlineMedia } from './media/migrate'
 
 const DB_NAME = 'svoya-igra'
 const DB_VERSION = 3
-export const STORE_GAMES = 'games'
+const STORE_GAMES = 'games'
 export const STORE_MEDIA = 'media'
 export const STORE_SNAPSHOTS = 'snapshots'
 export const SNAPSHOT_BY_GAME = 'gameId'

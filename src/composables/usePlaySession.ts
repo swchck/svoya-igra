@@ -21,7 +21,7 @@ export type Phase =
   | 'results'
 
 /** One player answers for a fixed amount: the auction winner or the cat's recipient. */
-export interface Stake {
+interface Stake {
   playerId: string
   amount: number
 }

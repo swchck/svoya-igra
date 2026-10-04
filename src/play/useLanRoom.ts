@@ -138,5 +138,3 @@ export function useLanRoom(session: PlaySession, title: () => string, pick: (que
 
   return { info, status, starting, winnerId, phones, start, stop, reopen }
 }
-
-export type LanRoom = ReturnType<typeof useLanRoom>

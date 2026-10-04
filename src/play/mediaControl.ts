@@ -9,7 +9,7 @@ export interface MediaStatus {
   blocked: boolean
 }
 
-export interface MediaHandle {
+interface MediaHandle {
   run(action: MediaAction): void
 }
 
