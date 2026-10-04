@@ -94,7 +94,8 @@ watch(
   display: flex;
   justify-content: center;
   gap: clamp(10px, 1.6vw, 24px);
-  padding: 0 clamp(12px, 2vw, 32px) clamp(10px, 1.6vh, 20px);
+  /* the tags, crown and a buzzed desk's lift all rise above the desks; keep them off the board */
+  padding: clamp(22px, 3.4vh, 34px) clamp(12px, 2vw, 32px) clamp(10px, 1.6vh, 20px);
 }
 .desk {
   position: relative;
