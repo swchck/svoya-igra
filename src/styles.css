@@ -163,6 +163,11 @@
   }
 }
 
+/* sonner's rich success green is 4.25:1 on its own background; darker passes WCAG AA */
+[data-sonner-toaster] {
+  --success-text: hsl(140, 100%, 22%);
+}
+
 :root {
   /* room for the macOS traffic lights drawn over the page */
   --titlebar-inset: 0px;
