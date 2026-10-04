@@ -22,12 +22,17 @@ const EVICT_AFTER: Duration = Duration::from_secs(120);
 const MAX_CODE_FAILURES: u32 = 30;
 
 /// One competitor as the stage sees them.
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Deserialize, Serialize)]
 pub struct RosterEntry {
     pub id: String,
     pub name: String,
     #[serde(default)]
     pub score: i64,
+    /// A CSS color the phone draws the seat in; empty lets the phone choose.
+    #[serde(default)]
+    pub color: String,
+    #[serde(default)]
+    pub avatar: Option<String>,
 }
 
 /// What the final round asks of phones.
@@ -242,6 +247,8 @@ pub struct SeatView {
     pub name: String,
     pub score: i64,
     pub phones: u32,
+    pub color: String,
+    pub avatar: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -487,7 +494,7 @@ impl Room {
             return Err(Reject::JoinClosed);
         }
         self.bind(token, new_id.clone(), now)?;
-        self.pending.push(RosterEntry { id: new_id.clone(), name: name.clone(), score: 0 });
+        self.pending.push(RosterEntry { id: new_id.clone(), name: name.clone(), ..RosterEntry::default() });
         Ok(Some(NewPlayer { player_id: new_id, name }))
     }
 
@@ -701,6 +708,8 @@ impl Room {
                     name: p.name.clone(),
                     score: p.score,
                     phones: phones.get(&p.id).copied().unwrap_or(0),
+                    color: p.color.clone(),
+                    avatar: p.avatar.clone(),
                 })
                 .collect(),
             reset: token.is_some_and(|t| !t.is_empty()) && client.is_none(),
@@ -730,9 +739,9 @@ mod tests {
 
     fn roster() -> Vec<RosterEntry> {
         vec![
-            RosterEntry { id: "a".into(), name: "Аня".into(), score: 300 },
-            RosterEntry { id: "b".into(), name: "Боря".into(), score: 0 },
-            RosterEntry { id: "c".into(), name: "Вера".into(), score: -100 },
+            RosterEntry { id: "a".into(), name: "Аня".into(), score: 300, ..RosterEntry::default() },
+            RosterEntry { id: "b".into(), name: "Боря".into(), score: 0, ..RosterEntry::default() },
+            RosterEntry { id: "c".into(), name: "Вера".into(), score: -100, ..RosterEntry::default() },
         ]
     }
 
@@ -889,7 +898,7 @@ mod tests {
         room.set_stage(StageInfo { roster: roster(), allow_join: true, ..StageInfo::default() });
         assert_eq!(room.view(Some("t2"), now).me.unwrap().name, "Гоша");
         let mut with_new = roster();
-        with_new.push(RosterEntry { id: "new2".into(), name: "Гоша".into(), score: 0 });
+        with_new.push(RosterEntry { id: "new2".into(), name: "Гоша".into(), score: 0, ..RosterEntry::default() });
         room.set_stage(StageInfo { roster: with_new, allow_join: true, ..StageInfo::default() });
         assert_eq!(room.view(Some("t2"), now).roster.len(), 4);
         // now the stage removes them: the phone goes back to picking a seat
@@ -986,6 +995,22 @@ mod tests {
         assert!(!room.view(Some("ta"), now).vibrate);
         let unsaid: StageInfo = serde_json::from_value(serde_json::json!({ "roster": [] })).unwrap();
         assert!(unsaid.vibrate);
+    }
+
+    #[test]
+    fn passes_seat_colors_and_avatars_to_phones() {
+        let (mut room, now) = room();
+        let info: StageInfo = serde_json::from_value(serde_json::json!({
+            "roster": [
+                { "id": "a", "name": "Аня", "score": 300, "color": "oklch(0.74 0.16 25)", "avatar": "🦊" },
+                { "id": "b", "name": "Боря" }
+            ]
+        }))
+        .unwrap();
+        room.set_stage(info);
+        let roster = room.view(None, now).roster;
+        assert_eq!((roster[0].color.as_str(), roster[0].avatar.as_deref()), ("oklch(0.74 0.16 25)", Some("🦊")));
+        assert_eq!((roster[1].color.as_str(), roster[1].avatar.as_deref()), ("", None), "older stages send neither");
     }
 
     #[test]

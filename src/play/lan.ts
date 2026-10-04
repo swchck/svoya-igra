@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core'
 import type { SessionSnapshot } from '@/composables/usePlaySession'
 import type { Round } from '@/types'
 import { isDesktop } from '@/platform'
+import { playerColor } from './palette'
 
 /*
  * Phones as buzzers over the local network, served by the desktop shell. The web build
@@ -63,7 +64,8 @@ export interface LanBoard {
 /** What the stage tells the phones. */
 export interface LanStageInfo {
   title: string
-  roster: { id: string; name: string; score: number }[]
+  /** `color` is a CSS color for the phone to draw the seat in. */
+  roster: { id: string; name: string; score: number; color: string; avatar: string | null }[]
   /** Phones may add players by name; only while players are being set up. */
   allowJoin: boolean
   teams: boolean
@@ -92,7 +94,13 @@ export function stageInfo(
     snapshot.phase === 'final-bets' ? 'bet' : snapshot.phase === 'final-question' ? 'answer' : null
   return {
     title,
-    roster: snapshot.players.map((p) => ({ id: p.id, name: p.name, score: p.score })),
+    roster: snapshot.players.map((p, i) => ({
+      id: p.id,
+      name: p.name,
+      score: p.score,
+      color: playerColor(p, i),
+      avatar: p.avatar ?? null,
+    })),
     allowJoin: snapshot.phase === 'title',
     teams: snapshot.teams,
     finalMode,

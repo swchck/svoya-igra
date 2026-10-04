@@ -7,11 +7,12 @@ vi.mock('@tauri-apps/api/core', () => ({ invoke: (...args: unknown[]) => invoke(
 vi.mock('@tauri-apps/api/event', () => ({ listen: (...args: unknown[]) => listen(...args) }))
 
 const lan = await import('./lan')
+const { PLAYER_COLORS } = await import('./palette')
 
 const players: Player[] = [
   { id: 'a', name: 'Аня', score: 300 },
-  { id: 'b', name: 'Боря', score: 0 },
-  { id: 'c', name: 'Вера', score: -100 },
+  { id: 'b', name: 'Боря', score: 0, avatar: '🦉' },
+  { id: 'c', name: 'Вера', score: -100, color: 'violet' },
 ]
 
 beforeEach(() => {
@@ -26,9 +27,9 @@ describe('stageInfo', () => {
     expect(lan.stageInfo({ ...base, phase: 'title' }, 'Quiz')).toEqual({
       title: 'Quiz',
       roster: [
-        { id: 'a', name: 'Аня', score: 300 },
-        { id: 'b', name: 'Боря', score: 0 },
-        { id: 'c', name: 'Вера', score: -100 },
+        { id: 'a', name: 'Аня', score: 300, color: PLAYER_COLORS[0].css, avatar: null },
+        { id: 'b', name: 'Боря', score: 0, color: PLAYER_COLORS[1].css, avatar: '🦉' },
+        { id: 'c', name: 'Вера', score: -100, color: PLAYER_COLORS[5].css, avatar: null },
       ],
       allowJoin: true,
       teams: false,

@@ -19,6 +19,15 @@ use tiny_http::{Header, Method, Request, Response, Server, StatusCode};
 use super::room::{CodeGuard, LanStatus, NewPlayer, Pick, Reject, Room};
 
 const PAGE: &str = include_str!("phone.html");
+/// The phone page's fonts, so it looks like the stage without reaching the internet.
+const FONTS: [(&str, &[u8]); 6] = [
+    ("/fonts/oswald-latin.woff2", include_bytes!("fonts/oswald-latin.woff2")),
+    ("/fonts/oswald-latin-ext.woff2", include_bytes!("fonts/oswald-latin-ext.woff2")),
+    ("/fonts/oswald-cyrillic.woff2", include_bytes!("fonts/oswald-cyrillic.woff2")),
+    ("/fonts/golos-latin.woff2", include_bytes!("fonts/golos-latin.woff2")),
+    ("/fonts/golos-latin-ext.woff2", include_bytes!("fonts/golos-latin-ext.woff2")),
+    ("/fonts/golos-cyrillic.woff2", include_bytes!("fonts/golos-cyrillic.woff2")),
+];
 const MAX_BODY: usize = 2048;
 const POLL_WAIT: Duration = Duration::from_secs(20);
 /// Requests parked on their own thread at once: long polls and file downloads.
@@ -185,10 +194,18 @@ fn page() -> Response<Cursor<Vec<u8>>> {
         .with_header(header(
             "Content-Security-Policy",
             "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; \
-             connect-src 'self'; img-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+             font-src 'self'; connect-src 'self'; img-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
         ))
         .with_header(header("Cache-Control", "no-store"))
         .with_header(header("Referrer-Policy", "no-referrer"))
+        .with_header(header("X-Content-Type-Options", "nosniff"))
+}
+
+/// A bundled font; fonts carry nothing private, so they need no room code.
+fn font(bytes: &'static [u8]) -> Response<Cursor<Vec<u8>>> {
+    Response::from_data(bytes)
+        .with_header(header("Content-Type", "font/woff2"))
+        .with_header(header("Cache-Control", "public, max-age=31536000, immutable"))
         .with_header(header("X-Content-Type-Options", "nosniff"))
 }
 
@@ -265,6 +282,12 @@ fn handle(shared: &Arc<Shared>, mut request: Request) {
 
     if path == "/" {
         let response = if method == Method::Get || method == Method::Head { page() } else { error(405, "method") };
+        let _ = request.respond(response);
+        return;
+    }
+
+    if let Some((_, bytes)) = FONTS.iter().find(|(route, _)| *route == path) {
+        let response = if method == Method::Get || method == Method::Head { font(bytes) } else { error(405, "method") };
         let _ = request.respond(response);
         return;
     }
@@ -521,8 +544,8 @@ mod tests {
             room.set_stage(StageInfo {
                 title: "Quiz".into(),
                 roster: vec![
-                    RosterEntry { id: "a".into(), name: "Аня".into(), score: 0 },
-                    RosterEntry { id: "b".into(), name: "Боря".into(), score: 0 },
+                    RosterEntry { id: "a".into(), name: "Аня".into(), color: "#f80".into(), ..RosterEntry::default() },
+                    RosterEntry { id: "b".into(), name: "Боря".into(), ..RosterEntry::default() },
                 ],
                 allow_join: true,
                 ..StageInfo::default()
@@ -532,6 +555,10 @@ mod tests {
         let page = http(port, "GET", "/", "");
         assert_eq!(page.status, 200);
         assert!(page.headers.to_lowercase().contains("content-security-policy"));
+        assert!(page.headers.contains("font-src 'self'"));
+        for (route, _) in FONTS {
+            assert!(page.body.contains(&format!("url({route})")), "the page uses {route}");
+        }
         assert!(page.body.contains("<html"));
 
         assert_eq!(http(port, "GET", "/etc/passwd", "").status, 404);
@@ -543,6 +570,7 @@ mod tests {
 
         let anon = json(&http(port, "GET", "/api/poll?r=4321&v=0", ""));
         assert_eq!(anon["roster"].as_array().unwrap().len(), 2);
+        assert_eq!(anon["roster"][0]["color"], "#f80");
         assert_eq!(anon["me"], serde_json::Value::Null);
 
         let a = json(&http(port, "POST", "/api/claim?r=4321", r#"{"playerId":"a"}"#));
@@ -592,6 +620,23 @@ mod tests {
         assert!(file.headers.contains("filename*=UTF-8''%D0%B8%D0%B3%D1%80%D0%B0.gamezip"));
         assert_eq!(file.body.as_bytes()[..4], *b"PK\x03\x04");
         assert_eq!(http(port, "GET", "/game.gamezip?r=1111", "").status, 403);
+    }
+
+    #[test]
+    fn serves_bundled_fonts_without_a_code() {
+        let server = start(&["127.0.0.1:0".parse().unwrap()], "4321".into(), |_| {}).unwrap();
+        for (route, bytes) in FONTS {
+            let reply = http(server.port, "GET", route, "");
+            assert_eq!(reply.status, 200, "{route}");
+            let headers = reply.headers.to_lowercase();
+            assert!(headers.contains("content-type: font/woff2"), "{route}: {headers}");
+            assert!(headers.contains("max-age=31536000"), "{route}");
+            assert_eq!(bytes[..4], *b"wOF2", "{route}");
+        }
+        for path in ["/fonts/", "/fonts/nope.woff2", "/fonts/../phone.html", "/fonts/oswald-latin.woff2/x", "/fonts/fonts/oswald-latin.woff2"] {
+            assert_eq!(http(server.port, "GET", path, "").status, 404, "{path}");
+        }
+        assert_eq!(http(server.port, "POST", "/fonts/golos-latin.woff2", "").status, 405);
     }
 
     #[test]
