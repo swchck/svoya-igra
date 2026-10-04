@@ -119,6 +119,7 @@ function dropOnTheme(index: number) {
           cat: q.kind === 'cat-in-bag',
           'drop-cell': over === q.id,
         }"
+        :data-tour="ti === 0 && i === 0 ? 'board-cell' : undefined"
         draggable="true"
         aria-haspopup="dialog"
         :aria-label="`${theme.name}, ${q.value}${isQuestionReady(q) ? '' : t('editor.board.notFilled')}`"

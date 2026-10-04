@@ -13,5 +13,6 @@ import prefs from './prefs'
 import prefsLibrary from './prefsLibrary'
 import prefsPlay from './prefsPlay'
 import prefsDisplay from './prefsDisplay'
+import tour from './tour'
 
-export default { common, home, system, editor, media, play, host, print, settings, pwa, lan, prefs, prefsLibrary, prefsPlay, prefsDisplay }
+export default { common, home, system, editor, media, play, host, print, settings, pwa, lan, prefs, prefsLibrary, prefsPlay, prefsDisplay, tour }

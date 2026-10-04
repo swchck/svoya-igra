@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { defineAsyncComponent, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
-import { Download, FileJson, MoreHorizontal, Package, Pencil, Play, Plus, Settings, Sparkles, Trash2, Upload, Wifi } from '@lucide/vue'
+import { CircleHelp, Download, FileJson, MoreHorizontal, Package, Pencil, Play, Plus, Settings, Sparkles, Trash2, Upload, Wifi } from '@lucide/vue'
 import type { Game } from '@/types'
 import { Button } from '@/components/ui/button'
 import {
@@ -20,6 +20,8 @@ import { makeEmptyGame, newGameSettings } from '@/game/model'
 import { prefs } from '@/prefs'
 import type { GameFileFormat } from '@/io/gameFile'
 import { GAME_FILE_ACCEPT, isBackupFileName } from '@/io/files'
+import { findSample, loadSample as importSample } from '@/io/sample'
+import { offerTour, startTour } from '@/tour/state'
 import { isDesktop, pickGameFile } from '@/platform'
 import StageBackdrop from '@/components/play/StageBackdrop.vue'
 import MiniBoard from '@/components/MiniBoard.vue'
@@ -35,8 +37,7 @@ const store = useGamesStore()
 const { busy: restoring, restore: restoreBackup } = useBackup()
 const fileInput = ref<HTMLInputElement | null>(null)
 const busy = ref(false)
-// the titles in assets/sample/content.mjs plus the pre-translation sample, so older copies get replaced
-const SAMPLE_TITLES = ['Пример: всего понемногу', 'Sample: a bit of everything', 'Primer: od svega po malo', 'Своя игра — 1996 и не только']
+const sampleId = computed(() => findSample(store.games)?.id)
 const version = ref('')
 const sharing = ref<Game | null>(null)
 const shareOpen = ref(false)
@@ -52,6 +53,7 @@ onMounted(async () => {
 
 onMounted(() => {
   store.pruneMedia().catch(() => {})
+  offerTour()
 })
 
 function failed(action: string, err: unknown) {
@@ -95,12 +97,8 @@ async function exportAs(g: Game, format: GameFileFormat) {
 async function loadSample() {
   busy.value = true
   try {
-    const previous = store.games.filter((g) => SAMPLE_TITLES.includes(g.title))
-    // save before removing: removal prunes media, and the new copy's files must be referenced by then
-    const { importSampleGame } = await gameFile()
-    await store.save(await importSampleGame())
-    for (const old of previous) await store.remove(old.id)
-    toast.success(t('home.toast.sampleLoaded'), previous.length ? { description: t('home.toast.sampleReplaced') } : undefined)
+    const { replaced } = await importSample(store)
+    toast.success(t('home.toast.sampleLoaded'), replaced ? { description: t('home.toast.sampleReplaced') } : undefined)
   } catch (err) {
     failed(t('home.toast.sampleFailed'), err)
   } finally {
@@ -164,12 +162,13 @@ function fmtDate(ts: number) {
   <StageBackdrop />
   <main class="home">
     <header class="hero" data-tauri-drag-region>
-      <div class="locale">
+      <div class="locale" data-tour="home-tools">
+        <Button variant="ghost" size="icon" :aria-label="t('tour.restart')" :title="t('tour.restart')" data-tour="help" @click="startTour()"><CircleHelp /></Button>
         <Button variant="ghost" size="icon" :aria-label="t('prefs.open')" :title="t('prefs.open')" @click="router.push({ name: 'settings' })"><Settings /></Button>
       </div>
       <h1 class="title-shine hero-title">{{ t('system.appName') }}</h1>
       <p class="hero-sub">{{ t('home.subtitle') }}</p>
-      <div class="actions">
+      <div class="actions" data-tour="home-actions">
         <Button size="lg" class="h-12 px-6 text-base" @click="createNew"><Plus />{{ t('home.newGame') }}</Button>
         <Button size="lg" variant="outline" class="h-12 px-6 text-base" :disabled="busy || restoring" @click="startImport"><Upload />{{ t('home.import') }}</Button>
         <Button size="lg" variant="ghost" class="h-12 px-6 text-base" :disabled="busy || restoring" @click="loadSample"><Sparkles />{{ t('home.openSample') }}</Button>
@@ -187,7 +186,7 @@ function fmtDate(ts: number) {
     </section>
 
     <TransitionGroup v-else name="list" tag="ul" class="games">
-      <li v-for="g in store.games" :key="g.id" class="game glass">
+      <li v-for="g in store.games" :key="g.id" class="game glass" :data-tour="g.id === sampleId ? 'game-card' : undefined">
         <button class="thumb" :aria-label="t('home.card.playNamed', { title: g.title || t('home.untitled') })" @click="router.push({ name: 'play', params: { id: g.id } })">
           <MiniBoard :round="g.rounds[0]" />
           <span class="thumb-play"><Play class="size-7 translate-x-0.5" /></span>
@@ -254,6 +253,8 @@ function fmtDate(ts: number) {
   position: absolute;
   top: 16px;
   right: 0;
+  display: flex;
+  gap: 4px;
 }
 .hero-title {
   margin: 0;

@@ -55,6 +55,7 @@ function onKeydown(e: KeyboardEvent) {
 <template>
   <Dialog v-model:open="open">
     <DialogContent
+      data-tour="q-dialog"
       class="h-[min(92dvh,920px)] max-h-[92dvh] gap-0 overflow-hidden p-0 sm:max-w-[min(1200px,94vw)]"
       @keydown="onKeydown"
       @open-auto-focus.prevent
@@ -70,7 +71,7 @@ function onKeydown(e: KeyboardEvent) {
       </header>
 
       <div class="body">
-        <div class="settings">
+        <div class="settings" data-tour="q-settings">
           <div class="kind-box">
             <div class="kinds" role="radiogroup" :aria-label="t('editor.dialog.kindLabel')">
               <button
@@ -113,8 +114,8 @@ function onKeydown(e: KeyboardEvent) {
         <div class="cols">
           <section class="col" :aria-label="t('editor.dialog.question')">
             <h3 class="col-title">{{ t('editor.dialog.question') }}</h3>
-            <MarkdownEditor v-model="question.text" :label="t('editor.dialog.question')" :placeholder="t('editor.dialog.questionPlaceholder')" />
-            <MediaList v-model="question.media" :label="t('editor.dialog.questionMedia')" />
+            <MarkdownEditor v-model="question.text" data-tour="q-text" :label="t('editor.dialog.question')" :placeholder="t('editor.dialog.questionPlaceholder')" />
+            <MediaList v-model="question.media" data-tour="q-media" :label="t('editor.dialog.questionMedia')" />
           </section>
           <section class="col answer" :aria-label="t('editor.dialog.answer')">
             <h3 class="col-title">{{ t('editor.dialog.answer') }}</h3>

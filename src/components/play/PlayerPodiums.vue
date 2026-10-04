@@ -75,7 +75,7 @@ watch(
       >
         <Crown v-if="p.id === leaderId" class="crown" :class="{ aside: p.id === buzzedId || p.id === chooserId }" :aria-label="t('play.podiums.leader')" />
         <span v-if="p.id === buzzedId" class="tag gold">{{ buzzedBy ? t('lan.answeringBy', { name: buzzedBy }) : t('lan.answering') }}</span>
-        <span v-else-if="p.id === chooserId" class="tag">{{ t('lan.chooses') }}</span>
+        <span v-else-if="p.id === chooserId" class="tag" data-tour="chooser">{{ t('lan.chooses') }}</span>
         <span class="name">
           <span v-if="p.avatar" class="avatar" aria-hidden="true">{{ p.avatar }}</span>{{ p.name }}
           <Smartphone v-if="phones?.[p.id]" class="phone" :aria-label="t('lan.phoneConnected')" />

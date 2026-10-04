@@ -44,7 +44,7 @@ async function pickLogo(e: Event) {
 <template>
   <Dialog>
     <DialogTrigger as-child>
-      <Button variant="secondary"><Settings />{{ t('settings.open') }}</Button>
+      <Button variant="secondary" data-tour="game-settings"><Settings />{{ t('settings.open') }}</Button>
     </DialogTrigger>
     <DialogContent class="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
       <DialogTitle>{{ t('settings.title') }}</DialogTitle>

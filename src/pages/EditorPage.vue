@@ -269,6 +269,7 @@ async function exportAs(format: GameFileFormat) {
       <button
         type="button"
         class="issues"
+        data-tour="issues"
         :class="errors ? 'error' : warnings ? 'warning' : 'clean'"
         :aria-label="issues.length ? t('editor.page.issuesBadge', { summary: issueSummary() }) : t('editor.page.issuesClean')"
         @click="issuesOpen = true"
@@ -276,11 +277,11 @@ async function exportAs(format: GameFileFormat) {
         <CircleAlert v-if="errors" class="size-4" /><TriangleAlert v-else-if="warnings" class="size-4" /><CircleCheck v-else class="size-4" />
         <span v-if="issues.length" class="tabular-nums">{{ issues.length }}</span>
       </button>
-      <Button variant="ghost" :aria-label="t('editor.page.history')" :title="t('editor.page.history')" @click="historyOpen = true"><History /><span class="lbl">{{ t('editor.page.history') }}</span></Button>
+      <Button variant="ghost" data-tour="history" :aria-label="t('editor.page.history')" :title="t('editor.page.history')" @click="historyOpen = true"><History /><span class="lbl">{{ t('editor.page.history') }}</span></Button>
       <GameSettingsDialog v-model="game.settings" />
       <DropdownMenu>
         <DropdownMenuTrigger as-child>
-          <Button variant="secondary" :disabled="exporting">
+          <Button variant="secondary" data-tour="export" :disabled="exporting">
             <Loader2 v-if="exporting" class="animate-spin" /><Download v-else /><span class="lbl">{{ t('editor.page.export') }}</span>
           </Button>
         </DropdownMenuTrigger>
@@ -292,11 +293,11 @@ async function exportAs(format: GameFileFormat) {
           <DropdownMenuItem @select="router.push({ name: 'print', params: { id: game.id } })"><Printer />{{ t('editor.page.cheatSheet') }}</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <Button size="lg" @click="play"><Play />{{ t('editor.page.play') }}</Button>
+      <Button size="lg" data-tour="play" @click="play"><Play />{{ t('editor.page.play') }}</Button>
     </header>
 
     <div class="body">
-      <RoundStrip v-model="tab" :rounds="game.rounds" :final="game.finalRound" @add="addRound" @reorder="reorderRound" />
+      <RoundStrip v-model="tab" data-tour="rounds" :rounds="game.rounds" :final="game.finalRound" @add="addRound" @reorder="reorderRound" />
 
       <template v-if="round">
         <section class="board-pane">

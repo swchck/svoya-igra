@@ -20,6 +20,7 @@ import { buzzable, lanAvailable, phonesPreferred, setPhonesPreferred } from '@/p
 import { prefs } from '@/prefs'
 import { useLanRoom } from '@/play/useLanRoom'
 import { useRemaining } from '@/play/timer'
+import { tour } from '@/tour/state'
 import SoundToggle from '@/components/SoundToggle.vue'
 import StageBackdrop from './StageBackdrop.vue'
 import StageLogo from './StageLogo.vue'
@@ -68,7 +69,8 @@ async function startPhones(): Promise<boolean> {
   }
 }
 
-const usePhones = ref(lanAvailable && phonesPreferred())
+// the tour starts the game itself, and must not bring up the phone lobby on the way
+const usePhones = ref(lanAvailable && phonesPreferred() && !tour.active)
 watch(usePhones, (on) => {
   setPhonesPreferred(on)
   if (!on) lan.stop()
@@ -302,7 +304,7 @@ onUnmounted(() => {
       <Button v-if="(lanInfo || usePhones) && state.phase !== 'title'" variant="ghost" @click="phonesOpen = true">
         <Smartphone />{{ t('lan.phones') }}<span v-if="lanInfo" class="phone-count">{{ phoneCount }}</span>
       </Button>
-      <Button variant="ghost" @click="openHostWindow(game.id, game.title)"><MonitorSmartphone />{{ t('play.stage.hostWindow') }}</Button>
+      <Button variant="ghost" data-tour="host-window" @click="openHostWindow(game.id, game.title)"><MonitorSmartphone />{{ t('play.stage.hostWindow') }}</Button>
       <Button variant="ghost" @click="toggleFullscreen">
         <template v-if="isFullscreen"><Minimize />{{ t('play.stage.exitFullscreen') }}</template>
         <template v-else><Maximize />{{ t('play.stage.fullscreen') }}</template>
@@ -321,15 +323,15 @@ onUnmounted(() => {
           <h1 class="title-shine game-title">{{ game.title || t('play.stage.defaultTitle') }}</h1>
           <p v-if="game.subtitle" class="subtitle">{{ game.subtitle }}</p>
           <p v-if="settings?.introText" class="intro-text">{{ settings.introText }}</p>
-          <PlayerSetup v-model="players" :teams="state.teams" :phones="phones" @update:teams="session.setTeams" @add="session.addPlayer()" @remove="(p) => session.removePlayer(p.id)">
+          <PlayerSetup v-model="players" data-tour="players" :teams="state.teams" :phones="phones" @update:teams="session.setTeams" @add="session.addPlayer()" @remove="(p) => session.removePlayer(p.id)">
             <template v-if="lanAvailable" #footer>
-              <label class="phones-toggle" :title="t('lan.toggleHint')">
+              <label class="phones-toggle" data-tour="phones-toggle" :title="t('lan.toggleHint')">
                 <input v-model="usePhones" type="checkbox" />
                 <Smartphone class="size-4" />{{ t('lan.usePhones') }}
               </label>
             </template>
           </PlayerSetup>
-          <Button size="lg" class="start" @click="begin">{{ t('play.stage.start') }}</Button>
+          <Button size="lg" class="start" data-tour="stage-start" @click="begin">{{ t('play.stage.start') }}</Button>
         </section>
 
         <LanLobby
@@ -347,6 +349,7 @@ onUnmounted(() => {
         <IntroSlide
           v-else-if="state.phase === 'round-intro'"
           :key="sceneKey"
+          data-tour="intro"
           :title="round?.name ?? ''"
           :themes="round?.themes.map((t) => t.name)"
           :hint="t('play.stage.hintToBoard')"
@@ -354,8 +357,8 @@ onUnmounted(() => {
         />
 
         <section v-else-if="state.phase === 'board' && round" :key="sceneKey" class="board-scene">
-          <BoardGrid :round="round" :played="state.played" :cascade="cascadeBoard" @pick="(q) => pick(q.id)" />
-          <div v-if="!hostConnected" class="board-actions">
+          <BoardGrid data-tour="board-grid" :round="round" :played="state.played" :cascade="cascadeBoard" @pick="(q) => pick(q.id)" />
+          <div v-if="!hostConnected" class="board-actions" data-tour="board-actions">
             <Button v-if="session.canUndo.value" variant="ghost" @click="session.undo"><Undo2 />{{ t('play.stage.undo') }}</Button>
             <Button variant="ghost" @click="skipRound">{{ t('play.stage.skipRound') }}<SkipForward /></Button>
           </div>
@@ -529,6 +532,10 @@ onUnmounted(() => {
 }
 .chrome-hidden .chrome {
   opacity: 0;
+}
+/* the tour points at the top bar's buttons, so it stays put */
+:global(html[data-touring]) .chrome-hidden .chrome {
+  opacity: 1;
 }
 /* !important: cells and buttons inside set their own pointer cursor */
 .cursor-hidden,
