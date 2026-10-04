@@ -473,6 +473,30 @@ describe('house rules', () => {
     expect(s.state.stats[p1.id]).toMatchObject({ wrong: 1, lost: 0 })
   })
 
+  it('counts points given mid-question and wrong buzzes as answers, and undoes them', () => {
+    const { s, q, players } = play({ wrongPenalty: false })
+    const [p1, p2] = players
+    s.pick(q.id)
+    s.answerWrong(p1.id)
+    expect(p1.score).toBe(0)
+    expect(s.state.stats[p1.id]).toMatchObject({ wrong: 1, lost: 0 })
+    s.adjustScore(p2.id, q.value)
+    expect(s.state.stats[p2.id]).toMatchObject({ correct: 1, won: q.value })
+    expect(s.state.chooserId).toBe(p2.id)
+    s.undo()
+    expect(s.state.stats[p2.id]).toBeUndefined()
+    s.undo()
+    expect(s.state.stats[p1.id]).toBeUndefined()
+  })
+
+  it('keeps the last player and their turn', () => {
+    const { s, players } = play({ firstChooser: 'first' })
+    s.removePlayer(players[1].id)
+    s.removePlayer(players[0].id)
+    expect(s.players.value).toHaveLength(1)
+    expect(s.state.chooserId).toBe(players[0].id)
+  })
+
   it('picks who opens the game by the rules', () => {
     const first = play({ firstChooser: 'first' })
     expect(first.s.state.chooserId).toBe(first.players[0].id)

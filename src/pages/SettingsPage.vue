@@ -151,13 +151,14 @@ function back() {
   margin: 0 auto;
   padding: 12px 20px 24px;
 }
-.section {
+/* the section look is shared with the Settings* sections rendered inside */
+.sections :deep(.section) {
   display: grid;
   gap: 14px;
   padding: 20px 22px;
   border-radius: 20px;
 }
-.section-title {
+.sections :deep(.section-title) {
   margin: 0;
   font-family: var(--font-display);
   font-size: 20px;
@@ -165,19 +166,20 @@ function back() {
   text-transform: uppercase;
   color: var(--gold);
 }
-.hint {
+.sections :deep(.hint) {
   margin: -6px 0 0;
   font-size: 14px;
   color: var(--muted-foreground);
 }
-.toggle {
+.sections :deep(.toggle) {
   display: inline-flex;
   align-items: center;
   gap: 10px;
   font-size: 15px;
   cursor: pointer;
 }
-.toggle input {
+.sections :deep(.toggle input) {
+  flex: none;
   width: 18px;
   height: 18px;
   accent-color: var(--gold);

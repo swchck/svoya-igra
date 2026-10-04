@@ -110,25 +110,6 @@ async function identify(s: Screen, index: number) {
 </template>
 
 <style scoped>
-.section {
-  display: grid;
-  gap: 14px;
-  padding: 20px 22px;
-  border-radius: 20px;
-}
-.section-title {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 20px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--gold);
-}
-.hint {
-  margin: -6px 0 0;
-  font-size: 14px;
-  color: var(--muted-foreground);
-}
 .hint.single {
   margin: 0;
   display: flex;
@@ -139,18 +120,6 @@ async function identify(s: Screen, index: number) {
   flex: none;
   width: 16px;
   height: 16px;
-}
-.toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 15px;
-  cursor: pointer;
-}
-.toggle input {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--gold);
 }
 .choices {
   display: grid;

@@ -85,14 +85,14 @@ export function useLanRoom(session: PlaySession, title: () => string, pick: (que
     if (info.value || starting.value) return
     starting.value = true
     try {
-      unlisten = [
-        await onLanStatus(onStatus),
-        await onLanJoin((j) => session.addPlayer({ id: j.playerId, name: j.name })),
+      unlisten.push(await onLanStatus(onStatus))
+      unlisten.push(await onLanJoin((j) => session.addPlayer({ id: j.playerId, name: j.name })))
+      unlisten.push(
         await onLanPick((p) => {
           // the phone saw an older board if the turn has already moved on
           if (state.phase === 'board' && state.chooserId === p.playerId) pick(p.questionId)
         }),
-      ]
+      )
       info.value = await startLan(prefs.fixedRoomCode ? fixedRoomCode() : null)
       lastSync = ''
       sync()
@@ -124,7 +124,7 @@ export function useLanRoom(session: PlaySession, title: () => string, pick: (que
   function reopen(wrong: boolean) {
     if (!info.value) return
     const winner = winnerId.value
-    if (wrong && winner && prefs.wrongPenalty) session.adjustScore(winner, -session.activeValue.value)
+    if (wrong && winner) session.answerWrong(winner)
     quietly(reopenBuzz(wrong))
   }
 

@@ -72,7 +72,14 @@ interface TurnState {
 
 export type HistoryEntry =
   | { kind: 'turn'; before: TurnState }
-  | { kind: 'adjust'; playerId: string; delta: number; chooserId?: string | null }
+  | {
+      kind: 'adjust'
+      playerId: string
+      delta: number
+      chooserId?: string | null
+      /** The player's stats before, when the change counted as an answer; null if they had none. */
+      stats?: PlayerStats | null
+    }
 
 const MAX_HISTORY = 30
 
@@ -387,13 +394,28 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
     return true
   }
 
+  const answering = () => !!activeQuestion.value && ['question', 'answer'].includes(state.phase)
+
+  function scoreAnswer(p: Player, sign: Sign, points: number) {
+    record({ kind: 'adjust', playerId: p.id, delta: sign * points, chooserId: state.chooserId, stats: plainCopy(state.stats[p.id] ?? null) })
+    p.score += sign * points
+    recordAnswer(p.id, sign, points)
+    if (sign === 1) state.chooserId = p.id
+  }
+
   function adjustScore(playerId: string, delta: number) {
     const p = player(playerId)
     if (!p || !Number.isFinite(delta) || delta === 0) return
-    record({ kind: 'adjust', playerId, delta, chooserId: state.chooserId })
+    // points handed out while a question is open are a verdict on that player's answer
+    if (answering()) return scoreAnswer(p, delta > 0 ? 1 : -1, Math.abs(delta))
+    record({ kind: 'adjust', playerId, delta })
     p.score += delta
-    // points handed out while a question is open mean that player got it right
-    if (delta > 0 && activeQuestion.value && ['question', 'answer'].includes(state.phase)) state.chooserId = playerId
+  }
+
+  /** Marks a wrong answer while the question stays open, charging for it if the rules say so. */
+  function answerWrong(playerId: string) {
+    const p = player(playerId)
+    if (p && answering()) scoreAnswer(p, -1, rules().wrongPenalty ? activeValue.value : 0)
   }
 
   /** Takes back the last scoring action, with the board state it changed. */
@@ -404,6 +426,8 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
       const p = player(entry.playerId)
       if (p) p.score -= entry.delta
       if (entry.chooserId !== undefined) state.chooserId = entry.chooserId
+      if (entry.stats === null) delete state.stats[entry.playerId]
+      else if (entry.stats) state.stats[entry.playerId] = entry.stats
       return true
     }
     const { scores, ...before } = plainCopy(entry.before)
@@ -429,7 +453,8 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
   }
 
   function removePlayer(playerId: string) {
-    if (players.value.length > 1) players.value = players.value.filter((x) => x.id !== playerId)
+    if (players.value.length <= 1) return
+    players.value = players.value.filter((x) => x.id !== playerId)
     if (state.chooserId === playerId) state.chooserId = null
   }
 
@@ -455,6 +480,7 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
     setFinalVerdict,
     scoreFinal,
     adjustScore,
+    answerWrong,
     setChooser,
     undo,
     setTeams,

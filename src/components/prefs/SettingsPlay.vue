@@ -160,39 +160,6 @@ function setMediaVolume(v: number[] | undefined) {
 </template>
 
 <style scoped>
-/* SettingsPage's section look; its scoped styles don't reach this component */
-.section {
-  display: grid;
-  gap: 14px;
-  padding: 20px 22px;
-  border-radius: 20px;
-}
-.section-title {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 20px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--gold);
-}
-.hint {
-  margin: -6px 0 0;
-  font-size: 14px;
-  color: var(--muted-foreground);
-}
-.toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 15px;
-  cursor: pointer;
-}
-.toggle input {
-  flex: none;
-  width: 18px;
-  height: 18px;
-  accent-color: var(--gold);
-}
 .field {
   display: grid;
   gap: 8px;
