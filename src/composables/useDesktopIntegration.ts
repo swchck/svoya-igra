@@ -16,7 +16,7 @@ export function useDesktopIntegration() {
 
   async function importOpened(files: File[]) {
     // someone who opened a game file has come for that game, not for a tour
-    endTour()
+    endTour('home')
     const { importGameFile } = await import('@/io/gameFile')
     for (const file of files) {
       try {

@@ -1,8 +1,6 @@
 import { computed, shallowRef, ref } from 'vue'
 import { findVisible, targetSelector, waitFor, waitGone } from './dom'
-
-/** The pages a tour walks through. */
-export type Page = 'home' | 'editor' | 'play'
+import type { DemoPhase } from './state'
 
 /** A piece of UI a step needs on screen, such as a dialog; selectors, not target ids. */
 export interface Scene {
@@ -17,35 +15,30 @@ export interface Scene {
 /** One card of the tour. */
 export interface TourStep {
   id: string
-  page: Page
   /** `data-tour` ids to spotlight; without one the card sits in the middle. */
   target?: string | string[]
   scene?: string
   /** The step waits for a click on the target; "next" gets there as well. */
   click?: boolean
-  /** Needs the sample game in the library. */
-  game?: boolean
+  /** What the host console pretends is going on while the step shows. */
+  demo?: DemoPhase
+  /** Only part of the tour when it is offered as an invitation. */
+  invite?: boolean
+  /** How long to wait for the target, in ms; a short one for UI that is often simply absent. */
+  wait?: number
   desktopOnly?: boolean
   /** Going back here is impossible: the session has moved on. */
   noBack?: boolean
 }
 
-/** What the tour needs from the app around it. */
-export interface TourHost {
-  page(): Page | null
-  /** Navigates; false when the page cannot be shown and its steps should be skipped. */
-  goTo(page: Page): Promise<boolean>
-  /** Makes sure the sample game exists; false when it cannot be had. */
-  ensureGame(): Promise<boolean>
-  /** Leaves the tour's last page behind. */
-  finish(): Promise<void>
-}
-
 export interface TourOptions {
   steps: TourStep[]
   scenes: Record<string, Scene>
-  host: TourHost
   desktop: boolean
+  /** The tour was offered as an invitation, so it opens with its invitation card. */
+  invited?: boolean
+  /** Called before each step is prepared. */
+  onStep?(step: TourStep): void
   /** Called once when the tour ends, finished or not. */
   onEnd(): void
   /** How long to wait for a target to render, in ms. */
@@ -54,9 +47,9 @@ export interface TourOptions {
 
 const CLICK_ADVANCE_MS = 200
 
-/** Drives the tour: which step is showing, moving between pages and scenes, skipping what is missing. */
-export function createTour({ steps: all, scenes, host, desktop, onEnd, waitMs = 3000 }: TourOptions) {
-  const steps = all.filter((s) => desktop || !s.desktopOnly)
+/** Drives the tour: which step is showing, opening scenes, skipping what is missing. */
+export function createTour({ steps: all, scenes, desktop, invited = false, onStep, onEnd, waitMs = 3000 }: TourOptions) {
+  const steps = all.filter((s) => (desktop || !s.desktopOnly) && (invited || !s.invite))
   const index = ref(0)
   const current = shallowRef<TourStep | null>(null)
   const busy = ref(false)
@@ -95,12 +88,11 @@ export function createTour({ steps: all, scenes, host, desktop, onEnd, waitMs = 
 
   // false when the step cannot be shown and should be skipped
   async function prepare(step: TourStep): Promise<boolean> {
-    if (host.page() !== step.page && !(await host.goTo(step.page))) return false
-    if (step.game && !(await host.ensureGame())) return false
+    onStep?.(step)
     if (!(await alignScene(step))) return false
     if (!step.target) return true
     const ids = [step.target].flat()
-    const found = await Promise.all(ids.map((id) => waitFor(targetSelector(id), waitMs)))
+    const found = await Promise.all(ids.map((id) => waitFor(targetSelector(id), step.wait ?? waitMs)))
     return found.some(Boolean)
   }
 
@@ -129,7 +121,7 @@ export function createTour({ steps: all, scenes, host, desktop, onEnd, waitMs = 
     }
     busy.value = false
     // nothing further to show: finish; nothing earlier: stay put on what was showing
-    if (direction === 1) await end()
+    if (direction === 1) end()
     else if (current.value) await show(index.value, 1)
   }
 
@@ -157,14 +149,13 @@ export function createTour({ steps: all, scenes, host, desktop, onEnd, waitMs = 
   }
 
   /** Ends the tour here. */
-  async function end() {
+  function end() {
     if (ended) return
     ended = true
     destroy()
     busy.value = false
     current.value = null
     onEnd()
-    await host.finish()
   }
 
   return { steps, index, current, busy, isLast, canBack, start, next, back, end, destroy }

@@ -7,6 +7,9 @@ import { Eye, Keyboard, Minus, Plus, SkipForward, Smartphone, Undo2 } from '@luc
 import type { Game, MediaItem } from '@/types'
 import { Button } from '@/components/ui/button'
 import { getGame } from '@/storage'
+import { useHostDemo } from '@/composables/useHostDemo'
+import { offerTour, tour } from '@/tour/state'
+import TourHelpButton from '@/tour/TourHelpButton.vue'
 import { usePlaySession, type Phase, type SessionSnapshot, type Sign } from '@/composables/usePlaySession'
 import { accentStyle } from '@/play/accents'
 import { playerColor } from '@/play/palette'
@@ -97,12 +100,22 @@ watch(buzzedId, (id) => {
   if (id) selectedId.value = id
 })
 
+function apply(snapshot: SessionSnapshot | null) {
+  connected.value = !!snapshot
+  if (!snapshot) return
+  const { players: snapshotPlayers, ...rest } = snapshot
+  Object.assign(state, rest)
+  players.value = snapshotPlayers
+}
+const demo = useHostDemo({ game, wanted: () => tour.demo, current: mirror.snapshot, apply })
+
 let channel: PlayChannel | null = null
+// nothing reaches the stage while the tour plays with made-up state
 function send(name: HostCommand, ...args: unknown[]) {
-  channel?.post({ type: 'command', name, args, phase: state.phase })
+  if (!demo.active.value) channel?.post({ type: 'command', name, args, phase: state.phase })
 }
 function mediaAction(id: string, action: MediaAction) {
-  channel?.post({ type: 'media-command', id, action })
+  if (!demo.active.value) channel?.post({ type: 'media-command', id, action })
 }
 
 /** Marks the target player right or wrong in whichever phase takes a verdict. */
@@ -145,12 +158,7 @@ function onKey(e: KeyboardEvent) {
   }
 }
 
-function apply(snapshot: SessionSnapshot) {
-  const { players: snapshotPlayers, ...rest } = snapshot
-  Object.assign(state, rest)
-  players.value = snapshotPlayers
-  connected.value = true
-}
+watch(connected, (on) => on && offerTour('host'))
 
 let pinger: ReturnType<typeof setInterval> | undefined
 onMounted(async () => {
@@ -161,7 +169,7 @@ onMounted(async () => {
     return
   }
   channel = await openPlayChannel(props.id, (m) => {
-    if (m.type === 'state') apply(m.snapshot)
+    if (m.type === 'state') demo.receive(m.snapshot)
     else if (m.type === 'media') mediaStatus.value = m.status
     else if (m.type === 'lan') lan.value = m.status
   })
@@ -181,12 +189,16 @@ onUnmounted(() => {
       <span class="brand">{{ t('host.brand') }}</span>
       <span class="game">{{ game.title }}</span>
       <span class="flex-1" data-tauri-drag-region />
-      <Button variant="ghost" size="icon" :aria-pressed="hintOpen" :aria-label="t('host.hotkeys.toggle')" :title="t('host.hotkeys.toggle')" @click="hintOpen = !hintOpen">
-        <Keyboard />
-      </Button>
-      <SoundToggle />
-      <span v-if="connected" class="phase"><span class="dot" />{{ phaseLabel[state.phase] }}</span>
-      <span v-else class="phase off">{{ t('host.offline') }}</span>
+      <div class="tools" data-tour="host-top">
+        <span v-if="demo.active.value" class="demo">{{ t('tour.demo') }}</span>
+        <TourHelpButton id="host" />
+        <Button variant="ghost" size="icon" :aria-pressed="hintOpen" :aria-label="t('host.hotkeys.toggle')" :title="t('host.hotkeys.toggle')" @click="hintOpen = !hintOpen">
+          <Keyboard />
+        </Button>
+        <SoundToggle />
+        <span v-if="connected" class="phase"><span class="dot" />{{ phaseLabel[state.phase] }}</span>
+        <span v-else class="phase off">{{ t('host.offline') }}</span>
+      </div>
     </header>
 
     <section v-if="!connected" class="glass panel empty">
@@ -206,7 +218,7 @@ onUnmounted(() => {
         </div>
 
         <div v-else-if="state.phase === 'board' && round" class="board-wrap">
-          <div class="chooser" role="group" :aria-label="t('lan.chooses')">
+          <div class="chooser" data-tour="host-chooser" role="group" :aria-label="t('lan.chooses')">
             <span class="muted">{{ t('lan.chooses') }}:</span>
             <button
               v-for="p in players"
@@ -223,7 +235,7 @@ onUnmounted(() => {
           <Button variant="ghost" class="self-center" @click="send('nextRound')">{{ t('host.skipRound') }}<SkipForward /></Button>
         </div>
 
-        <div v-else-if="activeQuestion && isQuestionPhase" class="question">
+        <div v-else-if="activeQuestion && isQuestionPhase" class="question" data-tour="host-question">
           <div class="plate">
             <span>{{ theme?.name }}</span>
             <span v-if="activeQuestion.kind === 'auction'" class="kind">{{ t('host.auction') }}</span>
@@ -236,7 +248,7 @@ onUnmounted(() => {
             <MarkdownView class="answer-text rich" :source="activeQuestion.answer" />
           </div>
           <HostMediaControls v-if="stageMedia.length" :items="stageMedia" :status="mediaStatus" @action="mediaAction" />
-          <HostTimer v-if="showTimer" :remaining-ms="remaining" :total-ms="answerMs" :running="timerRunning" @start="send('timerStart')" @pause="send('timerPause')" @reset="send('timerReset')" />
+          <HostTimer v-if="showTimer" data-tour="host-timer" :remaining-ms="remaining" :total-ms="answerMs" :running="timerRunning" @start="send('timerStart')" @pause="send('timerPause')" @reset="send('timerReset')" />
 
           <AuctionPanel
             v-if="state.phase === 'auction'"
@@ -253,6 +265,7 @@ onUnmounted(() => {
           <template v-else-if="state.phase === 'question'">
             <BuzzPanel
               v-if="showBuzz && lan"
+              data-tour="host-buzz"
               :players="players"
               :status="lan"
               :value="activeValue"
@@ -267,6 +280,7 @@ onUnmounted(() => {
           </template>
           <VerdictPanel
             v-else
+            data-tour="host-verdict"
             :players="players"
             :value="activeValue"
             :only-player-id="state.stake?.playerId"
@@ -321,7 +335,7 @@ onUnmounted(() => {
         </div>
       </section>
 
-      <aside class="glass panel scores" :aria-label="t('host.score')">
+      <aside class="glass panel scores" data-tour="host-scores" :aria-label="t('host.score')">
         <div class="aside-head">
           <h2 class="aside-title">{{ state.teams ? t('host.teamsScore') : t('host.score') }}</h2>
           <Button variant="ghost" size="sm" :disabled="!canUndo" :title="t('host.undoHint')" @click="send('undo')"><Undo2 />{{ t('host.undo') }}</Button>
@@ -390,6 +404,20 @@ onUnmounted(() => {
 }
 .game {
   color: var(--muted-foreground);
+}
+.tools {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.demo {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--gold);
+  color: var(--night);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
 }
 .phase {
   display: inline-flex;
@@ -462,7 +490,7 @@ onUnmounted(() => {
   gap: 8px;
   min-height: 0;
 }
-.board-wrap > :first-child {
+.board-wrap > :nth-child(2) {
   flex: 1;
   min-height: 300px;
 }

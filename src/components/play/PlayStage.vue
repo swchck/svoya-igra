@@ -20,7 +20,8 @@ import { buzzable, lanAvailable, phonesPreferred, setPhonesPreferred } from '@/p
 import { prefs } from '@/prefs'
 import { useLanRoom } from '@/play/useLanRoom'
 import { useRemaining } from '@/play/timer'
-import { tour } from '@/tour/state'
+import { offerTour, tour } from '@/tour/state'
+import TourHelpButton from '@/tour/TourHelpButton.vue'
 import SoundToggle from '@/components/SoundToggle.vue'
 import StageBackdrop from './StageBackdrop.vue'
 import StageLogo from './StageLogo.vue'
@@ -69,8 +70,7 @@ async function startPhones(): Promise<boolean> {
   }
 }
 
-// the tour starts the game itself, and must not bring up the phone lobby on the way
-const usePhones = ref(lanAvailable && phonesPreferred() && !tour.active)
+const usePhones = ref(lanAvailable && phonesPreferred())
 watch(usePhones, (on) => {
   setPhonesPreferred(on)
   if (!on) lan.stop()
@@ -78,7 +78,8 @@ watch(usePhones, (on) => {
 const lobby = ref(false)
 
 async function begin() {
-  if (!usePhones.value) return session.start()
+  // the tour starts the game itself, and must not bring up the phone lobby on the way
+  if (!usePhones.value || (tour.active && tour.id === 'stage')) return session.start()
   lobby.value = true
   if (!(await startPhones())) lobby.value = false
 }
@@ -277,6 +278,7 @@ onMounted(async () => {
     }
   })
   publish()
+  offerTour('stage')
 })
 onUnmounted(() => {
   document.removeEventListener('fullscreenchange', onFullscreenChange)
@@ -304,6 +306,7 @@ onUnmounted(() => {
       <Button v-if="(lanInfo || usePhones) && state.phase !== 'title'" variant="ghost" @click="phonesOpen = true">
         <Smartphone />{{ t('lan.phones') }}<span v-if="lanInfo" class="phone-count">{{ phoneCount }}</span>
       </Button>
+      <TourHelpButton id="stage" />
       <Button variant="ghost" data-tour="host-window" @click="openHostWindow(game.id, game.title)"><MonitorSmartphone />{{ t('play.stage.hostWindow') }}</Button>
       <Button variant="ghost" @click="toggleFullscreen">
         <template v-if="isFullscreen"><Minimize />{{ t('play.stage.exitFullscreen') }}</template>

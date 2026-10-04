@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
+import { defineAsyncComponent, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
-import { CircleHelp, Download, FileJson, MoreHorizontal, Package, Pencil, Play, Plus, Settings, Sparkles, Trash2, Upload, Wifi } from '@lucide/vue'
+import { Download, FileJson, MoreHorizontal, Package, Pencil, Play, Plus, Settings, Sparkles, Trash2, Upload, Wifi } from '@lucide/vue'
 import type { Game } from '@/types'
 import { Button } from '@/components/ui/button'
 import {
@@ -20,8 +20,9 @@ import { makeEmptyGame, newGameSettings } from '@/game/model'
 import { prefs } from '@/prefs'
 import type { GameFileFormat } from '@/io/gameFile'
 import { GAME_FILE_ACCEPT, isBackupFileName } from '@/io/files'
-import { findSample, loadSample as importSample } from '@/io/sample'
-import { offerTour, startTour } from '@/tour/state'
+import { loadSample as importSample } from '@/io/sample'
+import { offerTour } from '@/tour/state'
+import TourHelpButton from '@/tour/TourHelpButton.vue'
 import { isDesktop, pickGameFile } from '@/platform'
 import StageBackdrop from '@/components/play/StageBackdrop.vue'
 import MiniBoard from '@/components/MiniBoard.vue'
@@ -37,7 +38,6 @@ const store = useGamesStore()
 const { busy: restoring, restore: restoreBackup } = useBackup()
 const fileInput = ref<HTMLInputElement | null>(null)
 const busy = ref(false)
-const sampleId = computed(() => findSample(store.games)?.id)
 const version = ref('')
 const sharing = ref<Game | null>(null)
 const shareOpen = ref(false)
@@ -53,7 +53,7 @@ onMounted(async () => {
 
 onMounted(() => {
   store.pruneMedia().catch(() => {})
-  offerTour()
+  offerTour('home', { ask: true })
 })
 
 function failed(action: string, err: unknown) {
@@ -163,7 +163,7 @@ function fmtDate(ts: number) {
   <main class="home">
     <header class="hero" data-tauri-drag-region>
       <div class="locale" data-tour="home-tools">
-        <Button variant="ghost" size="icon" :aria-label="t('tour.restart')" :title="t('tour.restart')" data-tour="help" @click="startTour()"><CircleHelp /></Button>
+        <TourHelpButton id="home" />
         <Button variant="ghost" size="icon" :aria-label="t('prefs.open')" :title="t('prefs.open')" @click="router.push({ name: 'settings' })"><Settings /></Button>
       </div>
       <h1 class="title-shine hero-title">{{ t('system.appName') }}</h1>
@@ -186,7 +186,7 @@ function fmtDate(ts: number) {
     </section>
 
     <TransitionGroup v-else name="list" tag="ul" class="games">
-      <li v-for="g in store.games" :key="g.id" class="game glass" :data-tour="g.id === sampleId ? 'game-card' : undefined">
+      <li v-for="(g, i) in store.games" :key="g.id" class="game glass" :data-tour="i === 0 ? 'game-card' : undefined">
         <button class="thumb" :aria-label="t('home.card.playNamed', { title: g.title || t('home.untitled') })" @click="router.push({ name: 'play', params: { id: g.id } })">
           <MiniBoard :round="g.rounds[0]" />
           <span class="thumb-play"><Play class="size-7 translate-x-0.5" /></span>

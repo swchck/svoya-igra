@@ -1,7 +1,7 @@
 import type ru from '../ru/tour'
 
 export default {
-  restart: 'Take the app tour',
+  restart: 'Tour of this screen',
   progress: 'Step {n} of {total}',
   clickHint: 'Click the highlighted spot, or press Next.',
   back: 'Back',
@@ -10,88 +10,107 @@ export default {
   skip: 'Skip',
   later: 'Later',
   show: 'Show me',
-  steps: {
+  demo: 'Demo',
+  home: {
     welcome: {
-      title: 'Tour for the host',
-      text: 'We\'ll go through the sample game: where you write questions, how you start a game and what the host gets. It takes a couple of minutes. Press Esc to leave at any time.',
+      title: 'Quick tour',
+      text: 'A quick look at what the home screen has.',
     },
     actions: {
-      title: 'Where to start',
-      text: 'New game opens an empty editor. Import takes SIGame files (.siq), games in .gamezip and .json, and library backups. Open sample adds a ready-made game, and the tour uses it.',
+      title: 'Getting started',
+      text: 'New game creates an empty one, Import opens .siq, .gamezip, .json and backups, Open sample adds a ready-made game.',
     },
     card: {
       title: 'Game card',
-      text: 'Play starts the game for the audience, Edit opens the editor. The ⋯ menu saves the game to a file or deletes it.',
-      textDesktop: 'Play starts the game for the audience, Edit opens the editor. The ⋯ menu saves the game to a file, sends it over Wi-Fi to another computer, or deletes it.',
+      text: 'Play starts the game, Edit opens the editor. The ⋯ menu saves the game to a file or deletes it.',
+      textDesktop: 'Play starts the game, Edit opens the editor. The ⋯ menu saves the game to a file, shares it over Wi-Fi or deletes it.',
     },
     tools: {
-      title: 'Settings and this tour',
-      text: 'The gear opens settings: language, sounds, rules and look. The question mark starts this tour again.',
+      title: 'Settings',
+      text: 'The gear opens settings. Every screen has a question mark that repeats its tour.',
     },
+  },
+  editor: {
     board: {
-      title: 'Round board',
-      text: 'Each row is a category and each cell a question with its value. Click a cell to open the question.',
+      title: 'The board',
+      text: 'A row is a category, a cell is a question with a value. Click the highlighted cell.',
     },
-    questionText: {
+    question: {
       title: 'Question and answer',
-      text: 'The question goes on the left, the answer on the right. The buttons above the text add bold, italics, lists and quotes, and players see the text formatted that way.',
+      text: 'The question is on the left, the answer on the right. You can format the text and add a picture, sound or video to either.',
     },
-    questionMedia: {
-      title: 'Pictures, sound and video',
-      text: 'Add a picture, sound or video as a file, by dragging it in, by pasting, or as a link, YouTube included. The answer can have attachments too.',
-    },
-    questionKind: {
-      title: 'Question type and value',
-      text: 'A question can be normal, an Auction, where players bid for the right to answer, or a Cat in the bag, which goes to another player. Type any value or pick a preset. The cross closes the window.',
+    kind: {
+      title: 'Type and value',
+      text: 'A question is Regular, an Auction or a Cat in the bag. Type any value or pick a ready one.',
     },
     rounds: {
       title: 'Rounds and final',
-      text: 'The Round button adds a round, and you reorder rounds by dragging. You can end the game with a final question with wagers.',
-    },
-    gameSettings: {
-      title: 'Game settings',
-      text: 'Here you set the answer timer, the color theme, a logo and the text shown on the title screen.',
+      text: 'The Round button adds a round, dragging reorders them. The final goes at the end.',
     },
     checks: {
       title: 'Checks and history',
-      text: 'The badge shows where an answer is missing or a link is broken. History keeps earlier versions of the game, and you can go back to any of them.',
+      text: 'The badge shows where an answer is missing or a link is broken. History keeps earlier versions of the game.',
     },
     export: {
-      title: 'Export and cheat sheet',
-      text: 'Save the game to a file to open it on another computer. The Host cheat sheet prints every question with its answer.',
-      textDesktop: 'Save the game to a file or send it over Wi-Fi to another computer. The Host cheat sheet prints every question with its answer.',
+      title: 'Export',
+      text: 'The Export menu saves the game to a file. It also has the Host cheat sheet with questions and answers to print.',
+      textDesktop: 'The Export menu saves the game to a file or shares it over Wi-Fi. It also has the Host cheat sheet to print.',
     },
-    play: {
-      title: 'Play',
-      text: 'This button opens the game on the audience screen. The next steps cover running it.',
-    },
+  },
+  stage: {
     players: {
-      title: 'Players or teams',
-      text: 'Type the names and pick a color and badge. The switch at the top decides whether people play alone or in teams.',
+      title: 'Players',
+      text: 'Type names and pick colors. The switch on top decides whether people play alone or in teams.',
     },
     phones: {
-      title: 'Phones as buzzers',
-      text: 'Players join from their phones over Wi-Fi and tap the button on screen; whoever is first answers. Without phones the host marks who answered.',
+      title: 'Phones',
+      text: 'With Play with phones, players press a button on their own phones over Wi-Fi. Without them, the host marks who answers.',
     },
     hostWindow: {
       title: 'Host window',
-      text: 'Opens the console in its own window. The question, answer and scores there are only for you while the audience watches the stage. Keep the console on your laptop and put the stage on a second screen.',
+      text: 'Opens a console with answers and scores in a separate window. The audience does not see it.',
     },
     start: {
-      title: 'Starting the game',
-      text: 'Start the game opens the first round. The tour only shows the stage, so you don\'t have to play for real.',
-    },
-    stageBoard: {
-      title: 'Board on the stage',
-      text: 'Pick a cell and the question fills the screen. Space shows the answer, then a panel lets you mark who was right, who was wrong, or Nobody answered.',
+      title: 'Starting',
+      text: 'Start the game begins the first round, then the tour shows the stage.',
     },
     chooser: {
       title: 'Who picks',
-      text: 'The Picks next tag sits on the player who calls the next cell. After a correct answer, the player who answered picks next.',
+      text: 'The Picks next tag marks the player whose turn it is to name a cell. The host changes it on the console.',
     },
     hotkeys: {
-      title: 'Keys and undo',
-      text: 'Space moves the game on, B opens the phone buttons, Ctrl/⌘+Z undoes the last action. Undo and Skip round are also buttons under the board. After the rounds come the final and the results table.',
+      title: 'Hotkeys',
+      text: 'Space moves the game on, B opens the buttons on phones, Ctrl/⌘+Z undoes the last action. Skip round sits under the board.',
+    },
+  },
+  host: {
+    chooser: {
+      title: 'Sample game',
+      text: 'This is a demo, nothing reaches the stage. The highlighted player picks the cell, clicking another passes the pick.',
+    },
+    question: {
+      title: 'Question and answer',
+      text: 'Only you see the correct answer. Show answer on the stage reveals it to the audience.',
+    },
+    buzz: {
+      title: 'Phones',
+      text: 'Shows who buzzed first. The buttons can be reopened, also with a wrong answer.',
+    },
+    timer: {
+      title: 'Timer',
+      text: 'Starts the answer time, pauses it and resets it.',
+    },
+    verdict: {
+      title: 'Verdict',
+      text: 'Mark who answered right or wrong. If nobody answered, press Nobody answered.',
+    },
+    scores: {
+      title: 'Score',
+      text: 'A number selects a player (keys 1–9), + and − change the score. Undo reverts the last action.',
+    },
+    top: {
+      title: 'Top bar',
+      text: 'Shows the game phase, the hotkeys hint and sound. The question mark repeats this tour.',
     },
   },
 } satisfies typeof ru

@@ -37,6 +37,8 @@ import StagePreview from '@/components/editor/StagePreview.vue'
 import HistoryDialog from '@/components/editor/HistoryDialog.vue'
 import IssuesDialog from '@/components/editor/IssuesDialog.vue'
 import GameSettingsDialog from '@/components/editor/GameSettingsDialog.vue'
+import { offerTour } from '@/tour/state'
+import TourHelpButton from '@/tour/TourHelpButton.vue'
 
 const props = defineProps<{ id: string }>()
 const router = useRouter()
@@ -53,6 +55,7 @@ const issuesOpen = ref(false)
 getGame(props.id).then((g) => {
   if (!g) return router.replace({ name: 'home' })
   game.value = g
+  offerTour('editor')
 })
 
 const { status: saveStatus, error: saveError, flush: flushSave } = useAutosave(game, (g) => store.save(g))
@@ -278,6 +281,7 @@ async function exportAs(format: GameFileFormat) {
         <span v-if="issues.length" class="tabular-nums">{{ issues.length }}</span>
       </button>
       <Button variant="ghost" data-tour="history" :aria-label="t('editor.page.history')" :title="t('editor.page.history')" @click="historyOpen = true"><History /><span class="lbl">{{ t('editor.page.history') }}</span></Button>
+      <TourHelpButton id="editor" />
       <GameSettingsDialog v-model="game.settings" />
       <DropdownMenu>
         <DropdownMenuTrigger as-child>

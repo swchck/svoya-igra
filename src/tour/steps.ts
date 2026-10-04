@@ -1,30 +1,40 @@
 import type { Scene, TourStep } from './engine'
+import type { TourId } from './state'
 
-/** The tour, in order; the copy of each step lives under `tour.steps.<id>`. */
-export const TOUR_STEPS: TourStep[] = [
-  { id: 'welcome', page: 'home' },
-  { id: 'actions', page: 'home', target: 'home-actions' },
-  { id: 'card', page: 'home', target: 'game-card', game: true },
-  { id: 'tools', page: 'home', target: 'home-tools' },
-
-  { id: 'board', page: 'editor', target: 'board-cell', click: true },
-  { id: 'questionText', page: 'editor', target: 'q-text', scene: 'question' },
-  { id: 'questionMedia', page: 'editor', target: 'q-media', scene: 'question' },
-  { id: 'questionKind', page: 'editor', target: 'q-settings', scene: 'question' },
-  { id: 'rounds', page: 'editor', target: 'rounds' },
-  { id: 'gameSettings', page: 'editor', target: 'game-settings' },
-  { id: 'checks', page: 'editor', target: ['issues', 'history'] },
-  { id: 'export', page: 'editor', target: 'export' },
-  { id: 'play', page: 'editor', target: 'play' },
-
-  { id: 'players', page: 'play', target: 'players' },
-  { id: 'phones', page: 'play', target: 'phones-toggle', desktopOnly: true },
-  { id: 'hostWindow', page: 'play', target: 'host-window' },
-  { id: 'start', page: 'play', target: 'stage-start', click: true },
-  { id: 'stageBoard', page: 'play', target: 'board-grid', scene: 'stage', noBack: true },
-  { id: 'chooser', page: 'play', target: 'chooser', scene: 'stage', noBack: true },
-  { id: 'hotkeys', page: 'play', target: 'board-actions', scene: 'stage', noBack: true },
-]
+/** The tours; the copy of each step lives under `tour.<tour id>.<step id>`. */
+export const TOURS: Record<TourId, TourStep[]> = {
+  home: [
+    { id: 'welcome', invite: true },
+    { id: 'actions', target: 'home-actions' },
+    { id: 'card', target: 'game-card', wait: 0 },
+    { id: 'tools', target: 'home-tools' },
+  ],
+  editor: [
+    { id: 'board', target: 'board-cell', click: true },
+    { id: 'question', target: ['q-text', 'q-media'], scene: 'question' },
+    { id: 'kind', target: 'q-settings', scene: 'question' },
+    { id: 'rounds', target: 'rounds' },
+    { id: 'checks', target: ['issues', 'history'] },
+    { id: 'export', target: 'export' },
+  ],
+  stage: [
+    { id: 'players', target: 'players' },
+    { id: 'phones', target: 'phones-toggle', desktopOnly: true },
+    { id: 'hostWindow', target: 'host-window' },
+    { id: 'start', target: 'stage-start', click: true },
+    { id: 'chooser', target: 'chooser', scene: 'stage', noBack: true },
+    { id: 'hotkeys', target: 'board-actions', scene: 'stage', noBack: true },
+  ],
+  host: [
+    { id: 'chooser', target: 'host-chooser', demo: 'board' },
+    { id: 'question', target: 'host-question', demo: 'question' },
+    { id: 'buzz', target: 'host-buzz', demo: 'question', wait: 400 },
+    { id: 'timer', target: 'host-timer', demo: 'question', wait: 400 },
+    { id: 'verdict', target: 'host-verdict', demo: 'answer' },
+    { id: 'scores', target: 'host-scores', demo: 'answer' },
+    { id: 'top', target: 'host-top', demo: 'answer' },
+  ],
+}
 
 /** UI the steps need on screen besides the page itself. */
 export const TOUR_SCENES: Record<string, Scene> = {

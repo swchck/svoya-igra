@@ -1,7 +1,7 @@
 import type ru from '../ru/tour'
 
 export default {
-  restart: 'Obiđi aplikaciju',
+  restart: 'Obilazak ovog ekrana',
   progress: 'Korak {n} od {total}',
   clickHint: 'Kliknite na označeno mesto ili na „Dalje“.',
   back: 'Nazad',
@@ -10,88 +10,107 @@ export default {
   skip: 'Preskoči',
   later: 'Kasnije',
   show: 'Pokaži',
-  steps: {
+  demo: 'Demo',
+  home: {
     welcome: {
-      title: 'Obilazak za voditelja',
-      text: 'Proći ćemo kroz primer igre: gde se pišu pitanja, kako se pokreće igra i šta voditelj ima na raspolaganju. Traje par minuta. Izaći možete bilo kada tasterom Esc.',
+      title: 'Kratak obilazak',
+      text: 'Ukratko ćemo pokazati šta ima na početnom ekranu.',
     },
     actions: {
-      title: 'Odakle početi',
-      text: '„Nova igra“ otvara prazan uređivač. Preko „Uvoza“ se učitavaju SIGame fajlovi (.siq), igre u .gamezip i .json i rezervne kopije biblioteke. „Otvori primer“ dodaje gotovu igru, i obilazak ide kroz nju.',
+      title: 'Početak rada',
+      text: '„Nova igra“ pravi praznu, „Uvoz“ otvara .siq, .gamezip, .json i rezervne kopije, „Otvori primer“ dodaje gotovu igru.',
     },
     card: {
       title: 'Kartica igre',
-      text: '„Igraj“ pokreće igru za publiku, „Uredi“ otvara uređivač. U meniju „⋯“ igru možete sačuvati u fajl ili obrisati.',
-      textDesktop: '„Igraj“ pokreće igru za publiku, „Uredi“ otvara uređivač. U meniju „⋯“ igru možete sačuvati u fajl, poslati preko Wi-Fi mreže na drugi računar ili obrisati.',
+      text: '„Igraj“ pokreće igru, „Uredi“ otvara uređivač. Meni „⋯“ čuva igru u fajl ili je briše.',
+      textDesktop: '„Igraj“ pokreće igru, „Uredi“ otvara uređivač. Meni „⋯“ čuva igru u fajl, deli je preko Wi-Fi mreže ili je briše.',
     },
     tools: {
-      title: 'Podešavanja i ovaj obilazak',
-      text: 'Zupčanik otvara podešavanja: jezik, zvukove, pravila i izgled. Znak pitanja ponovo pokreće obilazak.',
+      title: 'Podešavanja',
+      text: 'Zupčanik otvara podešavanja. Znak pitanja postoji na svakom ekranu i ponavlja njegov obilazak.',
     },
+  },
+  editor: {
     board: {
-      title: 'Tabla runde',
-      text: 'Svaki red table je tema, svako polje pitanje sa svojom vrednošću. Kliknite na polje i otvoriće se pitanje.',
+      title: 'Tabla',
+      text: 'Red je tema, polje je pitanje sa vrednošću. Kliknite na označeno polje.',
     },
-    questionText: {
+    question: {
       title: 'Pitanje i odgovor',
-      text: 'Levo je pitanje, desno odgovor. Dugmad iznad teksta prave podebljano i kurziv i dodaju liste i citate. Igrači vide tekst tako uređen.',
+      text: 'Levo je pitanje, desno odgovor. Tekst se može oblikovati, a uz oba se dodaje slika, zvuk ili video.',
     },
-    questionMedia: {
-      title: 'Slike, zvuk i video',
-      text: 'Sliku, zvuk ili video dodajte kao fajl, prevlačenjem, lepljenjem ili linkom, i na YouTube. I odgovor može da ima priloge.',
-    },
-    questionKind: {
-      title: 'Vrsta pitanja i vrednost',
-      text: 'Pitanje može biti obično, „Aukcija“, gde se igrači nadmeću za pravo odgovora, ili „Mačka u džaku“, koja ide drugom igraču. Vrednost upišite bilo koju ili izaberite gotovu. Prozor se zatvara krstićem.',
+    kind: {
+      title: 'Vrsta i vrednost',
+      text: 'Pitanje je „Obično“, „Aukcija“ ili „Mačka u džaku“. Vrednost upišite ili izaberite iz gotovih.',
     },
     rounds: {
       title: 'Runde i finale',
-      text: 'Dugme „Runda“ dodaje rundu, a redosled se menja prevlačenjem. Igru možete završiti finalnim pitanjem sa ulozima.',
-    },
-    gameSettings: {
-      title: 'Podešavanja igre',
-      text: 'Ovde su tajmer za odgovor, boja izgleda, logo i tekst koji se vidi na početnom ekranu.',
+      text: 'Dugme „Runda“ dodaje rundu, prevlačenje menja redosled. Finale se dodaje na kraju.',
     },
     checks: {
-      title: 'Provera i istorija',
-      text: 'Znak pokazuje gde nedostaje odgovor ili je link pokvaren. „Istorija“ čuva ranije verzije igre i na svaku se možete vratiti.',
+      title: 'Provere i istorija',
+      text: 'Značka pokazuje gde nedostaje odgovor ili je veza pokvarena. „Istorija“ čuva ranije verzije igre.',
     },
     export: {
-      title: 'Izvoz i šalabahter',
-      text: 'Sačuvajte igru u fajl da biste je otvorili na drugom računaru. „Šalabahter za voditelja“ štampa sva pitanja sa odgovorima.',
-      textDesktop: 'Sačuvajte igru u fajl ili je pošaljite preko Wi-Fi mreže na drugi računar. „Šalabahter za voditelja“ štampa sva pitanja sa odgovorima.',
+      title: 'Izvoz',
+      text: 'Meni „Izvoz“ čuva igru u fajl. U njemu je i „Šalabahter za voditelja“ sa pitanjima i odgovorima za štampu.',
+      textDesktop: 'Meni „Izvoz“ čuva igru u fajl ili je deli preko Wi-Fi mreže. U njemu je i „Šalabahter za voditelja“ za štampu.',
     },
-    play: {
-      title: 'Igraj',
-      text: 'Ovo dugme otvara igru na ekranu za publiku. Sledeći koraci govore kako se vodi.',
-    },
+  },
+  stage: {
     players: {
-      title: 'Igrači ili timovi',
-      text: 'Upišite imena i izaberite boju i znak. Prekidač gore određuje da li se igra pojedinačno ili u timovima.',
+      title: 'Igrači',
+      text: 'Upišite imena i izaberite boje. Prekidač gore određuje da li se igra pojedinačno ili u timovima.',
     },
     phones: {
-      title: 'Telefoni umesto dugmadi',
-      text: 'Igrači se povezuju telefonima preko Wi-Fi mreže i pritiskaju dugme na ekranu, odgovara onaj ko je bio prvi. Bez telefona voditelj sam označava ko je odgovorio.',
+      title: 'Telefoni',
+      text: 'Uz „Igraj sa telefonima“ igrači pritiskaju dugme na svojim telefonima preko Wi-Fi mreže. Bez njih onoga ko odgovara beleži voditelj.',
     },
     hostWindow: {
       title: 'Prozor voditelja',
-      text: 'Otvara pult u posebnom prozoru. Pitanje, odgovor i rezultat tamo vidite samo vi, a publika gleda scenu. Pult držite na laptopu, a scenu na drugom ekranu.',
+      text: 'Otvara konzolu sa odgovorima i rezultatom u posebnom prozoru. Publika je ne vidi.',
     },
     start: {
       title: 'Početak igre',
-      text: '„Počni igru“ otvara prvu rundu. Obilazak samo pokazuje scenu, ne morate stvarno da igrate.',
-    },
-    stageBoard: {
-      title: 'Tabla na sceni',
-      text: 'Izaberite polje i pitanje se otvara preko celog ekrana. Razmak prikazuje odgovor, a onda na panelu označite ko je odgovorio tačno, ko je pogrešio, ili „Niko nije odgovorio“.',
+      text: '„Počni igru“ pokreće prvu rundu, a zatim obilazak pokazuje scenu.',
     },
     chooser: {
       title: 'Ko bira',
-      text: 'Oznaka „Bira pitanje“ stoji kod igrača koji kaže sledeće polje. Posle tačnog odgovora bira onaj ko je odgovorio.',
+      text: 'Oznaka „Bira pitanje“ stoji kod igrača čiji je red da kaže polje. Voditelj je menja na konzoli.',
     },
     hotkeys: {
-      title: 'Tasteri i poništavanje',
-      text: 'Razmak vodi igru dalje, B otvara dugmad na telefonima, Ctrl/⌘+Z poništava poslednju radnju. „Poništi“ i „Preskoči rundu“ postoje i kao dugmad ispod table. Posle rundi dolaze finale i tabela rezultata.',
+      title: 'Prečice',
+      text: 'Razmak vodi igru dalje, B otvara dugmad na telefonima, Ctrl/⌘+Z poništava poslednju radnju. „Preskoči rundu“ je ispod table.',
+    },
+  },
+  host: {
+    chooser: {
+      title: 'Primer igre',
+      text: 'Ovo je demo, ništa ne ide na scenu. Istaknuti igrač bira polje, klik na drugog prenosi izbor.',
+    },
+    question: {
+      title: 'Pitanje i odgovor',
+      text: 'Tačan odgovor vidite samo vi. „Prikaži odgovor na sceni“ ga otkriva publici.',
+    },
+    buzz: {
+      title: 'Telefoni',
+      text: 'Pokazuje ko je prvi pritisnuo. Dugmad se mogu ponovo otvoriti, i sa greškom.',
+    },
+    timer: {
+      title: 'Tajmer',
+      text: 'Pokreće vreme za odgovor, pauzira ga i vraća na početak.',
+    },
+    verdict: {
+      title: 'Odluka',
+      text: 'Označite ko je odgovorio tačno ili pogrešno. Ako niko nije odgovorio, pritisnite „Niko nije odgovorio“.',
+    },
+    scores: {
+      title: 'Rezultat',
+      text: 'Broj bira igrača (tasteri 1–9), „+“ i „−“ menjaju njegov rezultat. „Poništi“ vraća poslednju radnju.',
+    },
+    top: {
+      title: 'Gornja traka',
+      text: 'Tu su faza igre, spisak prečica i zvuk. Znak pitanja ponavlja ovaj obilazak.',
     },
   },
 } satisfies typeof ru

@@ -1,43 +1,53 @@
 import { reactive } from 'vue'
-import { isMainWindow } from '@/platform'
 
-const DONE_KEY = 'svoya-igra:tour-done'
+/** The screens that have a tour. */
+export type TourId = 'home' | 'editor' | 'stage' | 'host'
+
+/** What the host console pretends is happening while its tour runs. */
+export type DemoPhase = 'board' | 'question' | 'answer'
+
+const LEGACY_HOME_KEY = 'svoya-igra:tour-done'
+const doneKey = (id: TourId) => `svoya-igra:tour:${id}`
 
 /** What the app shell needs to know about the tour; the tour code itself loads only while it runs. */
-export const tour = reactive({ active: false, ask: false })
+export const tour = reactive({ active: false, id: 'home' as TourId, ask: false, demo: null as DemoPhase | null })
 
-/** Reports whether the tour was finished or dismissed before. */
-export function isTourDone(): boolean {
+/** Reports whether a tour was finished or dismissed before. */
+export function isTourDone(id: TourId): boolean {
   try {
-    return localStorage.getItem(DONE_KEY) === '1'
+    return localStorage.getItem(doneKey(id)) === '1' || (id === 'home' && localStorage.getItem(LEGACY_HOME_KEY) === '1')
   } catch {
     // without storage the tour would nag on every start
     return true
   }
 }
 
-function markTourDone(): void {
+function markTourDone(id: TourId): void {
   try {
-    localStorage.setItem(DONE_KEY, '1')
+    localStorage.setItem(doneKey(id), '1')
   } catch {
     // not remembered, the tour just shows again next time
   }
 }
 
-/** Starts the tour; `ask` makes the first card an invitation that can be declined. */
-export function startTour(options: { ask?: boolean } = {}): void {
+/** Starts a tour; `ask` makes the first card an invitation that can be declined. */
+export function startTour(id: TourId, options: { ask?: boolean } = {}): void {
+  tour.id = id
   tour.ask = !!options.ask
+  tour.demo = null
   tour.active = true
 }
 
-/** Offers the tour once to someone who has not seen it, in the library window only. */
-export function offerTour(): void {
-  if (tour.active || !isMainWindow() || isTourDone()) return
-  startTour({ ask: true })
+/** Shows a tour once to someone who has not seen it. */
+export function offerTour(id: TourId, options: { ask?: boolean } = {}): void {
+  if (tour.active || isTourDone(id)) return
+  startTour(id, options)
 }
 
-/** Closes the tour, finished or not, and remembers that it has been seen. */
-export function endTour(): void {
+/** Closes a tour, finished or not, and remembers that it has been seen. */
+export function endTour(id: TourId = tour.id): void {
+  markTourDone(id)
+  if (tour.id !== id) return
   tour.active = false
-  markTourDone()
+  tour.demo = null
 }

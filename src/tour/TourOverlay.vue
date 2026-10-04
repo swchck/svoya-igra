@@ -1,26 +1,26 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { MousePointerClick } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { prefersReducedMotion } from '@/lib/motion'
 import { isDesktop } from '@/platform'
-import { useGamesStore } from '@/stores/games'
 import { findVisible, targetSelector, unionBox, type Box } from './dom'
 import { createTour } from './engine'
-import { createTourHost } from './host'
 import { placeCard } from './placement'
 import { endTour, tour } from './state'
-import { TOUR_SCENES, TOUR_STEPS } from './steps'
+import { TOUR_SCENES, TOURS } from './steps'
 
 const { t, te } = useI18n()
+const route = useRoute()
 const engine = createTour({
-  steps: TOUR_STEPS,
+  steps: TOURS[tour.id],
   scenes: TOUR_SCENES,
-  host: createTourHost(useRouter(), useGamesStore()),
   desktop: isDesktop,
-  onEnd: endTour,
+  invited: tour.ask,
+  onStep: (step) => (tour.demo = step.demo ?? null),
+  onEnd: () => endTour(),
 })
 const { current, index, busy, isLast, canBack } = engine
 
@@ -69,7 +69,7 @@ const cardSpot = computed(() => {
 })
 
 const asking = computed(() => tour.ask && index.value === 0)
-const key = computed(() => `tour.steps.${current.value?.id}`)
+const key = computed(() => `tour.${tour.id}.${current.value?.id}`)
 const title = computed(() => (current.value ? t(`${key.value}.title`) : ''))
 const text = computed(() => (current.value ? t(isDesktop && te(`${key.value}.textDesktop`) ? `${key.value}.textDesktop` : `${key.value}.text`) : ''))
 
@@ -82,6 +82,9 @@ function track() {
   if (box?.left !== old?.left || box?.top !== old?.top || box?.width !== old?.width || box?.height !== old?.height) target.value = box
   frame = requestAnimationFrame(track)
 }
+
+// a tour belongs to the page it started on
+watch(() => route.path, () => void engine.end())
 
 watch(current, async (step) => {
   if (!step) return
@@ -108,8 +111,8 @@ function onKeydown(e: KeyboardEvent) {
   } else if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft') && !e.altKey && !e.ctrlKey && !e.metaKey && !el?.closest(TYPING)) {
     stop()
     void (e.key === 'ArrowRight' ? engine.next() : engine.back())
-  } else if (!card.value?.contains(el) && !el?.closest(NATIVE_KEYS) && (e.key === ' ' || e.key === 'Enter' || e.code === 'KeyB' || e.code === 'KeyZ')) {
-    // the stage's own hotkeys must not play the game while the tour talks about them
+  } else if ((tour.id === 'stage' || tour.id === 'host') && !card.value?.contains(el) && !el?.closest(NATIVE_KEYS) && (e.key === ' ' || e.key === 'Enter' || e.code === 'KeyB' || e.code === 'KeyZ')) {
+    // the page's own hotkeys must not play the game while the tour talks about them
     stop()
   }
 }
