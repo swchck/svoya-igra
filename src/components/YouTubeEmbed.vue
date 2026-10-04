@@ -15,11 +15,19 @@ const props = defineProps<{
   autoplay?: boolean
   start: number
   end?: number
+  /** Player volume, 0 to 100; full when not given. */
+  volume?: number
 }>()
-const emit = defineEmits<{ (e: 'status', status: { playing: boolean; blocked: boolean }): void }>()
+const emit = defineEmits<{
+  (e: 'status', status: { playing: boolean; blocked: boolean }): void
+  /** The video's full length in seconds, once the player reports it. */
+  (e: 'duration', seconds: number): void
+}>()
 
 const iframe = ref<HTMLIFrameElement | null>(null)
 const playing = ref(false)
+// whether the player has run once; until then only a click inside the iframe can start it
+const started = ref(false)
 const blocked = ref(false)
 const elapsed = ref(0)
 const videoLength = ref(0)
@@ -58,6 +66,11 @@ function run(action: MediaAction) {
 }
 defineExpose({ run })
 
+function applyVolume() {
+  if (props.volume !== undefined) command('setVolume', [props.volume])
+}
+watch(() => props.volume, applyVolume)
+
 // iframe API: the player reports its state once the page says it is listening
 let handshake: ReturnType<typeof setInterval> | undefined
 let startWatch: ReturnType<typeof setTimeout> | undefined
@@ -80,6 +93,7 @@ function onMessage(e: MessageEvent) {
   }
   if (data.event === 'onReady' || data.event === 'initialDelivery') {
     clearInterval(handshake)
+    applyVolume()
     // in the app's WebView YouTube refuses to start without a click inside the window
     if (props.autoplay && !startWatch) startWatch = setTimeout(() => (blocked.value = !playing.value), 4000)
   }
@@ -90,11 +104,15 @@ function onMessage(e: MessageEvent) {
   // 1 playing, 3 buffering; everything else means silence
   if (typeof state === 'number') {
     playing.value = state === 1 || state === 3
-    if (state === 1) blocked.value = false
+    if (state === 1) {
+      blocked.value = false
+      started.value = true
+    }
   }
 }
 
 watch([playing, blocked], ([p, b]) => emit('status', { playing: p, blocked: b }))
+watch(videoLength, (d) => emit('duration', d))
 
 window.addEventListener('message', onMessage)
 onBeforeUnmount(() => {
@@ -120,16 +138,19 @@ onBeforeUnmount(() => {
         />
         <div v-if="blocked && mode !== 'audio'" class="yt-blocked">{{ t('media.player.tapVideoToStart') }}</div>
       </div>
-      <!-- clicks pass through the card to the player, which counts as the click YouTube waits for -->
+      <!-- before the first start clicks pass through the card to the player, which counts as the
+           click YouTube waits for; after that a click on a player overlay would do nothing, so the
+           card drives the player through the iframe API -->
       <SoundCard
         v-if="mode === 'audio'"
         class="yt-cover"
-        passive
+        :passive="!started"
         :playing="playing"
         :blocked="blocked"
         :elapsed="elapsed"
         :length="length"
         :label="t('media.player.youtubeAudio')"
+        @toggle="run(playing ? 'pause' : 'play')"
       />
     </template>
   </div>

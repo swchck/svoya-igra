@@ -49,12 +49,29 @@ export interface FinalQuestion {
   answerMedia?: MediaItem[]
 }
 
+export const ACCENT_NAMES = ['gold', 'ruby', 'emerald', 'sapphire'] as const
+export type AccentName = (typeof ACCENT_NAMES)[number]
+
+/** Per-game options for the timer and the look of the stage. */
+export interface GameSettings {
+  /** Seconds to answer; unset or 0 means no timer. */
+  answerSeconds?: number
+  /** Start the timer as soon as a question appears. */
+  timerAutoStart?: boolean
+  accent?: AccentName
+  /** Shown on the title screen and small in a stage corner. */
+  logo?: MediaItem
+  /** Shown on the title screen under the title. */
+  introText?: string
+}
+
 export interface Game {
   id: string
   title: string
   subtitle?: string
   rounds: Round[]
   finalRound?: FinalQuestion
+  settings?: GameSettings
   /** Unix time, ms. */
   createdAt: number
   /** Unix time, ms. */
@@ -65,4 +82,8 @@ export interface Player {
   id: string
   name: string
   score: number
+  /** Id from the player palette; unset players get one by their place in the list. */
+  color?: string
+  /** An emoji shown by the name. */
+  avatar?: string
 }

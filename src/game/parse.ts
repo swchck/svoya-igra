@@ -1,4 +1,4 @@
-import type { FinalQuestion, Game, MediaItem, MediaKind, MediaMode, Question } from '../types'
+import { ACCENT_NAMES, type FinalQuestion, type Game, type GameSettings, type MediaItem, type MediaKind, type MediaMode, type Question } from '../types'
 import { t } from '../i18n'
 import { uid } from './model'
 import { parseYoutubeUrl } from './youtube'
@@ -66,6 +66,23 @@ function normalizeFinal(f: StoredFinal): FinalQuestion {
   return { ...final, media: mergeMedia(f.media, mediaUrl, mediaKind, mediaMode, mediaDuration) }
 }
 
+export const MAX_ANSWER_SECONDS = 600
+
+/** Keeps the settings that make sense and drops the rest; undefined when nothing is left. */
+function normalizeSettings(raw: unknown): GameSettings | undefined {
+  if (!isObject(raw)) return undefined
+  const out: GameSettings = {}
+  const seconds = typeof raw.answerSeconds === 'number' ? Math.round(raw.answerSeconds) : 0
+  if (seconds > 0) out.answerSeconds = Math.min(seconds, MAX_ANSWER_SECONDS)
+  if (raw.timerAutoStart === true) out.timerAutoStart = true
+  if (ACCENT_NAMES.includes(raw.accent as never)) out.accent = raw.accent as GameSettings['accent']
+  if (isObject(raw.logo) && typeof raw.logo.url === 'string' && raw.logo.url) {
+    out.logo = { id: typeof raw.logo.id === 'string' ? raw.logo.id : uid('mi_'), url: raw.logo.url, kind: 'image' }
+  }
+  if (typeof raw.introText === 'string' && raw.introText.trim()) out.introText = raw.introText
+  return Object.keys(out).length ? out : undefined
+}
+
 /**
  * Validates the shape of a game read from storage or a file and brings it to the
  * current format.
@@ -84,8 +101,11 @@ export function parseGame(data: unknown): Game {
   if (data.finalRound !== undefined && !isObject(data.finalRound)) throw invalid()
 
   const game = data as unknown as Game & { rounds: { themes: { questions: StoredQuestion[] }[] }[]; finalRound?: StoredFinal }
+  const { settings: raw, ...rest } = game
+  const settings = normalizeSettings(raw)
   return {
-    ...game,
+    ...rest,
+    ...(settings && { settings }),
     rounds: game.rounds.map((r) => ({
       ...r,
       themes: r.themes.map((t) => ({ ...t, questions: t.questions.map(normalizeQuestion) })),

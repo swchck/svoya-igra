@@ -1,8 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { reactive, ref } from 'vue'
 import type { Game, QuestionKind } from '../types'
 import { makeEmptyFinal, makeEmptyGame, makeEmptyRound } from '../game/model'
-import { fitsGame, usePlaySession } from './usePlaySession'
+import { fitsGame, timerRemaining, usePlaySession, type PlayRules } from './usePlaySession'
 
 function tinyGame(withFinal = true): Game {
   const game = makeEmptyGame()
@@ -24,6 +24,27 @@ function onBoard(kind: QuestionKind = 'normal', extra: { catValue?: number } = {
 }
 
 describe('usePlaySession', () => {
+  it('hands the pick to whoever answers right, and the next round to whoever trails', () => {
+    const { game, s, p1, p2 } = onBoard()
+    const [q100, q200] = game.rounds[0].themes[0].questions
+    expect([p1.id, p2.id]).toContain(s.state.chooserId)
+    s.setChooser(p1.id)
+    s.pick(q100.id)
+    s.advance()
+    s.close({ playerId: p2.id, sign: -1 })
+    expect(s.state.chooserId).toBe(p1.id)
+    s.pick(q200.id)
+    s.adjustScore(p2.id, 200)
+    expect(s.state.chooserId).toBe(p2.id)
+    s.undo()
+    expect(s.state.chooserId).toBe(p1.id)
+    s.adjustScore(p2.id, 400)
+    s.advance()
+    s.close()
+    expect(s.state.phase).toBe('round-intro')
+    expect(s.state.chooserId).toBe(p1.id)
+  })
+
   it('scores verdicts and marks questions played', () => {
     const { game, s, p1, p2 } = onBoard()
     const [q100, q200] = game.rounds[0].themes[0].questions
@@ -184,5 +205,342 @@ describe('usePlaySession', () => {
     game.rounds[0].themes[0].questions.splice(1)
     expect(fitsGame(snapshot, game)).toBe(false)
     expect(fitsGame({ ...snapshot, phase: 'board', activeQuestionId: null, roundIndex: 5 }, game)).toBe(false)
+  })
+
+  it('undoes a verdict along with the closed question', () => {
+    const { s, q, p1 } = onBoard()
+    s.pick(q.id)
+    s.advance()
+    s.close({ playerId: p1.id, sign: 1 })
+    expect(s.canUndo.value).toBe(true)
+
+    expect(s.undo()).toBe(true)
+
+    expect(p1.score).toBe(0)
+    expect(s.state.phase).toBe('answer')
+    expect(s.state.activeQuestionId).toBe(q.id)
+    expect(s.state.played).toEqual({})
+    expect(s.state.stats[p1.id]).toBeUndefined()
+    expect(s.canUndo.value).toBe(false)
+    expect(s.undo()).toBe(false)
+  })
+
+  it('undoes a question closed with nobody answering', () => {
+    const { s, q } = onBoard()
+    s.pick(q.id)
+    s.close()
+    expect(s.state.phase).toBe('board')
+
+    s.undo()
+
+    expect(s.state.phase).toBe('question')
+    expect(s.state.played).toEqual({})
+  })
+
+  it('brings back the stake and the round that a verdict closed', () => {
+    const game = tinyGame()
+    const q = game.rounds[0].themes[0].questions[1]
+    q.kind = 'auction'
+    game.rounds[0].themes[0].questions.splice(0, 1)
+    const s = usePlaySession(ref(game))
+    s.start()
+    s.advance()
+    const [p1] = s.players.value
+    p1.score = 500
+    s.pick(q.id)
+    s.setAuctionStake(p1.id, 300)
+    s.advance()
+    s.close({ playerId: p1.id, sign: -1 })
+    expect(s.state.phase).toBe('round-intro')
+
+    s.undo()
+
+    expect(s.state.roundIndex).toBe(0)
+    expect(s.state.phase).toBe('answer')
+    expect(s.state.stake).toEqual({ playerId: p1.id, amount: 300 })
+    expect(p1.score).toBe(500)
+  })
+
+  it('undoes a manual adjustment without touching the phase', () => {
+    const { s, q, p1 } = onBoard()
+    s.adjustScore(p1.id, 150)
+    s.pick(q.id)
+    s.adjustScore(p1.id, -50)
+    s.adjustScore(p1.id, 0)
+
+    s.undo()
+
+    expect(p1.score).toBe(150)
+    expect(s.state.phase).toBe('question')
+    s.undo()
+    expect(p1.score).toBe(0)
+  })
+
+  it('undoes the final scoring', () => {
+    const game = tinyGame()
+    const s = usePlaySession(ref(game))
+    const [p1] = s.players.value
+    p1.score = 400
+    s.state.phase = 'final-bets'
+    s.setFinalBet(p1.id, 300)
+    s.advance()
+    s.advance()
+    s.setFinalVerdict(p1.id, 1)
+    s.scoreFinal()
+    expect(p1.score).toBe(700)
+    expect(s.state.stats[p1.id]).toMatchObject({ correct: 1, won: 300 })
+
+    s.undo()
+
+    expect(p1.score).toBe(400)
+    expect(s.state.phase).toBe('final-answer')
+    expect(s.state.stats[p1.id]).toBeUndefined()
+  })
+
+  it('keeps a bounded history that survives a snapshot', () => {
+    const { s, p1 } = onBoard()
+    for (let i = 0; i < 40; i++) s.adjustScore(p1.id, 10)
+    expect(s.state.history).toHaveLength(30)
+
+    const resumed = usePlaySession(ref(tinyGame()), reactive(s.snapshot()))
+    resumed.undo()
+
+    expect(resumed.players.value[0].score).toBe(390)
+    expect(resumed.state.history).toHaveLength(29)
+  })
+
+  it('tracks answers, points, streaks and the best answer', () => {
+    const { game, s, p1, p2 } = onBoard()
+    const [q100, q200] = game.rounds[0].themes[0].questions
+    s.pick(q200.id)
+    s.advance()
+    s.close({ playerId: p1.id, sign: 1 })
+    s.pick(q100.id)
+    s.advance()
+    s.close({ playerId: p1.id, sign: 1 })
+
+    expect(s.state.stats[p1.id]).toEqual({ correct: 2, wrong: 0, won: 300, lost: 0, streak: 2, bestStreak: 2, best: 200 })
+    expect(s.state.stats[p2.id]).toBeUndefined()
+  })
+
+  it('resets the streak on a wrong answer and keeps the best run', () => {
+    const game = tinyGame()
+    game.rounds[0].themes[0].questions.push(...makeEmptyRound('X', 1).themes[0].questions.slice(0, 1))
+    const s = usePlaySession(ref(game))
+    s.start()
+    s.advance()
+    const [p1] = s.players.value
+    const verdicts: (1 | -1)[] = [1, 1, -1]
+    for (const [i, sign] of verdicts.entries()) {
+      s.pick(game.rounds[0].themes[0].questions[i].id)
+      s.advance()
+      s.close({ playerId: p1.id, sign })
+    }
+
+    expect(s.state.stats[p1.id]).toMatchObject({ correct: 2, wrong: 1, lost: 100, streak: 0, bestStreak: 2 })
+  })
+
+  it('does not count verdicts for a player outside the stake', () => {
+    const { s, q, p1, p2 } = onBoard('cat-in-bag')
+    s.pick(q.id)
+    s.giveCat(p2.id)
+    s.advance()
+    s.close({ playerId: p1.id, sign: 1 })
+
+    expect(s.state.stats).toEqual({})
+    expect(p1.score).toBe(0)
+  })
+
+  it('renames default names when switching to teams and back', () => {
+    const { s } = onBoard()
+    const fresh = usePlaySession(ref(tinyGame()))
+    fresh.players.value[1].name = 'Anna'
+
+    fresh.setTeams(true)
+    expect(fresh.players.value.map((p) => p.name)).toEqual(['Команда 1', 'Anna'])
+    fresh.addPlayer()
+    expect(fresh.players.value[2].name).toBe('Команда 3')
+    fresh.setTeams(false)
+    expect(fresh.players.value.map((p) => p.name)).toEqual(['Игрок 1', 'Anna', 'Игрок 3'])
+
+    s.setTeams(true)
+    expect(s.state.teams).toBe(false)
+  })
+
+  it('gives every competitor a different color', () => {
+    const s = usePlaySession(ref(tinyGame()))
+    s.addPlayer()
+    s.addPlayer()
+    const colors = s.players.value.map((p) => p.color)
+    expect(new Set(colors).size).toBe(4)
+  })
+})
+
+describe('answer timer', () => {
+  afterEach(() => vi.useRealTimers())
+
+  function withTimer(settings: { timerAutoStart?: boolean } = {}) {
+    vi.useFakeTimers()
+    vi.setSystemTime(1_000_000)
+    const game = tinyGame()
+    game.settings = { answerSeconds: 30, ...settings }
+    const s = usePlaySession(ref(game))
+    s.start()
+    s.advance()
+    s.pick(game.rounds[0].themes[0].questions[0].id)
+    return s
+  }
+  const left = (s: ReturnType<typeof withTimer>) => timerRemaining(s.state.timer, Date.now())
+
+  it('waits for the host unless it starts by itself', () => {
+    const s = withTimer()
+    vi.advanceTimersByTime(5000)
+    expect(left(s)).toBe(30_000)
+    expect(withTimer({ timerAutoStart: true }).state.timer.endsAt).not.toBeNull()
+  })
+
+  it('runs, pauses and resets', () => {
+    const s = withTimer()
+    s.timerStart()
+    vi.advanceTimersByTime(10_000)
+    expect(left(s)).toBe(20_000)
+
+    s.timerPause()
+    vi.advanceTimersByTime(5000)
+    expect(left(s)).toBe(20_000)
+
+    s.timerStart()
+    vi.advanceTimersByTime(25_000)
+    expect(left(s)).toBe(0)
+
+    s.timerStart()
+    expect(left(s)).toBe(30_000)
+    s.timerReset()
+    expect(s.state.timer).toEqual({ endsAt: null, left: 30_000 })
+  })
+
+  it('rearms on a new question and stops at the answer', () => {
+    const s = withTimer({ timerAutoStart: true })
+    vi.advanceTimersByTime(4000)
+    s.advance()
+    expect(s.state.timer).toEqual({ endsAt: null, left: 30_000 })
+    s.timerStart()
+    expect(s.state.timer.endsAt).toBeNull()
+  })
+
+  it('does nothing when the game has no timer', () => {
+    const s = usePlaySession(ref(tinyGame()))
+    s.start()
+    s.advance()
+    s.pick(s.round.value!.themes[0].questions[0].id)
+    s.timerStart()
+    expect(s.state.timer.endsAt).toBeNull()
+  })
+
+  it('times the final question too', () => {
+    vi.useFakeTimers()
+    const game = tinyGame()
+    game.settings = { answerSeconds: 20, timerAutoStart: true }
+    const s = usePlaySession(ref(game))
+    s.state.phase = 'final-bets'
+    s.advance()
+    expect(s.state.timer.endsAt).not.toBeNull()
+  })
+})
+
+describe('house rules', () => {
+  const rules = (patch: Partial<PlayRules> = {}): (() => PlayRules) => {
+    const r: PlayRules = { wrongPenalty: true, firstChooser: 'random', buzzOpen: 'question', ...patch }
+    return () => r
+  }
+
+  function play(patch: Partial<PlayRules>, answerSeconds = 0) {
+    const game = tinyGame()
+    game.settings = { answerSeconds, timerAutoStart: false }
+    const s = usePlaySession(ref(game), undefined, rules(patch))
+    s.start()
+    s.advance()
+    return { s, q: game.rounds[0].themes[0].questions[0], players: s.players.value }
+  }
+
+  it('lets a wrong answer cost nothing but still counts it', () => {
+    const { s, q, players } = play({ wrongPenalty: false })
+    const [p1] = players
+    s.pick(q.id)
+    s.advance()
+    s.close({ playerId: p1.id, sign: -1 })
+    expect(p1.score).toBe(0)
+    expect(s.state.stats[p1.id]).toMatchObject({ wrong: 1, lost: 0 })
+  })
+
+  it('counts points given mid-question and wrong buzzes as answers, and undoes them', () => {
+    const { s, q, players } = play({ wrongPenalty: false })
+    const [p1, p2] = players
+    s.pick(q.id)
+    s.answerWrong(p1.id)
+    expect(p1.score).toBe(0)
+    expect(s.state.stats[p1.id]).toMatchObject({ wrong: 1, lost: 0 })
+    s.adjustScore(p2.id, q.value)
+    expect(s.state.stats[p2.id]).toMatchObject({ correct: 1, won: q.value })
+    expect(s.state.chooserId).toBe(p2.id)
+    s.undo()
+    expect(s.state.stats[p2.id]).toBeUndefined()
+    s.undo()
+    expect(s.state.stats[p1.id]).toBeUndefined()
+  })
+
+  it('keeps the last player and their turn', () => {
+    const { s, players } = play({ firstChooser: 'first' })
+    s.removePlayer(players[1].id)
+    s.removePlayer(players[0].id)
+    expect(s.players.value).toHaveLength(1)
+    expect(s.state.chooserId).toBe(players[0].id)
+  })
+
+  it('picks who opens the game by the rules', () => {
+    const first = play({ firstChooser: 'first' })
+    expect(first.s.state.chooserId).toBe(first.players[0].id)
+    expect(play({ firstChooser: 'host' }).s.state.chooserId).toBeNull()
+  })
+
+  it('opens the buttons with the question by default', () => {
+    const { s, q } = play({})
+    s.pick(q.id)
+    expect(s.state.buzzArmed).toBe(true)
+    s.advance()
+    s.close()
+    expect(s.state.buzzArmed).toBe(false)
+  })
+
+  it('keeps the buttons shut until the host opens them', () => {
+    const { s, q } = play({ buzzOpen: 'host' })
+    s.openBuzz()
+    expect(s.state.buzzArmed).toBe(false)
+    s.pick(q.id)
+    expect(s.state.buzzArmed).toBe(false)
+    s.openBuzz()
+    expect(s.state.buzzArmed).toBe(true)
+  })
+
+  it('opens the buttons with the clock, or at once when there is none', () => {
+    const timed = play({ buzzOpen: 'timer' }, 30)
+    timed.s.pick(timed.q.id)
+    expect(timed.s.state.buzzArmed).toBe(false)
+    timed.s.timerStart()
+    expect(timed.s.state.buzzArmed).toBe(true)
+
+    const untimed = play({ buzzOpen: 'timer' })
+    untimed.s.pick(untimed.q.id)
+    expect(untimed.s.state.buzzArmed).toBe(true)
+  })
+
+  it('brings the buttons back the way they were on undo', () => {
+    const { s, q } = play({ buzzOpen: 'host' })
+    s.pick(q.id)
+    s.openBuzz()
+    s.close()
+    expect(s.state.buzzArmed).toBe(false)
+    s.undo()
+    expect(s.state).toMatchObject({ phase: 'question', buzzArmed: true })
   })
 })

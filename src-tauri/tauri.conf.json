@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Своя Игра",
-  "version": "0.2.0",
+  "version": "0.4.0",
   "identifier": "io.github.swchck.svoyaigra",
   "build": {
     "frontendDist": "../dist",
@@ -20,7 +20,10 @@
         "minHeight": 640,
         "center": true,
         "resizable": true,
-        "backgroundColor": "#1a1aa8"
+        "backgroundColor": "#1a1aa8",
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "trafficLightPosition": { "x": 18, "y": 26 }
       }
     ],
     "security": {
@@ -97,6 +100,14 @@
         "description": "Игра для «Своей игры»",
         "role": "Editor",
         "mimeType": "application/x-svoya-igra+zip"
+      },
+      {
+        "ext": [
+          "siq"
+        ],
+        "name": "Пакет SIGame",
+        "description": "Пакет вопросов SIGame",
+        "role": "Viewer"
       }
     ]
   },

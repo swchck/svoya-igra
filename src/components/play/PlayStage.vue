@@ -2,9 +2,11 @@
 import { computed, onMounted, onUnmounted, provide, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ArrowLeft, Cat, Gavel, Maximize, Minimize, MonitorSmartphone, SkipForward } from '@lucide/vue'
+import { ArrowLeft, Cat, Gavel, Maximize, Minimize, MonitorSmartphone, SkipForward, Smartphone, Undo2, Unlock, X } from '@lucide/vue'
+import { toast } from 'vue-sonner'
 import type { Game } from '@/types'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { confirmAction } from '@/composables/useConfirm'
 import { usePlaySession, type SessionSnapshot } from '@/composables/usePlaySession'
 import { clearSession, saveSession } from '@/play/savedSession'
@@ -12,7 +14,18 @@ import { HOST_COMMANDS, HOST_PING_MS, openHostWindow, openPlayChannel, type Play
 import { createMediaRegistry, MEDIA_REGISTRY } from '@/play/mediaControl'
 import { plainCopy } from '@/lib/plain'
 import { prefersReducedMotion } from '@/lib/motion'
+import { useStageSounds, useTimerSounds } from '@/play/sounds'
+import { accentStyle } from '@/play/accents'
+import { buzzable, lanAvailable, phonesPreferred, setPhonesPreferred } from '@/play/lan'
+import { prefs } from '@/prefs'
+import { useLanRoom } from '@/play/useLanRoom'
+import { useRemaining } from '@/play/timer'
+import { offerTour, tour } from '@/tour/state'
+import TourHelpButton from '@/tour/TourHelpButton.vue'
+import SoundToggle from '@/components/SoundToggle.vue'
 import StageBackdrop from './StageBackdrop.vue'
+import StageLogo from './StageLogo.vue'
+import AnswerTimer from './AnswerTimer.vue'
 import PlayerPodiums from './PlayerPodiums.vue'
 import PlayerSetup from './PlayerSetup.vue'
 import IntroSlide from './IntroSlide.vue'
@@ -25,6 +38,8 @@ import CatPanel from './CatPanel.vue'
 import VerdictPanel from './VerdictPanel.vue'
 import FinalBetsPanel from './FinalBetsPanel.vue'
 import FinalVerdictPanel from './FinalVerdictPanel.vue'
+import PhonesPanel from '@/components/lan/PhonesPanel.vue'
+import LanLobby from '@/components/lan/LanLobby.vue'
 
 const props = defineProps<{ game: Game; restored?: SessionSnapshot }>()
 const router = useRouter()
@@ -35,6 +50,49 @@ const session = usePlaySession(
   props.restored,
 )
 const { state, players, round, activeQuestion, activeValue, ranking, inProgress } = session
+
+useStageSounds(() => state.phase, players)
+
+const lan = useLanRoom(session, () => props.game.title, (id) => pick(id))
+const { info: lanInfo, status: lanStatus, starting: lanStarting, winnerId: buzzedId, phones } = lan
+const buzzedBy = computed(() => (buzzedId.value ? (lanStatus.value.buzz.by[0] ?? undefined) : undefined))
+const phoneCount = computed(() => Object.values(phones.value).reduce((a, b) => a + b, 0))
+const phonesOpen = ref(false)
+
+async function startPhones(): Promise<boolean> {
+  try {
+    await lan.start()
+    return true
+  } catch (err) {
+    const message = String(err)
+    toast.error(t('lan.errors.failed'), { description: message === 'no-network' ? t('lan.errors.noNetwork') : message })
+    return false
+  }
+}
+
+const usePhones = ref(lanAvailable && phonesPreferred())
+watch(usePhones, (on) => {
+  setPhonesPreferred(on)
+  if (!on) lan.stop()
+})
+const lobby = ref(false)
+
+async function begin() {
+  // the tour starts the game itself, and must not bring up the phone lobby on the way
+  if (!usePhones.value || (tour.active && tour.id === 'stage')) return session.start()
+  lobby.value = true
+  if (!(await startPhones())) lobby.value = false
+}
+
+const settings = computed(() => props.game.settings)
+const accent = computed(() => accentStyle(settings.value))
+const stageScale = computed(() => Math.min(1.4, Math.max(0.8, prefs.stageScale || 1)))
+const buzzHeld = computed(() => !!lanInfo.value && buzzable(state) && !state.buzzArmed)
+const wrongLabel = computed(() => (prefs.wrongPenalty ? t('lan.buzz.wrong', { value: activeValue.value }) : t('lan.buzz.wrongFree')))
+const answerMs = computed(() => (settings.value?.answerSeconds ?? 0) * 1000)
+const remaining = useRemaining(() => state.timer)
+useTimerSounds(remaining, () => state.timer.endsAt !== null)
+const showTimer = computed(() => answerMs.value > 0 && (state.phase === 'question' || state.phase === 'final-question'))
 
 const media = createMediaRegistry()
 provide(MEDIA_REGISTRY, media)
@@ -77,6 +135,10 @@ watch(
   { deep: true },
 )
 watch(() => media.status, publishMedia, { deep: true })
+function publishLan() {
+  channel?.post({ type: 'lan', status: lanInfo.value ? plainCopy(lanStatus.value) : null })
+}
+watch([lanInfo, lanStatus], publishLan, { deep: true })
 
 // the host window pings while open; with a host at the controls the stage drops its own
 const lastPing = ref(0)
@@ -184,7 +246,11 @@ function wake() {
 
 function onKey(e: KeyboardEvent) {
   if (e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable], [role=dialog]')) return
-  if ((e.key === ' ' || e.key === 'Enter') && session.advance()) e.preventDefault()
+  // the layout-independent code, so Cyrillic keyboards undo as well
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.code === 'KeyZ') {
+    if (session.undo()) e.preventDefault()
+  } else if ((e.key === ' ' || e.key === 'Enter') && session.advance()) e.preventDefault()
+  else if (e.code === 'KeyB' && !e.ctrlKey && !e.metaKey && !e.altKey) session.openBuzz()
   else if (e.key === 'Escape' && state.phase === 'answer') session.close()
 }
 
@@ -200,16 +266,19 @@ onMounted(async () => {
       if (m.type === 'hello') {
         publish()
         publishMedia()
+        publishLan()
       }
     } else if (m.type === 'media-command') {
       media.run(m.id, m.action)
     } else if (m.type === 'command' && HOST_COMMANDS.includes(m.name) && m.phase === state.phase) {
       // a command from a phase the stage has left is a double click or a stale screen
       if (m.name === 'pick') pick(String(m.args[0]))
+      else if (m.name === 'buzzReopen') lan.reopen(m.args[0] === true)
       else (session[m.name] as (...args: unknown[]) => void)(...m.args)
     }
   })
   publish()
+  offerTour('stage')
 })
 onUnmounted(() => {
   document.removeEventListener('fullscreenchange', onFullscreenChange)
@@ -222,32 +291,68 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="stage" :class="{ 'chrome-hidden': !chromeVisible && state.phase !== 'title' }">
+  <div
+    class="stage"
+    :class="{ 'chrome-hidden': !chromeVisible && state.phase !== 'title', 'cursor-hidden': prefs.hideCursor && !chromeVisible && state.phase !== 'title' }"
+    :style="[accent, { '--stage-scale': stageScale }]"
+  >
     <StageBackdrop :dim="state.phase === 'question' || state.phase === 'answer'" />
 
-    <header class="chrome">
+    <header class="chrome" data-tauri-drag-region>
       <Button variant="ghost" @click="home"><ArrowLeft />{{ t('play.stage.leave') }}</Button>
       <span v-if="hostConnected" class="host-on"><span class="dot" />{{ t('play.stage.hostConnected') }}</span>
-      <div class="flex-1" />
-      <Button variant="ghost" @click="openHostWindow(game.id, game.title)"><MonitorSmartphone />{{ t('play.stage.hostWindow') }}</Button>
+      <div class="flex-1" data-tauri-drag-region />
+      <SoundToggle />
+      <Button v-if="(lanInfo || usePhones) && state.phase !== 'title'" variant="ghost" @click="phonesOpen = true">
+        <Smartphone />{{ t('lan.phones') }}<span v-if="lanInfo" class="phone-count">{{ phoneCount }}</span>
+      </Button>
+      <TourHelpButton id="stage" />
+      <Button variant="ghost" data-tour="host-window" @click="openHostWindow(game.id, game.title)"><MonitorSmartphone />{{ t('play.stage.hostWindow') }}</Button>
       <Button variant="ghost" @click="toggleFullscreen">
         <template v-if="isFullscreen"><Minimize />{{ t('play.stage.exitFullscreen') }}</template>
         <template v-else><Maximize />{{ t('play.stage.fullscreen') }}</template>
       </Button>
     </header>
 
+    <StageLogo v-if="settings?.logo && state.phase !== 'title'" :logo="settings.logo" class="corner-logo" />
+
     <main ref="stageMain" class="scene-area">
+      <div v-if="showTimer" class="timer-slot">
+        <AnswerTimer :remaining-ms="remaining" :total-ms="answerMs" :running="state.timer.endsAt !== null && remaining > 0" />
+      </div>
       <Transition name="scene" mode="out-in">
-        <section v-if="state.phase === 'title'" :key="sceneKey" class="title-scene">
+        <section v-if="state.phase === 'title' && !lobby" :key="sceneKey" class="title-scene">
+          <StageLogo v-if="settings?.logo" :logo="settings.logo" class="title-logo" />
           <h1 class="title-shine game-title">{{ game.title || t('play.stage.defaultTitle') }}</h1>
           <p v-if="game.subtitle" class="subtitle">{{ game.subtitle }}</p>
-          <PlayerSetup v-model="players" @add="session.addPlayer" @remove="(p) => session.removePlayer(p.id)" />
-          <Button size="lg" class="start" @click="session.start">{{ t('play.stage.start') }}</Button>
+          <p v-if="settings?.introText" class="intro-text">{{ settings.introText }}</p>
+          <PlayerSetup v-model="players" data-tour="players" :teams="state.teams" :phones="phones" @update:teams="session.setTeams" @add="session.addPlayer()" @remove="(p) => session.removePlayer(p.id)">
+            <template v-if="lanAvailable" #footer>
+              <label class="phones-toggle" data-tour="phones-toggle" :title="t('lan.toggleHint')">
+                <input v-model="usePhones" type="checkbox" />
+                <Smartphone class="size-4" />{{ t('lan.usePhones') }}
+              </label>
+            </template>
+          </PlayerSetup>
+          <Button size="lg" class="start" data-tour="stage-start" @click="begin">{{ t('play.stage.start') }}</Button>
         </section>
+
+        <LanLobby
+          v-else-if="state.phase === 'title' && lobby"
+          key="lobby"
+          :info="lanInfo"
+          :players="players"
+          :teams="state.teams"
+          :phones="phones"
+          :people="lanStatus.people"
+          @back="lobby = false"
+          @start="session.start"
+        />
 
         <IntroSlide
           v-else-if="state.phase === 'round-intro'"
           :key="sceneKey"
+          data-tour="intro"
           :title="round?.name ?? ''"
           :themes="round?.themes.map((t) => t.name)"
           :hint="t('play.stage.hintToBoard')"
@@ -255,8 +360,11 @@ onUnmounted(() => {
         />
 
         <section v-else-if="state.phase === 'board' && round" :key="sceneKey" class="board-scene">
-          <BoardGrid :round="round" :played="state.played" :cascade="cascadeBoard" @pick="(q) => pick(q.id)" />
-          <Button v-if="!hostConnected" variant="ghost" class="skip" @click="skipRound">{{ t('play.stage.skipRound') }}<SkipForward /></Button>
+          <BoardGrid data-tour="board-grid" :round="round" :played="state.played" :cascade="cascadeBoard" @pick="(q) => pick(q.id)" />
+          <div v-if="!hostConnected" class="board-actions" data-tour="board-actions">
+            <Button v-if="session.canUndo.value" variant="ghost" @click="session.undo"><Undo2 />{{ t('play.stage.undo') }}</Button>
+            <Button variant="ghost" @click="skipRound">{{ t('play.stage.skipRound') }}<SkipForward /></Button>
+          </div>
         </section>
 
         <SpecialSlide
@@ -295,7 +403,15 @@ onUnmounted(() => {
           :text="activeQuestion.text"
           :media="activeQuestion.media"
         >
-          <Button v-if="!hostConnected" size="lg" class="h-12 px-8 text-lg" @click="session.advance">{{ t('play.stage.showAnswer') }}</Button>
+          <div v-if="!hostConnected" class="flex flex-wrap justify-center gap-3">
+            <Button v-if="buzzHeld" size="lg" variant="secondary" class="h-12 px-6 text-lg" :title="t('lan.buzz.openHint')" @click="session.openBuzz">
+              <Unlock />{{ t('lan.buzz.openNow') }}
+            </Button>
+            <Button v-if="buzzedId" size="lg" variant="destructive" class="h-12 px-6 text-lg" @click="lan.reopen(true)">
+              <X />{{ wrongLabel }}
+            </Button>
+            <Button size="lg" class="h-12 px-8 text-lg" @click="session.advance">{{ t('play.stage.showAnswer') }}</Button>
+          </div>
         </CardSlide>
 
         <CardSlide
@@ -363,6 +479,7 @@ onUnmounted(() => {
               :players="players"
               :bets="state.finalBets"
               :verdicts="state.finalVerdicts"
+              :answers="lanInfo ? lanStatus.answers : undefined"
               @verdict="session.setFinalVerdict"
               @done="session.scoreFinal"
             />
@@ -373,13 +490,27 @@ onUnmounted(() => {
           v-else-if="state.phase === 'results'"
           :key="sceneKey"
           :ranking="ranking"
+          :stats="state.stats"
+          :can-undo="session.canUndo.value && !hostConnected"
           show-home
+          @undo="session.undo"
           @home="router.push({ name: 'home' })"
         />
       </Transition>
     </main>
 
-    <PlayerPodiums v-if="inProgress" :players="players" :active-id="state.stake?.playerId" />
+    <PlayerPodiums v-if="inProgress" :players="players" :active-id="state.stake?.playerId" :phones="phones" :buzzed-id="buzzedId"
+      :buzzed-by="buzzedBy"
+      :chooser-id="state.phase === 'board' ? (state.chooserId ?? undefined) : undefined"
+    />
+
+    <Dialog v-if="lanAvailable" v-model:open="phonesOpen">
+      <DialogContent class="sm:max-w-lg">
+        <DialogTitle class="font-display text-xl uppercase text-gold">{{ t('lan.toggle') }}</DialogTitle>
+        <DialogDescription class="sr-only">{{ t('lan.toggleHint') }}</DialogDescription>
+        <PhonesPanel :info="lanInfo" :starting="lanStarting" :phones="phoneCount" @start="startPhones" @stop="lan.stop" />
+      </DialogContent>
+    </Dialog>
 
     <div v-if="flight" :key="flight.key" ref="flightTile" class="flight" aria-hidden="true">{{ flight.value }}</div>
   </div>
@@ -399,14 +530,20 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px;
+  padding: 10px 16px 10px calc(16px + var(--titlebar-inset));
   transition: opacity 0.5s ease;
 }
 .chrome-hidden .chrome {
   opacity: 0;
 }
-.chrome-hidden {
-  cursor: none;
+/* the tour points at the top bar's buttons, so it stays put */
+:global(html[data-touring]) .chrome-hidden .chrome {
+  opacity: 1;
+}
+/* !important: cells and buttons inside set their own pointer cursor */
+.cursor-hidden,
+.cursor-hidden :deep(*) {
+  cursor: none !important;
 }
 .host-on {
   display: inline-flex;
@@ -414,6 +551,15 @@ onUnmounted(() => {
   gap: 8px;
   font-size: 13px;
   color: var(--cyan);
+}
+.phone-count {
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--cyan) 25%, transparent);
+  color: var(--cyan);
+  font-size: 12px;
+  line-height: 20px;
 }
 .dot {
   width: 8px;
@@ -434,15 +580,18 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: clamp(14px, 3vh, 30px);
-  padding: 2vh 4vw;
+  justify-content: safe center;
+  gap: clamp(8px, 2vh, 30px);
+  padding: 1vh 4vw 2vh;
   text-align: center;
   overflow-y: auto;
 }
+.title-scene > * {
+  flex-shrink: 0;
+}
 .game-title {
   margin: 0;
-  font-size: clamp(44px, 8vw, 140px);
+  font-size: clamp(40px, min(8vw, 13vh), 140px);
   line-height: 0.95;
 }
 .subtitle {
@@ -451,6 +600,18 @@ onUnmounted(() => {
   font-style: italic;
   font-size: clamp(18px, 2vw, 32px);
   color: var(--muted-foreground);
+}
+.phones-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.phones-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--gold);
 }
 .start {
   height: 56px;
@@ -470,8 +631,39 @@ onUnmounted(() => {
   min-height: 0;
   max-width: 1600px;
 }
-.skip {
+.board-actions {
   flex: none;
+  display: flex;
+  gap: 8px;
+}
+.corner-logo {
+  --logo-height: clamp(26px, 4.4vh, 44px);
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.timer-slot {
+  --timer-size: clamp(64px, 12vh, 124px);
+  position: absolute;
+  z-index: 2;
+  top: 4px;
+  right: clamp(12px, 2vw, 32px);
+}
+.scene-area > .timer-slot {
+  height: auto;
+}
+.title-logo {
+  --logo-height: clamp(48px, 9vh, 110px);
+}
+.intro-text {
+  margin: 0;
+  max-width: 48ch;
+  font-size: clamp(16px, 1.6vw, 26px);
+  color: var(--foreground);
+  white-space: pre-line;
 }
 .dock {
   border-radius: 22px;

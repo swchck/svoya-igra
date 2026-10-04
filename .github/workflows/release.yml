@@ -53,6 +53,9 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # with CI=true the bundler skips the Finder pass that lays out the DMG window,
+          # which ships a plain window with no background (tauri-apps/tauri#592)
+          TAURI_BUNDLER_DMG_IGNORE_CI: 'true'
         run: |
           version="${GITHUB_REF_NAME#v}"
           # update bundles need the signing key; without it the release ships installers only

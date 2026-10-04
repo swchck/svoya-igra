@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { Plus, Trophy } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
 import type { FinalQuestion, Round } from '@/types'
@@ -8,7 +9,29 @@ const { t } = useI18n()
 defineProps<{ rounds: Round[]; final?: FinalQuestion }>()
 /** Index of the open round, or 'final'. */
 const active = defineModel<number | 'final'>({ required: true })
-defineEmits<{ (e: 'add'): void }>()
+const emit = defineEmits<{
+  (e: 'add'): void
+  (e: 'reorder', from: number, to: number): void
+}>()
+
+// native drag and drop, same as themes on the board; the final pill is neither source nor target
+const dragFrom = ref<number | null>(null)
+const overIndex = ref<number | null>(null)
+
+function start(e: DragEvent, i: number) {
+  dragFrom.value = i
+  e.dataTransfer?.setData('text/plain', '')
+  if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
+}
+function end() {
+  dragFrom.value = null
+  overIndex.value = null
+}
+function drop(i: number) {
+  const from = dragFrom.value
+  end()
+  if (from !== null && from !== i) emit('reorder', from, i)
+}
 
 function progress(r: Round) {
   const all = r.themes.flatMap((t) => t.questions)
@@ -22,9 +45,16 @@ function progress(r: Round) {
       v-for="(r, i) in rounds"
       :key="r.id"
       class="pill"
-      :class="{ active: active === i }"
+      :class="{ active: active === i, dragging: dragFrom === i, 'drop-target': overIndex === i && dragFrom !== i }"
       :aria-current="active === i ? 'page' : undefined"
+      draggable="true"
+      :title="t('editor.strip.dragRound')"
       @click="active = i"
+      @dragstart="start($event, i)"
+      @dragend="end"
+      @dragover.prevent="dragFrom !== null && (overIndex = i)"
+      @dragleave="overIndex === i && (overIndex = null)"
+      @drop.prevent="drop(i)"
     >
       <span class="name">{{ r.name || t('editor.strip.defaultRound', { n: i + 1 }) }}</span>
       <span class="count">{{ progress(r).ready }}/{{ progress(r).total }}</span>
@@ -99,6 +129,13 @@ function progress(r: Round) {
   height: 100%;
   background: linear-gradient(90deg, var(--cyan), var(--gold));
   transition: width 0.3s ease;
+}
+.pill.dragging {
+  opacity: 0.45;
+}
+.pill.drop-target {
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 2px var(--cyan);
 }
 .pill.add {
   border-style: dashed;

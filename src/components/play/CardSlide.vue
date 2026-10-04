@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { MediaItem } from '@/types'
 import MediaView from '@/components/MediaView.vue'
+import { renderMarkdown } from '@/lib/markdown'
 import FitText from './FitText.vue'
 
 const { t } = useI18n()
@@ -20,6 +21,7 @@ const props = defineProps<{
   quiet?: boolean
 }>()
 
+const html = computed(() => renderMarkdown(props.text))
 const hasMedia = computed(() => !!props.media?.length)
 </script>
 
@@ -32,7 +34,7 @@ const hasMedia = computed(() => !!props.media?.length)
     </header>
     <p v-if="variant === 'answer'" class="answer-label">{{ t('play.card.correctAnswer') }}</p>
     <FitText
-      :text="text"
+      :html="html"
       :share="hasMedia ? (variant === 'answer' ? 0.24 : 0.36) : 0.72"
       :max="variant === 'answer' ? 96 : 72"
       :class="variant === 'answer' ? 'answer-text' : 'question-text'"
@@ -66,7 +68,7 @@ const hasMedia = computed(() => !!props.media?.length)
   border-radius: 999px;
   overflow: hidden;
   font-family: var(--font-display);
-  font-size: clamp(15px, 1.7vw, 26px);
+  font-size: calc(clamp(15px, 1.7vw, 26px) * var(--stage-scale, 1));
   letter-spacing: 0.06em;
   text-transform: uppercase;
   box-shadow: 0 10px 30px -14px oklch(0.05 0.1 280 / 0.9);

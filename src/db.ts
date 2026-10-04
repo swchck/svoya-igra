@@ -5,10 +5,12 @@
 import { migrateInlineMedia } from './media/migrate'
 
 const DB_NAME = 'svoya-igra'
-const DB_VERSION = 2
-export const STORE_GAMES = 'games'
+const DB_VERSION = 3
+const STORE_GAMES = 'games'
 export const STORE_MEDIA = 'media'
-export type StoreName = typeof STORE_GAMES | typeof STORE_MEDIA
+export const STORE_SNAPSHOTS = 'snapshots'
+export const SNAPSHOT_BY_GAME = 'gameId'
+export type StoreName = typeof STORE_GAMES | typeof STORE_MEDIA | typeof STORE_SNAPSHOTS
 
 let dbPromise: Promise<IDBDatabase> | null = null
 
@@ -20,6 +22,9 @@ function openDb(): Promise<IDBDatabase> {
       const db = req.result
       if (!db.objectStoreNames.contains(STORE_GAMES)) db.createObjectStore(STORE_GAMES, { keyPath: 'id' })
       if (!db.objectStoreNames.contains(STORE_MEDIA)) db.createObjectStore(STORE_MEDIA, { keyPath: 'id' })
+      if (!db.objectStoreNames.contains(STORE_SNAPSHOTS)) {
+        db.createObjectStore(STORE_SNAPSHOTS, { keyPath: 'id' }).createIndex(SNAPSHOT_BY_GAME, 'gameId')
+      }
       if (e.oldVersion > 0 && e.oldVersion < 2) migrateInlineMedia(req.transaction!)
     }
     req.onsuccess = () => {
@@ -70,4 +75,12 @@ export async function dbPut<T extends { id: string }>(value: T, store: StoreName
 
 export async function dbDelete(id: string, store: StoreName = STORE_GAMES): Promise<void> {
   await tx(store, 'readwrite', (s) => s.delete(id))
+}
+
+export async function dbGetAllByIndex<T>(store: StoreName, index: string, key: IDBValidKey): Promise<T[]> {
+  return (await tx<T[]>(store, 'readonly', (s) => s.index(index).getAll(key) as IDBRequest<T[]>)) ?? []
+}
+
+export async function dbGetKeysByIndex(store: StoreName, index: string, key: IDBValidKey): Promise<string[]> {
+  return (await tx(store, 'readonly', (s) => s.index(index).getAllKeys(key))) as string[]
 }

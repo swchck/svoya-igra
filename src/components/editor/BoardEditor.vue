@@ -4,16 +4,15 @@ import { useI18n } from 'vue-i18n'
 import { Cat, Gavel, GripVertical, Image as ImageIcon, Music, Plus, Trash2 } from '@lucide/vue'
 import type { Question, Round } from '@/types'
 import IconButton from '@/components/IconButton.vue'
+import { markdownToPlain } from '@/lib/markdown'
 import { isQuestionReady, makeEmptyQuestion, makeEmptyTheme, moveItemTo } from '@/game/model'
 
 const { t } = useI18n()
 const round = defineModel<Round>('round', { required: true })
-/** Id of the question open in the inspector. */
+/** Id of the question open in the dialog. */
 const selected = defineModel<string | null>('selected', { required: true })
-const emit = defineEmits<{
+defineEmits<{
   (e: 'remove-theme', index: number): void
-  /** The user clicked a cell, as opposed to the selection changing on its own. */
-  (e: 'picked'): void
 }>()
 
 const columns = computed(() => Math.max(1, ...round.value.themes.map((t) => t.questions.length)))
@@ -120,11 +119,12 @@ function dropOnTheme(index: number) {
           cat: q.kind === 'cat-in-bag',
           'drop-cell': over === q.id,
         }"
+        :data-tour="ti === 0 && i === 0 ? 'board-cell' : undefined"
         draggable="true"
-        :aria-pressed="selected === q.id"
+        aria-haspopup="dialog"
         :aria-label="`${theme.name}, ${q.value}${isQuestionReady(q) ? '' : t('editor.board.notFilled')}`"
-        :title="q.text || t('editor.board.emptyQuestion')"
-        @click="((selected = q.id), emit('picked'))"
+        :title="markdownToPlain(q.text) || t('editor.board.emptyQuestion')"
+        @click="selected = q.id"
         @dragstart="startQuestion($event, ti, i)"
         @dragend="end"
         @dragover.prevent.stop="drag?.kind === 'question' && (over = q.id)"
@@ -147,10 +147,18 @@ function dropOnTheme(index: number) {
 
 <style scoped>
 .board-editor {
-  display: grid;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
+  /* rows share the window's height; past ~10 themes they bottom out and this scrolls */
+  overflow-y: auto;
 }
 .row {
+  flex: 1 1 0;
+  min-height: 44px;
+  max-height: 96px;
   display: grid;
   grid-template-columns: minmax(150px, 1.5fr) repeat(var(--cols), minmax(58px, 1fr)) 36px;
   gap: 8px;
@@ -166,7 +174,7 @@ function dropOnTheme(index: number) {
   display: flex;
   align-items: center;
   gap: 4px;
-  min-height: 64px;
+  min-height: 0;
   padding: 4px 6px 4px 2px;
   border-radius: 14px;
   background:
@@ -227,7 +235,7 @@ function dropOnTheme(index: number) {
   position: relative;
   display: grid;
   place-items: center;
-  min-height: 64px;
+  min-height: 0;
   border-radius: 14px;
   border: 1px solid oklch(1 0 0 / 0.16);
   background:
@@ -303,8 +311,9 @@ function dropOnTheme(index: number) {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex: none;
   gap: 6px;
-  min-height: 48px;
+  min-height: 40px;
   border-radius: 14px;
   border: 1px dashed oklch(1 0 0 / 0.25);
   background: transparent;

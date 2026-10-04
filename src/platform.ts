@@ -9,6 +9,12 @@ let mainWindow = true
 /** True inside the desktop app. */
 export const isDesktop = isTauri()
 
+/**
+ * True in the macOS app, whose windows draw the page under a transparent title bar: the
+ * traffic lights sit over the page's top-left corner and top bars double as drag handles.
+ */
+export const overlayTitleBar = isDesktop && /Mac/.test(navigator.userAgent)
+
 /** Resolves platform facts that the UI reads synchronously. Call once before mounting. */
 export async function initPlatform(): Promise<void> {
   if (isDesktop) mainWindow = (await import('@tauri-apps/api/window')).getCurrentWindow().label === 'main'
@@ -37,7 +43,7 @@ export function youtubeEmbedUrl(id: string, params: URLSearchParams): string {
   return `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?${params}`
 }
 
-const GAME_EXTENSIONS = ['gamezip', 'json']
+const GAME_EXTENSIONS = ['gamezip', 'siq', 'json', 'gamebackup']
 
 async function readPath(path: string): Promise<File> {
   const { readFile } = await import('@tauri-apps/plugin-fs')
@@ -45,13 +51,16 @@ async function readPath(path: string): Promise<File> {
   return new File([bytes.slice().buffer], path.split(/[\\/]/).pop() ?? 'game.gamezip')
 }
 
-/** Desktop: shows the native open dialog for a game file. Returns null when cancelled. */
-export async function pickGameFile(): Promise<File | null> {
+/**
+ * Desktop: shows the native open dialog for a game file, or only for the given extensions.
+ * Returns null when cancelled.
+ */
+export async function pickGameFile(extensions: string[] = GAME_EXTENSIONS): Promise<File | null> {
   const { open } = await import('@tauri-apps/plugin-dialog')
   const path = await open({
     multiple: false,
     directory: false,
-    filters: [{ name: t('system.fileFilterName'), extensions: GAME_EXTENSIONS }],
+    filters: [{ name: t('system.fileFilterName'), extensions }],
   })
   return path ? readPath(path) : null
 }

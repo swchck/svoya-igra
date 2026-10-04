@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { defineAsyncComponent, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
-import { Download, FileJson, MoreHorizontal, Package, Pencil, Play, Plus, Sparkles, Trash2, Upload } from '@lucide/vue'
+import { Download, FileJson, MoreHorizontal, Package, Pencil, Play, Plus, Settings, Sparkles, Trash2, Upload, Wifi } from '@lucide/vue'
 import type { Game } from '@/types'
 import { Button } from '@/components/ui/button'
 import {
@@ -15,21 +15,37 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useGamesStore } from '@/stores/games'
 import { confirmAction } from '@/composables/useConfirm'
-import { makeEmptyGame } from '@/game/model'
-import { exportGameFile, GAME_FILE_ACCEPT, importGameFile, importSampleGame, type GameFileFormat } from '@/io/gameFile'
+import { useBackup } from '@/composables/useBackup'
+import { makeEmptyGame, newGameSettings } from '@/game/model'
+import { prefs } from '@/prefs'
+import type { GameFileFormat } from '@/io/gameFile'
+import { GAME_FILE_ACCEPT, isBackupFileName } from '@/io/files'
+import { loadSample as importSample } from '@/io/sample'
+import { offerTour } from '@/tour/state'
+import TourHelpButton from '@/tour/TourHelpButton.vue'
 import { isDesktop, pickGameFile } from '@/platform'
 import StageBackdrop from '@/components/play/StageBackdrop.vue'
 import MiniBoard from '@/components/MiniBoard.vue'
-import LocaleSwitch from '@/components/LocaleSwitch.vue'
 import { currentLocale } from '@/i18n'
+
+// the file formats and the Wi-Fi share are only needed once a button asks for them
+const gameFile = () => import('@/io/gameFile')
+const ShareGameDialog = defineAsyncComponent(() => import('@/components/lan/ShareGameDialog.vue'))
 
 const router = useRouter()
 const { t } = useI18n()
 const store = useGamesStore()
+const { busy: restoring, restore: restoreBackup } = useBackup()
 const fileInput = ref<HTMLInputElement | null>(null)
 const busy = ref(false)
-const SAMPLE_TITLE = 'Своя игра — 1996 и не только'
 const version = ref('')
+const sharing = ref<Game | null>(null)
+const shareOpen = ref(false)
+
+function shareOverWifi(g: Game) {
+  sharing.value = g
+  shareOpen.value = true
+}
 
 onMounted(async () => {
   if (isDesktop) version.value = await (await import('@tauri-apps/api/app')).getVersion()
@@ -37,6 +53,7 @@ onMounted(async () => {
 
 onMounted(() => {
   store.pruneMedia().catch(() => {})
+  offerTour('home', { ask: true })
 })
 
 function failed(action: string, err: unknown) {
@@ -45,7 +62,7 @@ function failed(action: string, err: unknown) {
 
 async function createNew() {
   try {
-    const g = await store.save(makeEmptyGame())
+    const g = await store.save({ ...makeEmptyGame(), settings: newGameSettings(prefs) })
     router.push({ name: 'editor', params: { id: g.id } })
   } catch (err) {
     failed(t('home.toast.createFailed'), err)
@@ -70,6 +87,7 @@ async function remove(g: Game) {
 
 async function exportAs(g: Game, format: GameFileFormat) {
   try {
+    const { exportGameFile } = await gameFile()
     if (await exportGameFile(g, format)) toast.success(t('home.toast.fileSaved'))
   } catch (err) {
     failed(t('home.toast.exportFailed'), err)
@@ -79,11 +97,8 @@ async function exportAs(g: Game, format: GameFileFormat) {
 async function loadSample() {
   busy.value = true
   try {
-    const previous = store.games.filter((g) => g.title === SAMPLE_TITLE)
-    // save before removing: removal prunes media, and the new copy's files must be referenced by then
-    await store.save(await importSampleGame())
-    for (const old of previous) await store.remove(old.id)
-    toast.success(t('home.toast.sampleLoaded'), previous.length ? { description: t('home.toast.sampleReplaced') } : undefined)
+    const { replaced } = await importSample(store)
+    toast.success(t('home.toast.sampleLoaded'), replaced ? { description: t('home.toast.sampleReplaced') } : undefined)
   } catch (err) {
     failed(t('home.toast.sampleFailed'), err)
   } finally {
@@ -112,10 +127,13 @@ async function onFile(e: Event) {
 }
 
 async function importFile(file: File) {
+  if (isBackupFileName(file.name)) return restoreBackup(file)
   busy.value = true
   try {
-    const game = await store.save(await importGameFile(file))
-    toast.success(t('home.toast.imported'), { description: game.title })
+    const { importGameFileWithNotes } = await gameFile()
+    const { game: imported, notes } = await importGameFileWithNotes(file)
+    const game = await store.save(imported)
+    toast.success(t('home.toast.imported'), { description: [game.title, ...notes].join(' · ') })
   } catch (err) {
     failed(t('home.toast.importFailed'), err)
   } finally {
@@ -143,14 +161,17 @@ function fmtDate(ts: number) {
 <template>
   <StageBackdrop />
   <main class="home">
-    <header class="hero">
-      <div class="locale"><LocaleSwitch /></div>
+    <header class="hero" data-tauri-drag-region>
+      <div class="locale" data-tour="home-tools">
+        <TourHelpButton id="home" />
+        <Button variant="ghost" size="icon" :aria-label="t('prefs.open')" :title="t('prefs.open')" @click="router.push({ name: 'settings' })"><Settings /></Button>
+      </div>
       <h1 class="title-shine hero-title">{{ t('system.appName') }}</h1>
       <p class="hero-sub">{{ t('home.subtitle') }}</p>
-      <div class="actions">
+      <div class="actions" data-tour="home-actions">
         <Button size="lg" class="h-12 px-6 text-base" @click="createNew"><Plus />{{ t('home.newGame') }}</Button>
-        <Button size="lg" variant="outline" class="h-12 px-6 text-base" :disabled="busy" @click="startImport"><Upload />{{ t('home.import') }}</Button>
-        <Button size="lg" variant="ghost" class="h-12 px-6 text-base" :disabled="busy" @click="loadSample"><Sparkles />{{ t('home.openSample') }}</Button>
+        <Button size="lg" variant="outline" class="h-12 px-6 text-base" :disabled="busy || restoring" @click="startImport"><Upload />{{ t('home.import') }}</Button>
+        <Button size="lg" variant="ghost" class="h-12 px-6 text-base" :disabled="busy || restoring" @click="loadSample"><Sparkles />{{ t('home.openSample') }}</Button>
         <input ref="fileInput" type="file" class="hidden" :accept="GAME_FILE_ACCEPT" @change="onFile" />
       </div>
     </header>
@@ -165,7 +186,7 @@ function fmtDate(ts: number) {
     </section>
 
     <TransitionGroup v-else name="list" tag="ul" class="games">
-      <li v-for="g in store.games" :key="g.id" class="game glass">
+      <li v-for="(g, i) in store.games" :key="g.id" class="game glass" :data-tour="i === 0 ? 'game-card' : undefined">
         <button class="thumb" :aria-label="t('home.card.playNamed', { title: g.title || t('home.untitled') })" @click="router.push({ name: 'play', params: { id: g.id } })">
           <MiniBoard :round="g.rounds[0]" />
           <span class="thumb-play"><Play class="size-7 translate-x-0.5" /></span>
@@ -178,15 +199,16 @@ function fmtDate(ts: number) {
           <p class="meta">{{ t('home.card.modified', { date: fmtDate(g.updatedAt) }) }}</p>
         </div>
         <div class="buttons">
-          <Button @click="router.push({ name: 'play', params: { id: g.id } })"><Play />{{ t('home.card.play') }}</Button>
-          <Button variant="secondary" @click="router.push({ name: 'editor', params: { id: g.id } })"><Pencil />{{ t('home.card.edit') }}</Button>
+          <Button size="sm" @click="router.push({ name: 'play', params: { id: g.id } })"><Play />{{ t('home.card.play') }}</Button>
+          <Button size="sm" variant="secondary" @click="router.push({ name: 'editor', params: { id: g.id } })"><Pencil />{{ t('home.card.edit') }}</Button>
           <DropdownMenu>
             <DropdownMenuTrigger as-child>
-              <Button variant="ghost" size="icon" :aria-label="t('home.card.moreActions')"><MoreHorizontal /></Button>
+              <Button variant="ghost" size="icon-sm" :aria-label="t('home.card.moreActions')"><MoreHorizontal /></Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" class="min-w-52">
               <DropdownMenuItem @select="exportAs(g, 'gamezip')"><Package />{{ t('home.card.exportGamezip') }}</DropdownMenuItem>
               <DropdownMenuItem @select="exportAs(g, 'json')"><FileJson />{{ t('home.card.exportJson') }}</DropdownMenuItem>
+              <DropdownMenuItem v-if="isDesktop" @select="shareOverWifi(g)"><Wifi />{{ t('lan.share.menu') }}</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive" @select="remove(g)"><Trash2 />{{ t('home.card.delete') }}</DropdownMenuItem>
             </DropdownMenuContent>
@@ -199,6 +221,7 @@ function fmtDate(ts: number) {
       <Download class="size-4" />{{ t('home.footnote') }}
     </p>
     <p v-if="version" class="version">{{ t('home.version', { version }) }}</p>
+    <ShareGameDialog v-if="isDesktop" v-model:open="shareOpen" :game="sharing" />
   </main>
 </template>
 
@@ -206,28 +229,36 @@ function fmtDate(ts: number) {
 .home {
   position: relative;
   z-index: 1;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   max-width: 1120px;
+  height: 100dvh;
   margin: 0 auto;
-  padding: 0 24px 40px;
+  padding: 0 24px clamp(10px, 2.5vh, 24px);
+}
+.home > * {
+  flex: none;
 }
 .hero {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
-  padding: clamp(40px, 9vh, 96px) 0 clamp(28px, 5vh, 48px);
+  gap: clamp(4px, 1.4vh, 14px);
+  padding: clamp(28px, 7vh, 96px) 0 clamp(14px, 4vh, 48px);
   text-align: center;
 }
 .locale {
   position: absolute;
   top: 16px;
   right: 0;
+  display: flex;
+  gap: 4px;
 }
 .hero-title {
   margin: 0;
-  font-size: clamp(64px, 11vw, 150px);
+  font-size: clamp(48px, min(11vw, 15vh), 150px);
   line-height: 0.9;
 }
 .hero-sub {
@@ -242,7 +273,7 @@ function fmtDate(ts: number) {
   flex-wrap: wrap;
   justify-content: center;
   gap: 12px;
-  margin-top: 14px;
+  margin-top: clamp(4px, 1.4vh, 14px);
 }
 .notice {
   display: grid;
@@ -252,9 +283,17 @@ function fmtDate(ts: number) {
   border-radius: 22px;
   text-align: center;
 }
+.home > .games {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  align-content: start;
+  /* room for the hover lift and shadow, which overflow would otherwise clip */
+  padding: 6px 6px 20px;
+}
 .games {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 360px));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 300px));
   justify-content: center;
   gap: 18px;
   margin: 0;
@@ -264,9 +303,9 @@ function fmtDate(ts: number) {
 .game {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 14px;
-  border-radius: 22px;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 18px;
   transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 .game:hover {
@@ -281,6 +320,14 @@ function fmtDate(ts: number) {
   background: none;
   cursor: pointer;
   border-radius: 14px;
+}
+.thumb :deep(.mini) {
+  max-height: min(150px, 20vh);
+}
+@media (max-height: 700px) {
+  .hero-sub {
+    display: none;
+  }
 }
 .thumb-play {
   position: absolute;
@@ -310,20 +357,19 @@ function fmtDate(ts: number) {
 .name {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 500;
   line-height: 1.15;
   color: var(--gold);
 }
 .meta {
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--muted-foreground);
 }
 .buttons {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   margin-top: auto;
 }
 .footnote {
@@ -331,7 +377,7 @@ function fmtDate(ts: number) {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  margin: 40px 0 0;
+  margin: clamp(8px, 2.5vh, 40px) 0 0;
   font-size: 14px;
   color: var(--muted-foreground);
   text-align: center;

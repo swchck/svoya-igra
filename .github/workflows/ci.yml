@@ -66,6 +66,9 @@ jobs:
           key: ${{ matrix.target }}
       - run: npm ci
       - name: Build installers
+        # keep the DMG layout step on, as in Release, so CI catches it breaking
+        env:
+          TAURI_BUNDLER_DMG_IGNORE_CI: 'true'
         run: npx tauri build --target ${{ matrix.target }}
       - name: Collect installers
         run: node scripts/release-assets.mjs ${{ matrix.target }} ${{ matrix.label }} out

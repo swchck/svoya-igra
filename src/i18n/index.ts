@@ -1,7 +1,5 @@
 import { createI18n } from 'vue-i18n'
-import ru from './locales/ru'
-import en from './locales/en'
-import sr from './locales/sr'
+import type ru from './locales/ru'
 
 /** Messages of one interface language; Russian is the reference every other language must match. */
 export type Messages = typeof ru
@@ -50,11 +48,24 @@ export const i18n = createI18n<[Messages], Locale, false>({
   legacy: false,
   locale: initialLocale(),
   fallbackLocale: 'ru',
-  messages: { ru, en, sr },
+  // filled by loadLocale: each language is its own chunk, so startup fetches only the one in use
+  messages: {} as Record<Locale, Messages>,
   pluralRules: { ru: slavicPlural, sr: slavicPlural },
   missingWarn: false,
   fallbackWarn: false,
 })
+
+const loaders: Record<Locale, () => Promise<{ default: Messages }>> = {
+  ru: () => import('./locales/ru'),
+  en: () => import('./locales/en'),
+  sr: () => import('./locales/sr'),
+}
+
+/** Fetches the messages of a language unless they are already in place. */
+export async function loadLocale(locale: Locale): Promise<void> {
+  if (i18n.global.availableLocales.includes(locale)) return
+  i18n.global.setLocaleMessage(locale, (await loaders[locale]()).default)
+}
 
 /** Translates outside components: stores, composables, error messages. */
 export const t = i18n.global.t
@@ -64,10 +75,31 @@ export function currentLocale(): Locale {
   return i18n.global.locale.value
 }
 
-/** Switches the interface language and remembers it for every window of the app. */
-export function setLocale(locale: Locale): void {
+/** Reports whether someone has picked the interface language, rather than it being guessed. */
+export function localeChosen(): boolean {
+  try {
+    return isLocale(localStorage.getItem(STORAGE_KEY))
+  } catch {
+    // without storage the question would come back on every start
+    return true
+  }
+}
+
+let requested: Locale | undefined
+
+// a slower load of an earlier pick must not override a later one
+async function apply(locale: Locale): Promise<boolean> {
+  requested = locale
+  await loadLocale(locale)
+  if (requested !== locale) return false
   i18n.global.locale.value = locale
   if (typeof document !== 'undefined') document.documentElement.lang = locale
+  return true
+}
+
+/** Switches the interface language once its messages are loaded, and remembers it for every window of the app. */
+export async function setLocale(locale: Locale): Promise<void> {
+  if (!(await apply(locale))) return
   try {
     localStorage.setItem(STORAGE_KEY, locale)
   } catch {
@@ -80,9 +112,6 @@ export function syncLocaleAcrossWindows(): void {
   if (typeof window === 'undefined') return
   document.documentElement.lang = currentLocale()
   window.addEventListener('storage', (e) => {
-    if (e.key === STORAGE_KEY && isLocale(e.newValue)) {
-      i18n.global.locale.value = e.newValue
-      document.documentElement.lang = e.newValue
-    }
+    if (e.key === STORAGE_KEY && isLocale(e.newValue)) void apply(e.newValue)
   })
 }

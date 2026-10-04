@@ -22,10 +22,14 @@ export default {
   errors: {
     invalidGame: 'Fajl je oštećen ili nije igra',
     noGameJson: 'U arhivi nema opisa igre (game.json)',
-    notGameFile: 'Ovo nije fajl igre. Odgovaraju .gamezip i .json',
+    notGameFile: 'Ovo nije fajl igre. Odgovaraju .gamezip, .json i SIGame paketi .siq',
     sampleFailed: 'primer se nije učitao, greška {status}',
     embeddedUnreadable: 'Nije uspelo čitanje ugrađenog fajla',
+    siqBroken: 'Datoteka je oštećena ili nije SIGame paket (.siq)',
+    siqNoContent: 'Paket nema content.xml',
+    siqEmpty: 'Paket nema nijedno pitanje',
   },
+  siq: { catTheme: 'Kategorija: {theme}' },
   fileFilterName: 'Svoja igra',
   hostWindowTitle: 'Voditelj · {title}',
 } satisfies typeof ru

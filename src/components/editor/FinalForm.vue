@@ -5,8 +5,8 @@ import type { FinalQuestion } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import MediaList from '@/components/MediaList.vue'
+import MarkdownEditor from '@/components/MarkdownEditor.vue'
 
 const { t } = useI18n()
 const final = defineModel<FinalQuestion>({ required: true })
@@ -20,13 +20,13 @@ defineEmits<{ (e: 'remove'): void; (e: 'preview'): void }>()
       <Input id="f-theme" v-model="final.theme" class="h-11 font-display text-lg tracking-wide uppercase" :placeholder="t('editor.final.themePlaceholder')" />
     </div>
     <div class="grid gap-2">
-      <Label for="f-text">{{ t('editor.final.question') }}</Label>
-      <Textarea id="f-text" v-model="final.text" class="min-h-28 font-serif text-lg [field-sizing:content]" :placeholder="t('editor.final.questionPlaceholder')" />
+      <Label as="span">{{ t('editor.final.question') }}</Label>
+      <MarkdownEditor v-model="final.text" :label="t('editor.final.question')" :placeholder="t('editor.final.questionPlaceholder')" />
     </div>
     <MediaList v-model="final.media" :label="t('editor.final.questionMedia')" />
     <div class="grid gap-2">
-      <Label for="f-answer">{{ t('editor.final.answer') }}</Label>
-      <Textarea id="f-answer" v-model="final.answer" class="min-h-16 font-display text-xl text-gold [field-sizing:content]" :placeholder="t('editor.final.answerPlaceholder')" />
+      <Label as="span">{{ t('editor.final.answer') }}</Label>
+      <MarkdownEditor v-model="final.answer" display :label="t('editor.final.answer')" :placeholder="t('editor.final.answerPlaceholder')" />
     </div>
     <MediaList v-model="final.answerMedia" :label="t('editor.final.answerMedia')" />
     <div class="flex flex-wrap gap-2">

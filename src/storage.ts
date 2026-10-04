@@ -4,6 +4,7 @@ import { parseGame } from './game/parse'
 import { plainCopy } from './lib/plain'
 import { mediaItems } from './game/model'
 import { deleteUnreferencedMedia } from './media/store'
+import { deleteSnapshots, snapshotMediaUrls } from './history'
 
 const LEGACY_KEY = 'svoya-igra:games:v1'
 
@@ -56,13 +57,16 @@ export async function upsertGame(game: Game): Promise<Game> {
 
 export async function deleteGame(id: string): Promise<void> {
   await dbDelete(id)
+  await deleteSnapshots(id)
 }
 
 /**
- * Deletes attachments no saved game refers to: leftovers of deleted games and of
- * media removed in the editor. Safe to run while an import or an editor is busy.
+ * Deletes attachments no saved game or history snapshot refers to: leftovers of deleted
+ * games and of media removed in the editor. Snapshots count, or a restored version
+ * would come back without its pictures. Safe to run while an import or an editor is busy.
  */
 export async function pruneMedia(): Promise<number> {
   const games = await loadGames()
-  return deleteUnreferencedMedia(games.flatMap((g) => mediaItems(g).map((m) => m.url)))
+  const referenced = [...games.flatMap((g) => mediaItems(g).map((m) => m.url)), ...(await snapshotMediaUrls())]
+  return deleteUnreferencedMedia(referenced)
 }

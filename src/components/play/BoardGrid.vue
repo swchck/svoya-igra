@@ -88,7 +88,7 @@ const columns = computed(() => Math.max(1, ...props.round.themes.map((th) => th.
   text-align: center;
   line-height: 1.1;
   color: var(--gold);
-  font-size: clamp(11px, min(var(--cell-h) * 0.2, var(--cell-w) * 0.13), 30px);
+  font-size: calc(clamp(11px, min(var(--cell-h) * 0.2, var(--cell-w) * 0.13), 30px) * var(--stage-scale, 1));
   overflow: hidden;
 }
 .cell {
@@ -122,7 +122,7 @@ const columns = computed(() => Math.max(1, ...props.round.themes.map((th) => th.
   font-weight: 700;
   line-height: 1;
   color: var(--gold);
-  font-size: clamp(16px, min(var(--cell-h) * 0.48, var(--cell-w) * 0.36), 88px);
+  font-size: calc(clamp(16px, min(var(--cell-h) * 0.48, var(--cell-w) * 0.36), 88px) * var(--stage-scale, 1));
   text-shadow: 0 0 22px color-mix(in oklch, var(--gold) 50%, transparent), 0 3px 0 oklch(0.3 0.12 60 / 0.8);
 }
 .cell.played {

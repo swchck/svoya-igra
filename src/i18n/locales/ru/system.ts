@@ -20,10 +20,14 @@ export default {
   errors: {
     invalidGame: 'Файл повреждён или это не игра',
     noGameJson: 'В архиве нет описания игры (game.json)',
-    notGameFile: 'Это не файл игры. Подойдут .gamezip и .json',
+    notGameFile: 'Это не файл игры. Подойдут .gamezip, .json и пакеты SIGame .siq',
     sampleFailed: 'пример не загрузился, ошибка {status}',
     embeddedUnreadable: 'Не удалось прочитать встроенный файл',
+    siqBroken: 'Файл повреждён или это не пакет «Своей игры» (.siq)',
+    siqNoContent: 'В пакете нет content.xml',
+    siqEmpty: 'В пакете нет ни одного вопроса',
   },
+  siq: { catTheme: 'Тема: {theme}' },
   fileFilterName: 'Своя игра',
   hostWindowTitle: 'Ведущий · {title}',
 }

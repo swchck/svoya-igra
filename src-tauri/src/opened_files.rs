@@ -11,7 +11,7 @@ use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager, Runtime};
 use tauri_plugin_fs::FsExt;
 
-const EXTENSIONS: [&str; 2] = ["gamezip", "json"];
+const EXTENSIONS: [&str; 3] = ["gamezip", "siq", "json"];
 
 /// Event telling the frontend that new files are waiting.
 pub const EVENT: &str = "files-opened";

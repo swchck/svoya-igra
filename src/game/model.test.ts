@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isQuestionReady, makeEmptyGame, makeEmptyQuestion, mediaItems, moveItem, moveItemTo, withFreshIds } from './model'
+import { isQuestionReady, makeEmptyGame, makeEmptyQuestion, mediaItems, moveItem, moveItemTo, newGameSettings, withFreshIds } from './model'
 
 describe('moveItem', () => {
   it('swaps with the neighbour and reports the new index', () => {
@@ -29,6 +29,12 @@ describe('mediaItems', () => {
 
     expect(items.map((m) => m.id)).toEqual(['1', '2', '3'])
     expect(q.media[0].url).toBe('changed')
+  })
+
+  it('includes the logo, so pruning and export keep its file', () => {
+    const game = makeEmptyGame()
+    game.settings = { logo: { id: 'logo', url: 'media://m_1', kind: 'image' } }
+    expect(mediaItems(game).map((m) => m.id)).toEqual(['logo'])
   })
 })
 
@@ -65,5 +71,23 @@ describe('isQuestionReady', () => {
     q.media = [{ id: 'm', url: 'x.mp3', kind: 'audio' }]
     q.answer = 'Ответ'
     expect(isQuestionReady(q)).toBe(true)
+  })
+})
+
+describe('newGameSettings', () => {
+  it('stores nothing for the plain defaults', () => {
+    expect(newGameSettings({ answerSeconds: 0, timerAutoStart: false, accent: 'gold' })).toBeUndefined()
+  })
+
+  it('carries the chosen timer and accent', () => {
+    expect(newGameSettings({ answerSeconds: 30, timerAutoStart: true, accent: 'ruby' })).toEqual({
+      answerSeconds: 30,
+      timerAutoStart: true,
+      accent: 'ruby',
+    })
+  })
+
+  it('drops auto-start when there is no timer', () => {
+    expect(newGameSettings({ answerSeconds: 0, timerAutoStart: true, accent: 'emerald' })).toEqual({ accent: 'emerald' })
   })
 })
