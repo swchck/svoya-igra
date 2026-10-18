@@ -32,6 +32,8 @@ export default {
     linkPlaceholder: 'https://…',
     applyLink: 'Apply link',
     crop: 'Crop',
+    blur: 'Blur',
+    blurHint: 'The picture stays blurred on the question and shows clear with the answer, unless the answer has media of its own.',
   },
   crop: {
     title: 'Crop picture',
@@ -69,6 +71,17 @@ export default {
     linkPlaceholder: 'Link to an image, audio, video or YouTube',
     addLink: 'Add link',
     badLink: 'The link must start with http:// or https://',
+    record: {
+      start: 'Record',
+      stop: 'Stop',
+      hint: 'Record sound from the microphone, up to two minutes',
+      denied: 'No access to the microphone. Allow it in the system or browser settings.',
+      failed: 'Could not turn on the microphone',
+    },
+    library: {
+      open: 'From this game',
+      hint: 'Files this game already has. Click one to add it here.',
+    },
   },
   list: {
     rejected: 'Not supported: {name}',

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { uid } from '@/game/model'
 import { computed, ref } from 'vue'
 import type { MediaItem } from '@/types'
 import { Label } from '@/components/ui/label'
@@ -9,6 +10,8 @@ import { isWebLink, useMediaIngest } from '@/components/media/useMediaIngest'
 const props = defineProps<{
   label?: string
   modelValue?: MediaItem[]
+  /** Pictures here may be blurred until the answer. */
+  blurrable?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -140,6 +143,7 @@ function onPaste(e: ClipboardEvent) {
           :index="i"
           :count="items.length"
           :expanded="expandedId === it.id"
+          :blurrable="blurrable"
           :class="{ dragging: dragId === it.id }"
           @update="(v) => replace(i, v)"
           @toggle="expandedId = expandedId === it.id ? undefined : it.id"
@@ -150,7 +154,7 @@ function onPaste(e: ClipboardEvent) {
         />
       </li>
     </ul>
-    <MediaAddZone :dropping="dropping" @files="addFiles" @link="addLink" />
+    <MediaAddZone :dropping="dropping" @files="addFiles" @link="addLink" @reuse="(m) => append([{ id: uid('mi_'), url: m.url, kind: m.kind, ...(m.mode && { mode: m.mode }) }])" />
   </section>
 </template>
 

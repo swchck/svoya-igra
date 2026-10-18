@@ -8,10 +8,13 @@ import { isStoredMedia } from '../media/ref'
 import { getMedia, putMedia } from '../media/store'
 import { exportGameZip, importGameZip } from './archive'
 import { importSiq } from './siq'
+import { gameFromTable } from './table'
+
+const TABLE_FILE = /\.(csv|tsv)$/i
 import { saveFile } from '../platform'
 import { fileSlug } from './files'
 
-export type GameFileFormat = 'gamezip' | 'json'
+export type GameFileFormat = 'gamezip' | 'json' | 'siq'
 
 async function importPlainFile(file: File): Promise<Game> {
   if (/\.(gamezip|zip)$/i.test(file.name)) return importGameZip(file)
@@ -28,9 +31,10 @@ async function importPlainFile(file: File): Promise<Game> {
   return game
 }
 
-/** Reads a .gamezip, .siq or .json file into a new game with fresh ids, storing its attachments. */
+/** Reads a .gamezip, .siq, .json, .csv or .tsv file into a new game with fresh ids, storing its attachments. */
 export async function importGameFile(file: File): Promise<Game> {
   if (/\.siq$/i.test(file.name)) return importSiq(file, file.name.replace(/\.siq$/i, ''))
+  if (TABLE_FILE.test(file.name)) return gameFromTable(await file.text(), file.name.replace(TABLE_FILE, ''))
   return importPlainFile(file)
 }
 
@@ -50,7 +54,9 @@ export async function exportGameFile(game: Game, format: GameFileFormat): Promis
   const blob =
     format === 'gamezip'
       ? await exportGameZip(game)
-      : new Blob([await toPortableJson(game)], { type: 'application/json' })
+      : format === 'siq'
+        ? await (await import('./siqExport')).exportSiq(game)
+        : new Blob([await toPortableJson(game)], { type: 'application/json' })
   return saveFile(blob, `${fileSlug(game.title)}.${format}`)
 }
 

@@ -77,6 +77,15 @@ export function hintedValue(value: number, hintCount: number, shown: number): nu
   return Math.max(10, Math.round((value * left) / steps / 10) * 10)
 }
 
+/**
+ * What the answer card shows: the answer's own media, or else the question's blurred pictures,
+ * now clear, since revealing them is the point of blurring.
+ */
+export function answerMedia(q: Pick<Question, 'media' | 'answerMedia'>): MediaItem[] {
+  if (q.answerMedia?.length) return q.answerMedia
+  return (q.media ?? []).filter((m) => m.blur).map((m) => ({ ...m, blur: false }))
+}
+
 /** What the stage shows with `shown` hints open: their texts in order, and the media of the question and of each. */
 export function withHints(q: Pick<Question, 'media' | 'hints'>, shown: number): { hints: string[]; media: MediaItem[] } {
   const open = q.hints?.slice(0, Math.max(0, shown)) ?? []

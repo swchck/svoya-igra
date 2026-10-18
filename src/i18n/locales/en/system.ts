@@ -28,6 +28,7 @@ export default {
     siqBroken: 'The file is damaged or is not a SIGame package (.siq)',
     siqNoContent: 'The package has no content.xml',
     siqEmpty: 'The package has no questions',
+    tableEmpty: 'The table has no questions. It needs columns: round, category, value, question, answer.',
   },
   siq: { catTheme: 'Category: {theme}' },
   fileFilterName: 'Svoya Igra',

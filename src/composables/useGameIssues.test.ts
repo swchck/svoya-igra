@@ -2,10 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { effectScope, nextTick, ref } from 'vue'
 import type { Game } from '../types'
 import { makeEmptyGame } from '../game/model'
-import { findMissingMedia } from '../game/validate'
+import { inspectMedia, type MediaFacts } from '../game/validate'
 import { useGameIssues } from './useGameIssues'
 
-vi.mock('../game/validate', async (orig) => ({ ...(await orig<typeof import('../game/validate')>()), findMissingMedia: vi.fn(async () => new Set<string>()) }))
+const { facts } = vi.hoisted(() => ({ facts: (missing: string[] = []) => ({ missing: new Set(missing), sizes: new Map<string, number>() }) }))
+vi.mock('../game/validate', async (orig) => ({ ...(await orig<typeof import('../game/validate')>()), inspectMedia: vi.fn(async () => facts()) }))
 
 function filled(): Game {
   const game = makeEmptyGame()
@@ -23,7 +24,7 @@ const settle = async () => {
 }
 
 beforeEach(() => {
-  vi.mocked(findMissingMedia).mockReset().mockResolvedValue(new Set())
+  vi.mocked(inspectMedia).mockReset().mockResolvedValue(facts())
 })
 
 describe('useGameIssues', () => {
@@ -58,7 +59,7 @@ describe('useGameIssues', () => {
   })
 
   it('reports files the media store lost, and re-checks only when stored media change', async () => {
-    vi.mocked(findMissingMedia).mockResolvedValue(new Set(['media://gone']))
+    vi.mocked(inspectMedia).mockResolvedValue(facts(['media://gone']))
     const g = filled()
     g.rounds[0].themes[0].questions[0].media = [{ id: 'm', url: 'media://gone', kind: 'image' }]
     const game = ref<Game | null>(g)
@@ -71,17 +72,17 @@ describe('useGameIssues', () => {
     game.value!.title = 'Другое'
     game.value!.rounds[0].themes[0].questions[1].text = 'Ещё'
     await settle()
-    expect(findMissingMedia).toHaveBeenCalledTimes(1)
+    expect(inspectMedia).toHaveBeenCalledTimes(1)
 
     game.value!.rounds[0].themes[0].questions[0].media = []
     await settle()
-    expect(findMissingMedia).toHaveBeenCalledTimes(2)
+    expect(inspectMedia).toHaveBeenCalledTimes(2)
     scope.stop()
   })
 
   it('keeps the newest answer when checks finish out of order', async () => {
-    const resolvers: ((v: Set<string>) => void)[] = []
-    vi.mocked(findMissingMedia).mockImplementation(() => new Promise((r) => resolvers.push(r)))
+    const resolvers: ((v: MediaFacts) => void)[] = []
+    vi.mocked(inspectMedia).mockImplementation(() => new Promise((r) => resolvers.push(r)))
     const g = filled()
     g.rounds[0].themes[0].questions[0].media = [{ id: 'm', url: 'media://a', kind: 'image' }]
     const game = ref<Game | null>(g)
@@ -90,9 +91,9 @@ describe('useGameIssues', () => {
     game.value!.rounds[0].themes[0].questions[0].media = [{ id: 'm', url: 'media://b', kind: 'image' }]
     await nextTick()
 
-    resolvers[1](new Set())
+    resolvers[1](facts())
     await settle()
-    resolvers[0](new Set(['media://a']))
+    resolvers[0](facts(['media://a']))
     await settle()
 
     expect(issues.value).toEqual([])

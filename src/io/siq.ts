@@ -305,7 +305,8 @@ export async function importSiq(
           ...(await convert(raw)),
         })
       }
-      themes.push({ id: uid('t_'), name: themeEl.getAttribute('name') ?? '', questions })
+      const comment = text(child(child(themeEl, 'info') ?? themeEl, 'comments'))
+      themes.push({ id: uid('t_'), name: themeEl.getAttribute('name') ?? '', questions, ...(comment && { comment }) })
     }
     if (themes.length) {
       rounds.push({

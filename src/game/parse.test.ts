@@ -24,6 +24,23 @@ const legacy = {
 }
 
 describe('parseGame', () => {
+  it('keeps question timers, round rules and theme comments that make sense', () => {
+    const game = structuredClone(legacy) as never as { rounds: Record<string, unknown>[] & { themes: Record<string, unknown>[] }[] }
+    const round = game.rounds[0] as unknown as { rules: unknown; themes: { comment: unknown; questions: Record<string, unknown>[] }[] }
+    round.rules = { answerSeconds: 9999, wrongPenalty: 'yes' }
+    round.themes[0].comment = 'Всё о кино'
+    round.themes[0].questions[0].seconds = -5
+    const parsed = parseGame(game)
+    expect(parsed.rounds[0].rules).toEqual({ answerSeconds: 600 })
+    expect(parsed.rounds[0].themes[0].comment).toBe('Всё о кино')
+    expect(parsed.rounds[0].themes[0].questions[0]).not.toHaveProperty('seconds')
+    round.rules = 'x'
+    round.themes[0].questions[0].seconds = 0
+    const again = parseGame(game)
+    expect(again.rounds[0]).not.toHaveProperty('rules')
+    expect(again.rounds[0].themes[0].questions[0].seconds).toBe(0)
+  })
+
   it('keeps choices and hints in shape', () => {
     const game = structuredClone(legacy) as never as { rounds: { themes: { questions: Record<string, unknown>[] }[] }[] }
     Object.assign(game.rounds[0].themes[0].questions[0], {

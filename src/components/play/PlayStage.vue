@@ -10,13 +10,14 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import { confirmAction } from '@/composables/useConfirm'
 import { usePlaySession, type SessionSnapshot } from '@/composables/usePlaySession'
 import { clearSession, saveSession } from '@/play/savedSession'
+import { recordOutcome } from '@/play/questionStats'
 import { HOST_COMMANDS, HOST_PING_MS, openHostWindow, openPlayChannel, type PlayChannel } from '@/play/channel'
 import { createMediaRegistry, MEDIA_REGISTRY } from '@/play/mediaControl'
 import { plainCopy } from '@/lib/plain'
 import { prefersReducedMotion } from '@/lib/motion'
 import { useStageSounds, useTimerSounds } from '@/play/sounds'
 import { accentStyle } from '@/play/accents'
-import { isSpecial, kindInfo, withHints } from '@/game/kinds'
+import { answerMedia, isSpecial, kindInfo, withHints } from '@/game/kinds'
 import { answerLabel, buzzable, lanAvailable, phonesPreferred, setPhonesPreferred } from '@/play/lan'
 import { prefs } from '@/prefs'
 import { useLanRoom } from '@/play/useLanRoom'
@@ -50,6 +51,8 @@ const { t } = useI18n()
 const session = usePlaySession(
   computed(() => props.game),
   props.restored,
+  undefined,
+  { questionDone: (id, tally) => recordOutcome(props.game.id, session.state.sessionId, id, tally) },
 )
 const { state, players, round, activeQuestion, activeValue, activeFinal, ranking, inProgress } = session
 const finalPickerName = computed(() => (session.finalPicker.value ? session.player(session.finalPicker.value)?.name : undefined))
@@ -91,8 +94,8 @@ const settings = computed(() => props.game.settings)
 const accent = computed(() => accentStyle(settings.value))
 const stageScale = computed(() => Math.min(1.4, Math.max(0.8, prefs.stageScale || 1)))
 const buzzHeld = computed(() => !!lanInfo.value && buzzable(state) && !state.buzzArmed)
-const wrongLabel = computed(() => (prefs.wrongPenalty ? t('lan.buzz.wrong', { value: activeValue.value }) : t('lan.buzz.wrongFree')))
-const answerMs = computed(() => (settings.value?.answerSeconds ?? 0) * 1000)
+const wrongLabel = computed(() => (session.wrongPenalty.value ? t('lan.buzz.wrong', { value: activeValue.value }) : t('lan.buzz.wrongFree')))
+const answerMs = session.answerMs
 const remaining = useRemaining(() => state.timer)
 useTimerSounds(remaining, () => state.timer.endsAt !== null)
 const showTimer = computed(() => answerMs.value > 0 && (state.phase === 'question' || state.phase === 'final-question'))
@@ -365,7 +368,7 @@ onUnmounted(() => {
           :key="sceneKey"
           data-tour="intro"
           :title="round?.name ?? ''"
-          :themes="round?.themes.map((t) => t.name)"
+          :themes="round?.themes.map((th) => ({ name: th.name, comment: th.comment }))"
           :hint="t('play.stage.hintToBoard')"
           @next="session.advance"
         />
@@ -459,7 +462,7 @@ onUnmounted(() => {
           :key="sceneKey"
           variant="answer"
           :text="activeQuestion.answer"
-          :media="activeQuestion.answerMedia"
+          :media="answerMedia(activeQuestion)"
           :options="activeQuestion.options"
           :correct="activeQuestion.correctOption"
         >

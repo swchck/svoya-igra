@@ -1,11 +1,22 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { CircleAlert, CircleCheck, ChevronRight, ClipboardCheck, TriangleAlert } from '@lucide/vue'
+import { CircleAlert, CircleCheck, ChevronRight, ClipboardCheck, Clock, TriangleAlert } from '@lucide/vue'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import type { Issue } from '@/game/validate'
 
-const props = defineProps<{ issues: Issue[] }>()
+const props = defineProps<{
+  issues: Issue[]
+  /** Roughly how long the game plays, in seconds. */
+  duration?: number
+}>()
+
+const durationText = computed(() => {
+  const minutes = Math.max(1, Math.round((props.duration ?? 0) / 60 / 5) * 5)
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  return h ? t('editor.issues.durationHours', { h, m }) : t('editor.issues.durationMinutes', { m })
+})
 const open = defineModel<boolean>('open', { required: true })
 const emit = defineEmits<{ (e: 'goto', issue: Issue): void }>()
 
@@ -74,6 +85,7 @@ function go(issue: Issue) {
           </template>
           <template v-else>{{ t('editor.issues.description') }}</template>
         </DialogDescription>
+        <p v-if="duration" class="duration"><Clock class="size-4" />{{ t('editor.issues.duration', { time: durationText }) }}</p>
       </div>
 
       <p v-if="!issues.length" class="clean"><CircleCheck class="size-5" />{{ t('editor.issues.clean') }}</p>
@@ -120,6 +132,14 @@ function go(issue: Issue) {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--gold);
+}
+.duration {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--cyan);
 }
 .clean {
   display: flex;

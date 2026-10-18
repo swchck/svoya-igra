@@ -278,6 +278,29 @@ describe('usePlaySession', () => {
     expect(s.activeValue.value).toBe(500)
   })
 
+  it('reports each closed question with its tally, again after an undo', () => {
+    const game = tinyGame()
+    const done: [string, { right: number; wrong: number }][] = []
+    const s = usePlaySession(ref(game), undefined, undefined, { questionDone: (id, tally) => done.push([id, tally]) })
+    const [p1, p2] = s.players.value
+    s.start()
+    s.advance()
+    const [q] = game.rounds[0].themes[0].questions
+    s.pick(q.id)
+    s.answerWrong(p1.id)
+    s.advance()
+    s.close({ playerId: p2.id, sign: 1 })
+    expect(done).toEqual([[q.id, { right: 1, wrong: 1 }]])
+    s.undo()
+    s.close({ playerId: p2.id, sign: -1 })
+    expect(done.at(-1)).toEqual([q.id, { right: 0, wrong: 2 }])
+    s.undo()
+    s.undo()
+    s.close()
+    expect(done.at(-1)).toEqual([q.id, { right: 0, wrong: 0 }])
+    expect(s.state.sessionId).toMatch(/^s_/)
+  })
+
   it('ignores played questions and keeps at least one player', () => {
     const { s, q } = onBoard()
     s.pick(q.id)
@@ -624,6 +647,31 @@ describe('house rules', () => {
     expect(s.state.stats[p2.id]).toBeUndefined()
     s.undo()
     expect(s.state.stats[p1.id]).toBeUndefined()
+  })
+
+  it('takes the time to answer from the question, then the round, then the game', () => {
+    const { s, q, players } = play({}, 20)
+    const round = s.round.value!
+    round.rules = { answerSeconds: 45 }
+    q.seconds = 0
+    s.pick(q.id)
+    expect(s.answerMs.value).toBe(0)
+    s.close()
+    const next = round.themes[0].questions[1]
+    s.pick(next.id)
+    expect(s.answerMs.value).toBe(45_000)
+    delete round.rules
+    expect(s.answerMs.value).toBe(20_000)
+    expect(players).toHaveLength(2)
+  })
+
+  it('lets a round override the house rule on wrong answers', () => {
+    const { s, q, players } = play({ wrongPenalty: true })
+    s.round.value!.rules = { wrongPenalty: false }
+    s.pick(q.id)
+    expect(s.wrongPenalty.value).toBe(false)
+    s.answerWrong(players[0].id)
+    expect(players[0].score).toBe(0)
   })
 
   it('keeps the last player and their turn', () => {

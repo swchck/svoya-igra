@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, Copy, CopyPlus, MonitorPlay, PencilLine, Trash2 } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 import { useBoardClipboard } from '@/composables/useBoardClipboard'
+import type { QuestionRecord } from '@/play/questionStats'
 import type { Question } from '@/types'
 import { KINDS, kindInfo } from '@/game/kinds'
 import { Button } from '@/components/ui/button'
@@ -26,6 +27,8 @@ defineProps<{
   hasNext: boolean
   first: boolean
   last: boolean
+  /** How the question fared in games played so far. */
+  record?: QuestionRecord
 }>()
 const emit = defineEmits<{
   (e: 'prev'): void
@@ -117,9 +120,15 @@ function onKeydown(e: KeyboardEvent) {
 
           <div class="grid gap-2">
             <Label as="span">{{ t('editor.dialog.status') }}</Label>
+            <p v-if="record" class="record-line">{{ t('editor.stats.line', { plays: t('editor.stats.plays', record.plays), answered: record.answered }) }}<template v-if="record.wrong">, {{ t('editor.stats.wrong', record.wrong) }}</template></p>
             <button type="button" class="draft-toggle" :class="{ on: question.draft }" :aria-pressed="!!question.draft" :title="t('editor.dialog.draftHint')" @click="toggleDraft">
               <PencilLine class="size-4" />{{ t('editor.dialog.draft') }}
             </button>
+          </div>
+
+          <div class="grid gap-2" :title="t('editor.dialog.secondsHint')">
+            <Label as="span">{{ t('editor.dialog.seconds') }}</Label>
+            <NumberInput v-model="question.seconds" class="seconds-input" :min="0" :step="5" :placeholder="t('editor.dialog.secondsInherit')" />
           </div>
 
           <div v-if="question.kind === 'cat-in-bag'" class="grid gap-2">
@@ -132,7 +141,7 @@ function onKeydown(e: KeyboardEvent) {
           <section class="col" :aria-label="t('editor.dialog.question')">
             <h3 class="col-title">{{ t('editor.dialog.question') }}</h3>
             <MarkdownEditor v-model="question.text" data-tour="q-text" :label="t('editor.dialog.question')" :placeholder="t('editor.dialog.questionPlaceholder')" />
-            <MediaList v-model="question.media" data-tour="q-media" :label="t('editor.dialog.questionMedia')" />
+            <MediaList v-model="question.media" data-tour="q-media" blurrable :label="t('editor.dialog.questionMedia')" />
             <OptionsEditor v-model="question" />
             <HintsEditor v-model="question" />
           </section>
@@ -257,6 +266,14 @@ function onKeydown(e: KeyboardEvent) {
 }
 .value-input {
   width: 9rem;
+}
+.seconds-input {
+  width: 8rem;
+}
+.record-line {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted-foreground);
 }
 .draft-toggle {
   display: inline-flex;

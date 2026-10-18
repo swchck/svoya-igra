@@ -26,6 +26,7 @@ export default {
     siqBroken: 'Файл повреждён или это не пакет «Своей игры» (.siq)',
     siqNoContent: 'В пакете нет content.xml',
     siqEmpty: 'В пакете нет ни одного вопроса',
+    tableEmpty: 'В таблице нет вопросов. Нужны колонки: раунд, тема, стоимость, вопрос, ответ.',
   },
   siq: { catTheme: 'Тема: {theme}' },
   fileFilterName: 'Своя игра',

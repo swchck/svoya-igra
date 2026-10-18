@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hasChoice, hintedValue, kindInfo, matchesAnswer, revealedAnswer, withHints } from './kinds'
+import { answerMedia, hasChoice, hintedValue, kindInfo, matchesAnswer, revealedAnswer, withHints } from './kinds'
 import type { QuestionKind } from '../types'
 
 describe('kinds', () => {
@@ -34,5 +34,12 @@ describe('kinds', () => {
     }
     expect(withHints(q, 0)).toEqual({ hints: [], media: q.media })
     expect(withHints(q, 2)).toEqual({ hints: ['Поэт'], media: [q.media[0], q.hints[1].media![0]] })
+  })
+  it('reveals blurred pictures clear on the answer, unless the answer brings its own media', () => {
+    const blurred = { id: 'a', url: 'a.png', kind: 'image' as const, blur: true }
+    const plain = { id: 'b', url: 'b.png', kind: 'image' as const }
+    expect(answerMedia({ media: [blurred, plain] })).toEqual([{ ...blurred, blur: false }])
+    expect(answerMedia({ media: [blurred], answerMedia: [plain] })).toEqual([plain])
+    expect(answerMedia({ media: [plain] })).toEqual([])
   })
 })

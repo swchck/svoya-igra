@@ -22,6 +22,38 @@ function mountBoard(round: Round) {
 }
 
 describe('BoardEditor', () => {
+  it('picks questions with Shift-click and changes them all at once', async () => {
+    const { w, model, selected } = mountBoard(makeEmptyRound('R', 2))
+    const tiles = w.findAll('.tile')
+    await tiles[0].trigger('click', { shiftKey: true })
+    await tiles[6].trigger('click', { metaKey: true })
+    expect(selected.value).toBeNull()
+    expect(w.find('.bulk').text()).toContain('2')
+
+    await w.findAll('.bulk button').find((b) => b.text().includes('черновик'))!.trigger('click')
+    expect(model.value.themes[0].questions[0].draft).toBe(true)
+    expect(model.value.themes[1].questions[1].draft).toBe(true)
+    expect(model.value.themes[0].questions[1].draft).toBeUndefined()
+
+    await tiles[0].trigger('click', { shiftKey: true })
+    await tiles[3].trigger('click')
+    expect(selected.value).toBe(model.value.themes[0].questions[3].id)
+    expect(w.find('.bulk').exists()).toBe(false)
+  })
+
+  it('walks between cells with the arrow keys', async () => {
+    const { w } = mountBoard(makeEmptyRound('R', 2))
+    document.body.appendChild(w.element)
+    const tiles = w.findAll('.tile')
+    await tiles[0].trigger('keydown', { key: 'ArrowRight' })
+    expect(document.activeElement).toBe(tiles[1].element)
+    await tiles[1].trigger('keydown', { key: 'ArrowDown' })
+    expect(document.activeElement).toBe(tiles[6].element)
+    await tiles[6].trigger('keydown', { key: 'ArrowDown' })
+    expect(document.activeElement).toBe(tiles[6].element)
+    w.unmount()
+  })
+
   it('moves a question to the cell it is dropped on', async () => {
     const { w, model } = mountBoard(makeEmptyRound('R', 2))
     const ids = model.value.themes[0].questions.map((q) => q.id)

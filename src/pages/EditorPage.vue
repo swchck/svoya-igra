@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, provide, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import {
-  ArrowLeft, ArrowRight, CircleAlert, CircleCheck, ClipboardPaste, Coins, Download, FileJson, History, Loader2, MoreHorizontal, Package, Play, Plus, Printer,
-  Search, Trash2, TriangleAlert, Trophy, Wifi,
+  ArrowLeft, ArrowRight, CircleAlert, CircleCheck, ClipboardPaste, Coins, Download, FileArchive, FileJson, History, Loader2, MoreHorizontal, Package, Play, Plus, Printer,
+  Redo2, Search, SlidersHorizontal, Trash2, TriangleAlert, Trophy, Undo2, Wifi,
 } from '@lucide/vue'
 import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -19,7 +19,9 @@ import {
 import { confirmAction } from '@/composables/useConfirm'
 import { useGamesStore } from '@/stores/games'
 import { getGame } from '@/storage'
-import { hasFinal, makeEmptyFinal, makeEmptyRound, moveItem, moveItemTo } from '@/game/model'
+import { GAME_MEDIA } from '@/components/media/library'
+import { isStoredMedia } from '@/media/ref'
+import { hasFinal, makeEmptyFinal, mediaItems, makeEmptyRound, moveItem, moveItemTo } from '@/game/model'
 import type { Issue } from '@/game/validate'
 import type { Snapshot } from '@/history'
 import { plainCopy } from '@/lib/plain'
@@ -29,6 +31,8 @@ import ShareGameDialog from '@/components/lan/ShareGameDialog.vue'
 import { useAutosave } from '@/composables/useAutosave'
 import { useGameIssues } from '@/composables/useGameIssues'
 import { useHistory } from '@/composables/useHistory'
+import { useUndo } from '@/composables/useUndo'
+import { questionRecords } from '@/play/questionStats'
 import RoundStrip from '@/components/editor/RoundStrip.vue'
 import BoardEditor from '@/components/editor/BoardEditor.vue'
 import QuestionDialog from '@/components/editor/QuestionDialog.vue'
@@ -40,7 +44,10 @@ import GameSettingsDialog from '@/components/editor/GameSettingsDialog.vue'
 import ValuesDialog from '@/components/editor/ValuesDialog.vue'
 import TypeInDialog from '@/components/editor/TypeInDialog.vue'
 import SearchDialog from '@/components/editor/SearchDialog.vue'
+import RoundRulesDialog from '@/components/editor/RoundRulesDialog.vue'
+import ThemeCommentDialog from '@/components/editor/ThemeCommentDialog.vue'
 import { copyQuestion, type SearchHit } from '@/game/edit'
+import { answerMedia } from '@/game/kinds'
 import { useBoardClipboard } from '@/composables/useBoardClipboard'
 import { offerTour } from '@/tour/state'
 import TourHelpButton from '@/tour/TourHelpButton.vue'
@@ -67,6 +74,23 @@ const typeInOpen = computed({
   },
 })
 const { clip, pasteTheme } = useBoardClipboard()
+// every media list in the editor can reuse a file the game already holds
+provide(
+  GAME_MEDIA,
+  computed(() => {
+    const seen = new Set<string>()
+    return (game.value ? mediaItems(game.value) : []).filter((m) => isStoredMedia(m.url) && !seen.has(m.url) && seen.add(m.url))
+  }),
+)
+const rulesOpen = ref(false)
+/** Index of the theme whose comment is being edited, while that dialog is open. */
+const commentTheme = ref<number | null>(null)
+const commentOpen = computed({
+  get: () => commentTheme.value !== null,
+  set: (open) => {
+    if (!open) commentTheme.value = null
+  },
+})
 
 getGame(props.id).then((g) => {
   if (!g) return router.replace({ name: 'home' })
@@ -76,7 +100,10 @@ getGame(props.id).then((g) => {
 
 const { status: saveStatus, error: saveError, flush: flushSave } = useAutosave(game, (g) => store.save(g))
 const { snapshot } = useHistory(game, saveStatus)
-const { issues, errors, warnings } = useGameIssues(game)
+const { undo, redo, canUndo, canRedo } = useUndo(game)
+/** How each question fared in games played so far; read once, games are not played while editing. */
+const records = questionRecords(props.id)
+const { issues, errors, warnings, duration } = useGameIssues(game)
 const saveLabel = computed(
   () =>
     ({
@@ -204,18 +231,45 @@ async function goToHit(hit: SearchHit) {
 }
 
 function onEditorKey(e: KeyboardEvent) {
-  // the layout-independent code, so Cyrillic keyboards search as well
-  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.code === 'KeyF') {
+  if (!(e.ctrlKey || e.metaKey) || e.altKey) return
+  // layout-independent codes, so Cyrillic keyboards work as well
+  if (!e.shiftKey && e.code === 'KeyF') {
     e.preventDefault()
     searchOpen.value = true
+    return
   }
+  const target = e.target instanceof Element ? e.target : null
+  // a text field keeps its own undo, which steps through what was just typed
+  if (target?.closest('input, textarea, [contenteditable]')) return
+  const isRedo = e.code === 'KeyY' || (e.code === 'KeyZ' && e.shiftKey)
+  if (e.code !== 'KeyZ' && !isRedo) return
+  e.preventDefault()
+  if (isRedo) redo()
+  else undo()
 }
+
+// an undone round or question may be gone: fall back to what still exists
+watch(
+  () => game.value?.rounds.length,
+  (count) => {
+    if (typeof tab.value === 'number' && count !== undefined && tab.value >= count) tab.value = Math.max(0, count - 1)
+  },
+)
 onMounted(() => window.addEventListener('keydown', onEditorKey))
 onUnmounted(() => window.removeEventListener('keydown', onEditorKey))
 
 function moveQuestion(offset: -1 | 1) {
   const c = current.value
   if (c) moveItem(c.t.questions, c.qi, offset)
+}
+
+async function removeQuestions(ids: string[]) {
+  if (!round.value || !ids.length) return
+  const ok = await confirmAction({ title: t('editor.bulk.removeTitle', ids.length), confirmLabel: t('editor.page.delete'), destructive: true })
+  if (!ok) return
+  await snapshot('before-delete')
+  if (selectedId.value && ids.includes(selectedId.value)) selectedId.value = null
+  for (const th of round.value.themes) th.questions = th.questions.filter((q) => !ids.includes(q.id))
 }
 
 async function removeQuestion() {
@@ -368,6 +422,8 @@ async function exportAs(format: GameFileFormat) {
         <CircleAlert v-if="errors" class="size-4" /><TriangleAlert v-else-if="warnings" class="size-4" /><CircleCheck v-else class="size-4" />
         <span v-if="issues.length" class="tabular-nums">{{ issues.length }}</span>
       </button>
+      <Button variant="ghost" size="icon" :disabled="!canUndo" :aria-label="t('editor.undo.undo')" :title="t('editor.undo.undoHint')" aria-keyshortcuts="Control+Z Meta+Z" @click="undo"><Undo2 /></Button>
+      <Button variant="ghost" size="icon" :disabled="!canRedo" :aria-label="t('editor.undo.redo')" :title="t('editor.undo.redoHint')" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z" @click="redo"><Redo2 /></Button>
       <Button variant="ghost" :aria-label="t('editor.search.title')" :title="t('editor.search.hint')" aria-keyshortcuts="Control+F Meta+F" @click="searchOpen = true"><Search /></Button>
       <Button variant="ghost" data-tour="history" :aria-label="t('editor.page.history')" :title="t('editor.page.history')" @click="historyOpen = true"><History /><span class="lbl">{{ t('editor.page.history') }}</span></Button>
       <TourHelpButton id="editor" />
@@ -381,6 +437,7 @@ async function exportAs(format: GameFileFormat) {
         <DropdownMenuContent align="end" class="min-w-52">
           <DropdownMenuItem @select="exportAs('gamezip')"><Package />{{ t('editor.page.exportGamezip') }}</DropdownMenuItem>
           <DropdownMenuItem @select="exportAs('json')"><FileJson />{{ t('editor.page.exportJson') }}</DropdownMenuItem>
+          <DropdownMenuItem @select="exportAs('siq')"><FileArchive />{{ t('editor.page.exportSiq') }}</DropdownMenuItem>
           <DropdownMenuItem v-if="isDesktop" @select="shareOpen = true"><Wifi />{{ t('lan.share.menu') }}</DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem @select="router.push({ name: 'print', params: { id: game.id } })"><Printer />{{ t('editor.page.cheatSheet') }}</DropdownMenuItem>
@@ -402,6 +459,7 @@ async function exportAs(format: GameFileFormat) {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" class="min-w-56">
                 <DropdownMenuItem @select="valuesOpen = true"><Coins />{{ t('editor.values.menu') }}</DropdownMenuItem>
+                <DropdownMenuItem @select="rulesOpen = true"><SlidersHorizontal />{{ t('editor.roundRules.menu') }}</DropdownMenuItem>
                 <DropdownMenuItem :disabled="clip?.kind !== 'theme'" @select="pasteThemeHere"><ClipboardPaste />{{ t('editor.board.pasteTheme') }}</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem :disabled="tab === 0" @select="moveRound(-1)"><ArrowLeft />{{ t('editor.page.moveEarlier') }}</DropdownMenuItem>
@@ -414,14 +472,19 @@ async function exportAs(format: GameFileFormat) {
           <BoardEditor
             v-model:round="round"
             v-model:selected="selectedId"
+            :records="records"
             :other-rounds="otherRounds"
             @remove-theme="removeTheme"
+            @remove-questions="removeQuestions"
             @move-theme="moveTheme"
             @type-in="(i) => (typeInTheme = i)"
+            @comment="(i) => (commentTheme = i)"
           />
           <ValuesDialog v-model:open="valuesOpen" :round="round" />
+          <RoundRulesDialog v-model:open="rulesOpen" v-model:round="round" :game-seconds="game.settings?.answerSeconds ?? 0" />
+          <ThemeCommentDialog v-if="commentTheme !== null" v-model:open="commentOpen" v-model:theme="round.themes[commentTheme]" />
           <TypeInDialog v-model:open="typeInOpen" :theme="typeInTheme === null ? undefined : round.themes[typeInTheme]" />
-          <p class="tip">{{ t('editor.page.tip') }}</p>
+          <p class="tip">{{ t('editor.page.tip') }} {{ t('editor.bulk.hint') }}</p>
         </section>
 
         <QuestionDialog
@@ -432,7 +495,8 @@ async function exportAs(format: GameFileFormat) {
           :has-prev="at > 0"
           :has-next="at < order.length - 1"
           :first="current.qi === 0"
-          :last="current.qi === current.t.questions.length - 1"
+:last="current.qi === current.t.questions.length - 1"
+          :record="records[current.q.id]"
           @prev="step(-1)"
           @next="step(1)"
           @move="moveQuestion"
@@ -461,7 +525,7 @@ async function exportAs(format: GameFileFormat) {
     </div>
 
     <HistoryDialog v-model:open="historyOpen" :game-id="game.id" @restore="restore" />
-    <IssuesDialog v-model:open="issuesOpen" :issues="issues" @goto="goToIssue" />
+    <IssuesDialog v-model:open="issuesOpen" :issues="issues" :duration="duration" @goto="goToIssue" />
     <SearchDialog v-model:open="searchOpen" :game="game" @goto="goToHit" />
     <ShareGameDialog v-if="isDesktop" v-model:open="shareOpen" :game="game" />
 
@@ -473,7 +537,7 @@ async function exportAs(format: GameFileFormat) {
       :text="current.q.text"
       :media="current.q.media"
       :answer="current.q.answer"
-      :answer-media="current.q.answerMedia"
+      :answer-media="answerMedia(current.q)"
     />
     <StagePreview
       v-else-if="tab === 'final' && previewedFinal"

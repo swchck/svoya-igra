@@ -28,6 +28,7 @@ export default {
     siqBroken: 'Datoteka je oštećena ili nije SIGame paket (.siq)',
     siqNoContent: 'Paket nema content.xml',
     siqEmpty: 'Paket nema nijedno pitanje',
+    tableEmpty: 'U tabeli nema pitanja. Potrebne su kolone: runda, tema, vrednost, pitanje, odgovor.',
   },
   siq: { catTheme: 'Kategorija: {theme}' },
   fileFilterName: 'Svoja igra',

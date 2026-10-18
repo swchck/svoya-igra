@@ -1,12 +1,12 @@
 import { computed, shallowRef, watch, type Ref } from 'vue'
 import type { Game } from '../types'
 import { mediaItems } from '../game/model'
-import { findMissingMedia, validateGame } from '../game/validate'
+import { estimateDuration, inspectMedia, validateGame, type MediaFacts } from '../game/validate'
 import { isStoredMedia } from '../media/ref'
 
-/** Live pre-flight issues of the game being edited; missing files are re-checked when its stored media change. */
+/** Live pre-flight issues of the game being edited; stored files are re-checked when they change. */
 export function useGameIssues(game: Ref<Game | null>) {
-  const missing = shallowRef<ReadonlySet<string>>(new Set())
+  const facts = shallowRef<MediaFacts>({ missing: new Set(), sizes: new Map() })
 
   const storedKey = computed(() =>
     game.value
@@ -23,15 +23,17 @@ export function useGameIssues(game: Ref<Game | null>) {
     async () => {
       const mine = ++run
       const current = game.value
-      const found = current ? await findMissingMedia(current).catch(() => new Set<string>()) : new Set<string>()
-      if (mine === run) missing.value = found
+      const empty: MediaFacts = { missing: new Set(), sizes: new Map() }
+      const found = current ? await inspectMedia(current).catch(() => empty) : empty
+      if (mine === run) facts.value = found
     },
     { immediate: true },
   )
 
-  const issues = computed(() => (game.value ? validateGame(game.value, missing.value) : []))
+  const issues = computed(() => (game.value ? validateGame(game.value, facts.value) : []))
+  const duration = computed(() => (game.value ? estimateDuration(game.value) : 0))
   const errors = computed(() => issues.value.filter((i) => i.severity === 'error').length)
   const warnings = computed(() => issues.value.length - errors.value)
 
-  return { issues, errors, warnings }
+  return { issues, errors, warnings, duration }
 }

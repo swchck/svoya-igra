@@ -74,6 +74,7 @@ interface TurnState {
   groupVerdicts: Record<string, Sign> | null
   hintsShown: number
   finalRemoved: string[]
+  tally: Tally
   scores: Record<string, number>
   stats: Record<string, PlayerStats>
 }
@@ -87,7 +88,21 @@ export type HistoryEntry =
       chooserId?: string | null
       /** The player's stats before, when the change counted as an answer; null if they had none. */
       stats?: PlayerStats | null
+      /** The open question's tally before, when the change counted as an answer. */
+      tally?: Tally
     }
+
+/** Right and wrong answers given to the open question so far. */
+export interface Tally {
+  right: number
+  wrong: number
+}
+
+/** What the stage hears about the play-through as it happens. */
+export interface SessionHooks {
+  /** A question was closed; called again with the new tally if it is replayed after an undo. */
+  questionDone?: (questionId: string, tally: Tally) => void
+}
 
 const MAX_HISTORY = 30
 
@@ -108,6 +123,10 @@ export interface SessionSnapshot {
   hintsShown: number
   /** Final themes struck out so far, by id, in order. */
   finalRemoved: string[]
+  /** Answers given to the open question so far. */
+  tally: Tally
+  /** Tells this play-through apart from earlier ones of the same game. */
+  sessionId: string
   finalBets: Record<string, number>
   finalVerdicts: Record<string, Sign>
   players: Player[]
@@ -148,6 +167,8 @@ function initialSnapshot(): SessionSnapshot {
     groupVerdicts: null,
     hintsShown: 0,
     finalRemoved: [],
+    tally: { right: 0, wrong: 0 },
+    sessionId: uid('s_'),
     finalBets: {},
     finalVerdicts: {},
     players: [],
@@ -189,7 +210,12 @@ export function maxStake(player: Player | undefined, floor: number): number {
 }
 
 /** Runs one play-through of a game: phases, the board, stakes and the score. */
-export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapshot, rules: () => PlayRules = () => prefs) {
+export function usePlaySession(
+  game: Ref<Game | null>,
+  restored?: SessionSnapshot,
+  rules: () => PlayRules = () => prefs,
+  hooks: SessionHooks = {},
+) {
   const base = initialSnapshot()
   const { players: initialPlayers, ...initialState } = plainCopy({ ...base, ...restored })
   if (!restored) for (let i = 0; i < 2; i++) initialPlayers.push(newPlayer(initialPlayers, false))
@@ -197,21 +223,30 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
   for (const p of initialPlayers) p.color ??= nextColorId(initialPlayers)
   const state = reactive(initialState)
   const players = ref<Player[]>(initialPlayers)
-  const answerMs = computed(() => (game.value?.settings?.answerSeconds ?? 0) * 1000)
-  // sessions saved before the timer existed carry none
-  if (!restored?.timer) state.timer = { endsAt: null, left: answerMs.value }
   state.chooserId ??= null
   // sessions saved before the host could hold the buttons had them open on every question
   if (restored && restored.buzzArmed === undefined) state.buzzArmed = true
   state.groupVerdicts ??= null
   state.hintsShown ??= 0
   state.finalRemoved ??= []
+  state.tally ??= { right: 0, wrong: 0 }
+  state.sessionId ??= uid('s_')
 
   const round = computed(() => game.value?.rounds[state.roundIndex])
   const activeQuestion = computed<Question | null>(
     () =>
       round.value?.themes.flatMap((t) => t.questions).find((q) => q.id === state.activeQuestionId) ?? null,
   )
+  /**
+   * Time to answer the open question: its own, else its round's, else the game's. Unset at
+   * a level means "as above"; 0 means no timer. The final follows the game.
+   */
+  const answerMs = computed(() => {
+    const own = state.phase.startsWith('final') ? undefined : (activeQuestion.value?.seconds ?? round.value?.rules?.answerSeconds)
+    return (own ?? game.value?.settings?.answerSeconds ?? 0) * 1000
+  })
+  // sessions saved before the timer existed carry none
+  if (!restored?.timer) state.timer = { endsAt: null, left: answerMs.value }
   const ranking = computed(() => [...players.value].sort((a, b) => b.score - a.score))
   /** Final themes not struck out yet, in the editor's order. */
   const finalLeft = computed(() => (game.value?.finalThemes ?? []).filter((f) => !state.finalRemoved.includes(f.id)))
@@ -239,8 +274,14 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
 
   /** What a wrong answer to the open question costs under the rules and the stake. */
   function penalty(): number {
-    return !rules().wrongPenalty || state.stake?.safe ? 0 : activeValue.value
+    return !penaltyOn() || state.stake?.safe ? 0 : activeValue.value
   }
+
+  /** Wrong answers cost points in this round: the round's own rule, else the house rule. */
+  function penaltyOn(): boolean {
+    return round.value?.rules?.wrongPenalty ?? rules().wrongPenalty
+  }
+  const wrongPenalty = computed(penaltyOn)
   const activePenalty = computed(penalty)
 
   function player(id: string): Player | undefined {
@@ -263,6 +304,7 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
       groupVerdicts: state.groupVerdicts,
       hintsShown: state.hintsShown,
       finalRemoved: state.finalRemoved,
+      tally: state.tally,
       scores: Object.fromEntries(players.value.map((p) => [p.id, p.score])),
       stats: state.stats,
     })
@@ -274,6 +316,10 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
   }
 
   function recordAnswer(playerId: string, sign: Sign, points: number) {
+    if (state.activeQuestionId) {
+      if (sign === 1) state.tally.right += 1
+      else state.tally.wrong += 1
+    }
     const s = (state.stats[playerId] ??= emptyStats())
     if (sign === 1) {
       s.correct += 1
@@ -364,6 +410,7 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
     if (state.phase !== 'board' || !inRound || state.played[questionId]) return
     state.activeQuestionId = questionId
     state.stake = null
+    state.tally = { right: 0, wrong: 0 }
     const kind = activeQuestion.value?.kind ?? 'normal'
     state.groupVerdicts = kind === 'for-all' ? {} : null
     state.hintsShown = 0
@@ -447,6 +494,8 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
 
   function leaveQuestion(q: Question) {
     state.played[q.id] = true
+    hooks.questionDone?.(q.id, { ...state.tally })
+    state.tally = { right: 0, wrong: 0 }
     state.activeQuestionId = null
     state.stake = null
     state.buzzArmed = false
@@ -509,7 +558,14 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
   const answering = () => !!activeQuestion.value && ['question', 'answer'].includes(state.phase)
 
   function scoreAnswer(p: Player, sign: Sign, points: number) {
-    record({ kind: 'adjust', playerId: p.id, delta: sign * points, chooserId: state.chooserId, stats: plainCopy(state.stats[p.id] ?? null) })
+    record({
+      kind: 'adjust',
+      playerId: p.id,
+      delta: sign * points,
+      chooserId: state.chooserId,
+      stats: plainCopy(state.stats[p.id] ?? null),
+      tally: { ...state.tally },
+    })
     p.score += sign * points
     recordAnswer(p.id, sign, points)
     if (sign === 1) state.chooserId = p.id
@@ -540,6 +596,7 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
       if (entry.chooserId !== undefined) state.chooserId = entry.chooserId
       if (entry.stats === null) delete state.stats[entry.playerId]
       else if (entry.stats) state.stats[entry.playerId] = entry.stats
+      if (entry.tally) state.tally = entry.tally
       return true
     }
     const { scores, ...before } = plainCopy(entry.before)
@@ -577,6 +634,8 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
     activeQuestion,
     activeValue,
     activePenalty,
+    wrongPenalty,
+    answerMs,
     activeFinal,
     finalLeft,
     finalPicker,

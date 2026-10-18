@@ -1,4 +1,4 @@
-import { ACCENT_NAMES, type FinalQuestion, type Game, type GameSettings, type HostInfo, type MediaItem, type MediaKind, type MediaMode, type Question } from '../types'
+import { ACCENT_NAMES, type FinalQuestion, type Game, type GameSettings, type HostInfo, type RoundRules, type MediaItem, type MediaKind, type MediaMode, type Question } from '../types'
 import { t } from '../i18n'
 import { uid } from './model'
 import { MAX_OPTIONS } from './kinds'
@@ -95,8 +95,10 @@ function normalizeQuestion(q: StoredQuestion): Question {
     answerMediaUrl, answerMediaKind, answerMediaMode, answerMediaDuration,
     ...question
   } = q
+  const { seconds, ...rest } = normalizeHints(normalizeOptions(normalizeHostInfo(question)))
   return {
-    ...normalizeHints(normalizeOptions(normalizeHostInfo(question))),
+    ...rest,
+    ...(validSeconds(seconds) !== undefined && { seconds: validSeconds(seconds) }),
     media: mergeMedia(q.media, mediaUrl, mediaKind, mediaMode, mediaDuration),
     answerMedia: mergeMedia(q.answerMedia, answerMediaUrl, answerMediaKind, answerMediaMode, answerMediaDuration),
   }
@@ -108,6 +110,20 @@ function normalizeFinal(f: StoredFinal): FinalQuestion {
 }
 
 export const MAX_ANSWER_SECONDS = 600
+
+/** Whole seconds within bounds, 0 for no timer; undefined for anything else. */
+function validSeconds(raw: unknown): number | undefined {
+  return typeof raw === 'number' && Number.isFinite(raw) && raw >= 0 ? Math.min(Math.round(raw), MAX_ANSWER_SECONDS) : undefined
+}
+
+function normalizeRules(raw: unknown): RoundRules | undefined {
+  if (!isObject(raw)) return undefined
+  const out: RoundRules = {}
+  const seconds = validSeconds(raw.answerSeconds)
+  if (seconds !== undefined) out.answerSeconds = seconds
+  if (typeof raw.wrongPenalty === 'boolean') out.wrongPenalty = raw.wrongPenalty
+  return Object.keys(out).length ? out : undefined
+}
 
 /** Keeps the settings that make sense and drops the rest; undefined when nothing is left. */
 function normalizeSettings(raw: unknown): GameSettings | undefined {
@@ -154,10 +170,18 @@ export function parseGame(data: unknown): Game {
   return {
     ...rest,
     ...(settings && { settings }),
-    rounds: game.rounds.map((r) => ({
-      ...r,
-      themes: r.themes.map((t) => ({ ...t, questions: t.questions.map(normalizeQuestion) })),
-    })),
+    rounds: game.rounds.map(({ rules, ...r }) => {
+      const valid = normalizeRules(rules)
+      return {
+        ...r,
+        ...(valid && { rules: valid }),
+        themes: r.themes.map(({ comment, ...t }) => ({
+          ...t,
+          ...(typeof comment === 'string' && comment.trim() && { comment }),
+          questions: t.questions.map(normalizeQuestion),
+        })),
+      }
+    }),
     finalThemes: finals.length ? finals.map(normalizeFinal) : undefined,
   }
 }

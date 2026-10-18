@@ -52,4 +52,11 @@ export default {
     confirm: 'Nastavi',
     restart: 'Počni iznova',
   },
+  templates: {
+    label: 'Šabloni igre',
+    blank: { name: 'Prazna', hint: 'Dve runde po pet tema i finale' },
+    classic: { name: 'Klasika', hint: 'Tri runde po šest tema, rastuće vrednosti, posebna pitanja i finale' },
+    quick: { name: 'Brza', hint: 'Jedna runda 4 × 4 i finale, dvadesetak minuta' },
+    quiz: { name: 'Kviz', hint: 'Svi odgovaraju odjednom sa telefona, po četiri ponuđena odgovora' },
+  },
 } satisfies typeof ru

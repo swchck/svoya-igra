@@ -150,6 +150,7 @@ onBeforeUnmount(() => unregister?.())
       :src="src"
       alt=""
       class="media-img"
+      :class="{ blurred: item.blur }"
       :style="{ '--ar': ar }"
       @load="(e) => measure((e.target as HTMLImageElement).naturalWidth, (e.target as HTMLImageElement).naturalHeight)"
     />
@@ -219,6 +220,10 @@ onBeforeUnmount(() => unregister?.())
   color: var(--muted-foreground);
   font-style: italic;
   padding: 12px;
+}
+.media-img.blurred {
+  filter: blur(min(2.4vw, 28px)) saturate(1.2);
+  transform: scale(1.02);
 }
 .media-img,
 .media-video {

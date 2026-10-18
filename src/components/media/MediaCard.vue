@@ -3,7 +3,7 @@ import { computed, nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   ArrowDown, ArrowUp, AudioLines, Check, ChevronDown, Clapperboard, EllipsisVertical, FolderOpen, GripVertical, Image as ImageIcon,
-  Link as LinkIcon, Crop, Trash2, Video,
+  Link as LinkIcon, Crop, Droplets, Trash2, Video,
 } from '@lucide/vue'
 import type { MediaItem, MediaKind, MediaMode } from '@/types'
 import { Button } from '@/components/ui/button'
@@ -26,7 +26,14 @@ import { DRAG_TYPE } from './drag'
 import { isWebLink, useMediaIngest } from './useMediaIngest'
 
 const { t } = useI18n()
-const props = defineProps<{ item: MediaItem; index: number; count: number; expanded: boolean }>()
+const props = defineProps<{
+  item: MediaItem
+  index: number
+  count: number
+  expanded: boolean
+  /** The picture may be blurred until the answer: the question side of a card. */
+  blurrable?: boolean
+}>()
 
 // one event per user action: separate url/kind/mode events would each be merged
 // into the same stale props snapshot and overwrite one another
@@ -180,6 +187,14 @@ const segmentText = computed(
         <Button size="sm" variant="secondary" @click="fileInput?.click()"><FolderOpen />{{ t('media.card.replaceFile') }}</Button>
         <Button size="sm" variant="secondary" @click="startLink"><LinkIcon />{{ t('media.card.changeLink') }}</Button>
         <Button v-if="item.kind === 'image'" size="sm" variant="secondary" @click="cropping = true"><Crop />{{ t('media.card.crop') }}</Button>
+        <Button
+          v-if="item.kind === 'image' && blurrable"
+          size="sm"
+          :variant="item.blur ? 'default' : 'secondary'"
+          :aria-pressed="!!item.blur"
+          :title="t('media.card.blurHint')"
+          @click="patch({ blur: item.blur ? undefined : true })"
+        ><Droplets />{{ t('media.card.blur') }}</Button>
         <input ref="fileInput" type="file" class="hidden" accept="image/*,audio/*,video/*" @change="onFile" />
 
         <DropdownMenu>

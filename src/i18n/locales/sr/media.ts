@@ -32,6 +32,8 @@ export default {
     linkPlaceholder: 'https://…',
     applyLink: 'Primeni link',
     crop: 'Iseci',
+    blur: 'Zamuti',
+    blurHint: 'Slika je zamućena na pitanju, a jasna uz odgovor, osim ako odgovor ima svoje medije.',
   },
   crop: {
     title: 'Sečenje slike',
@@ -69,6 +71,17 @@ export default {
     linkPlaceholder: 'Link ka slici, zvuku, videu ili YouTube-u',
     addLink: 'Dodaj link',
     badLink: 'Link mora da počne sa http:// ili https://',
+    record: {
+      start: 'Snimi',
+      stop: 'Stop',
+      hint: 'Snimite zvuk mikrofonom, do dva minuta',
+      denied: 'Nema pristupa mikrofonu. Dozvolite ga u podešavanjima sistema ili pregledača.',
+      failed: 'Mikrofon nije mogao da se uključi',
+    },
+    library: {
+      open: 'Iz igre',
+      hint: 'Fajlovi koje ova igra već ima. Kliknite da ga dodate ovde.',
+    },
   },
   list: {
     rejected: 'Nije podržano: {name}',

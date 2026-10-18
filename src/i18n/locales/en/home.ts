@@ -52,4 +52,11 @@ export default {
     confirm: 'Resume',
     restart: 'Start over',
   },
+  templates: {
+    label: 'Game templates',
+    blank: { name: 'Blank', hint: 'Two rounds of five categories and a final' },
+    classic: { name: 'Classic', hint: 'Three rounds of six categories, rising values, special questions and a final' },
+    quick: { name: 'Quick', hint: 'One 4 × 4 round and a final, about twenty minutes' },
+    quiz: { name: 'Quiz', hint: 'Everyone answers at once from phones, four choices each' },
+  },
 } satisfies typeof ru

@@ -1,7 +1,13 @@
 <script setup lang="ts">
-import { nextTick, ref } from 'vue'
+import { inject, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Check, FolderOpen, ImagePlus, Link as LinkIcon } from '@lucide/vue'
+import { Check, FolderOpen, ImagePlus, Images, Link as LinkIcon, Mic, Square } from '@lucide/vue'
+import { toast } from 'vue-sonner'
+import type { MediaItem } from '@/types'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import MediaThumb from './MediaThumb.vue'
+import { GAME_MEDIA } from './library'
+import { canRecord, MAX_RECORDING_SECONDS, useRecorder } from './useRecorder'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import IconButton from '@/components/IconButton.vue'
@@ -11,7 +17,19 @@ defineProps<{ dropping?: boolean }>()
 const emit = defineEmits<{
   (e: 'files', files: File[]): void
   (e: 'link', url: string): void
+  (e: 'reuse', item: MediaItem): void
 }>()
+
+const library = inject(GAME_MEDIA, null)
+const libraryOpen = ref(false)
+function reuse(item: MediaItem) {
+  libraryOpen.value = false
+  emit('reuse', item)
+}
+
+const recorder = useRecorder((file) => emit('files', [file]))
+watch(recorder.error, (code) => code && toast.error(t(`media.add.record.${code}`)))
+const clock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 
 // the hint names the paste shortcut of the user's platform
 const pasteKey = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘V' : 'Ctrl+V'
@@ -56,12 +74,31 @@ function submit() {
       />
       <IconButton :label="t('media.add.addLink')" variant="secondary" size="icon" type="submit"><Check /></IconButton>
     </form>
+    <div v-else-if="recorder.recording.value" class="recording" role="status">
+      <span class="rec-dot" aria-hidden="true" />
+      <span class="tabular-nums">{{ clock(recorder.seconds.value) }} / {{ clock(MAX_RECORDING_SECONDS) }}</span>
+      <Button size="sm" variant="destructive" @click="recorder.stop"><Square />{{ t('media.add.record.stop') }}</Button>
+    </div>
     <template v-else>
       <ImagePlus class="size-5 text-muted-foreground" aria-hidden="true" />
       <p class="hint">{{ t('media.add.hint', { key: pasteKey }) }}</p>
       <div class="flex gap-2">
         <Button size="sm" variant="secondary" @click="fileInput?.click()"><FolderOpen />{{ t('media.add.file') }}</Button>
         <Button size="sm" variant="secondary" @click="openLink"><LinkIcon />{{ t('media.add.link') }}</Button>
+        <Button v-if="canRecord" size="sm" variant="secondary" :title="t('media.add.record.hint')" @click="recorder.start"><Mic />{{ t('media.add.record.start') }}</Button>
+        <Popover v-if="library?.length" v-model:open="libraryOpen">
+          <PopoverTrigger as-child>
+            <Button size="sm" variant="secondary"><Images />{{ t('media.add.library.open') }}</Button>
+          </PopoverTrigger>
+          <PopoverContent class="w-80" align="center">
+            <p class="mb-2 text-sm text-muted-foreground">{{ t('media.add.library.hint') }}</p>
+            <div class="library">
+              <button v-for="item in library" :key="item.url" type="button" class="lib-item" :aria-label="t(`media.kind.${item.kind}`)" @click="reuse(item)">
+                <MediaThumb :item="item" />
+              </button>
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
     </template>
     <input ref="fileInput" type="file" multiple class="hidden" accept="image/*,audio/*,video/*" @change="onFiles" />
@@ -69,6 +106,40 @@ function submit() {
 </template>
 
 <style scoped>
+.recording {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.rec-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--magenta);
+  animation: rec 1s ease-in-out infinite;
+}
+@keyframes rec {
+  50% { opacity: 0.3; }
+}
+.library {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.lib-item {
+  aspect-ratio: 1;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid oklch(1 0 0 / 0.14);
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+}
+.lib-item:hover {
+  border-color: var(--gold);
+}
 .zone {
   display: flex;
   flex-direction: column;

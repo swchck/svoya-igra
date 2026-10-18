@@ -1,5 +1,5 @@
 /** Accepted by the import file picker. */
-export const GAME_FILE_ACCEPT = '.gamezip,.gamebackup,.zip,.json,.siq,application/json,application/zip,application/x-svoya-igra+zip'
+export const GAME_FILE_ACCEPT = '.gamezip,.gamebackup,.zip,.json,.siq,.csv,.tsv,text/csv,text/tab-separated-values,application/json,application/zip,application/x-svoya-igra+zip'
 
 /** The backup file's extension, without the dot. */
 export const BACKUP_EXTENSION = 'gamebackup'

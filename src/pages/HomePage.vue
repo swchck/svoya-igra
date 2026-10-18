@@ -3,7 +3,7 @@ import { defineAsyncComponent, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
-import { Download, FileJson, MoreHorizontal, Package, Pencil, Play, Plus, Settings, Sparkles, Trash2, Upload, Wifi } from '@lucide/vue'
+import { ChevronDown, Download, FileJson, MoreHorizontal, Package, Pencil, Play, Plus, Settings, Sparkles, Trash2, Upload, Wifi } from '@lucide/vue'
 import type { Game } from '@/types'
 import { Button } from '@/components/ui/button'
 import {
@@ -16,7 +16,8 @@ import {
 import { useGamesStore } from '@/stores/games'
 import { confirmAction } from '@/composables/useConfirm'
 import { useBackup } from '@/composables/useBackup'
-import { hasFinal, makeEmptyGame, newGameSettings } from '@/game/model'
+import { hasFinal, newGameSettings } from '@/game/model'
+import { makeGameFromTemplate, TEMPLATES, type TemplateId } from '@/game/templates'
 import { prefs } from '@/prefs'
 import type { GameFileFormat } from '@/io/gameFile'
 import { GAME_FILE_ACCEPT, isBackupFileName } from '@/io/files'
@@ -60,9 +61,9 @@ function failed(action: string, err: unknown) {
   toast.error(action, { description: err instanceof Error ? err.message : String(err) })
 }
 
-async function createNew() {
+async function createNew(template: TemplateId = 'blank') {
   try {
-    const g = await store.save({ ...makeEmptyGame(), settings: newGameSettings(prefs) })
+    const g = await store.save({ ...makeGameFromTemplate(template), settings: newGameSettings(prefs) })
     router.push({ name: 'editor', params: { id: g.id } })
   } catch (err) {
     failed(t('home.toast.createFailed'), err)
@@ -168,7 +169,20 @@ function fmtDate(ts: number) {
       <h1 class="title-shine hero-title">{{ t('system.appName') }}</h1>
       <p class="hero-sub">{{ t('home.subtitle') }}</p>
       <div class="actions" data-tour="home-actions">
-        <Button size="lg" class="h-12 px-6 text-base" @click="createNew"><Plus />{{ t('home.newGame') }}</Button>
+        <div class="split">
+          <Button size="lg" class="h-12 rounded-r-none px-6 text-base" @click="createNew()"><Plus />{{ t('home.newGame') }}</Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger as-child>
+              <Button size="lg" class="h-12 rounded-l-none border-l border-night/20 px-3" :aria-label="t('home.templates.label')"><ChevronDown /></Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" class="w-72">
+              <DropdownMenuItem v-for="id in TEMPLATES" :key="id" class="flex-col items-start gap-0.5" @select="createNew(id)">
+                <span class="font-medium">{{ t(`home.templates.${id}.name`) }}</span>
+                <span class="text-xs text-muted-foreground">{{ t(`home.templates.${id}.hint`) }}</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
         <Button size="lg" variant="outline" class="h-12 px-6 text-base" :disabled="busy || restoring" @click="startImport"><Upload />{{ t('home.import') }}</Button>
         <Button size="lg" variant="ghost" class="h-12 px-6 text-base" :disabled="busy || restoring" @click="loadSample"><Sparkles />{{ t('home.openSample') }}</Button>
         <input ref="fileInput" type="file" class="hidden" :accept="GAME_FILE_ACCEPT" @change="onFile" />
@@ -273,6 +287,9 @@ function fmtDate(ts: number) {
   justify-content: center;
   gap: 12px;
   margin-top: clamp(4px, 1.4vh, 14px);
+}
+.split {
+  display: inline-flex;
 }
 .notice {
   display: grid;

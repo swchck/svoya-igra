@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { Game, MediaItem } from '../types'
 import { makeEmptyGame } from './model'
-import { findMissingMedia, validateGame } from './validate'
+import { estimateDuration, HEAVY_MEDIA_BYTES, inspectMedia, LONG_TEXT, validateGame } from './validate'
 
 const item = (p: Partial<MediaItem>): MediaItem => ({ id: 'mi', url: 'https://example.com/a.mp3', kind: 'audio', ...p })
 
@@ -154,6 +154,43 @@ describe('validateGame', () => {
   })
 })
 
+describe('readability and size', () => {
+  it('warns about text too long for the stage, sooner when media share the card', () => {
+    const game = filledGame()
+    firstQuestion(game).text = 'а'.repeat(LONG_TEXT + 1)
+    expect(codes(game)).toEqual(['long-text'])
+    firstQuestion(game).text = 'а'.repeat(200)
+    expect(codes(game)).toEqual([])
+    firstQuestion(game).media = [item({ url: 'https://example.com/a.png', kind: 'image' })]
+    expect(codes(game)).toEqual(['long-text'])
+  })
+
+  it('flags heavy files and repeated questions', () => {
+    const game = filledGame()
+    const big = item({ url: 'media://big', kind: 'video' })
+    firstQuestion(game).media = [big]
+    const [q1, q2, q3] = game.rounds[0].themes[1].questions
+    q1.text = 'Кто написал «Войну и мир»?'
+    q2.text = 'кто написал войну и мир'
+    q3.text = 'Кто написал «Войну и мир»?'
+    q3.media = [item({ url: 'https://example.com/tolstoy.png', kind: 'image' })]
+    const found = validateGame(game, { missing: new Set(), sizes: new Map([['media://big', HEAVY_MEDIA_BYTES + 1]]) })
+    expect(found.map((i) => [i.code, i.questionId])).toEqual([
+      ['heavy-media', firstQuestion(game).id],
+      ['duplicate-question', q2.id],
+    ])
+  })
+
+  it('estimates the playing time from questions, clips and the final', () => {
+    const game = filledGame()
+    const base = estimateDuration(game)
+    expect(base).toBe(10 * 40)
+    firstQuestion(game).media = [item({ start: 10, end: 40 }), item({ id: 'x', kind: 'image' })]
+    game.finalThemes = [{ id: 'f', theme: 'Ф', text: 'Т', answer: 'О' }]
+    expect(estimateDuration(game)).toBe(base + 30 + 150)
+  })
+})
+
 describe('missing media', () => {
   it('finds stored files the lookup cannot return, once per URL', async () => {
     const game = filledGame()
@@ -164,9 +201,10 @@ describe('missing media', () => {
     game.finalThemes = [{ id: 'f', theme: 'Ф', text: 'Т', answer: 'О', media: [gone] }]
     const lookup = vi.fn(async (url: string) => (url === 'media://present' ? new Blob(['x']) : null))
 
-    const missing = await findMissingMedia(game, lookup)
+    const facts = await inspectMedia(game, lookup)
 
-    expect([...missing]).toEqual(['media://gone'])
+    expect([...facts.missing]).toEqual(['media://gone'])
+    expect(facts.sizes).toEqual(new Map([['media://present', 1]]))
     expect(lookup).toHaveBeenCalledTimes(2)
   })
 
@@ -175,7 +213,7 @@ describe('missing media', () => {
     firstQuestion(game).media = [item({ url: 'https://example.com/a.mp3' })]
     const lookup = vi.fn()
 
-    expect((await findMissingMedia(game, lookup)).size).toBe(0)
+    expect((await inspectMedia(game, lookup)).missing.size).toBe(0)
     expect(lookup).not.toHaveBeenCalled()
   })
 
@@ -186,7 +224,7 @@ describe('missing media', () => {
     firstQuestion(game).answerMedia = [gone]
     game.finalThemes = [{ id: 'f', theme: 'Ф', text: 'Т', answer: 'О', media: [gone] }]
 
-    const found = validateGame(game, new Set(['media://gone']))
+    const found = validateGame(game, { missing: new Set(['media://gone']), sizes: new Map() })
 
     expect(found.map((i) => [i.code, i.severity, i.side, i.final ?? false])).toEqual([
       ['missing-media', 'error', 'question', false],

@@ -6,8 +6,8 @@ const { t } = useI18n()
 const props = defineProps<{
   title: string
   subtitle?: string
-  /** Theme names announced one after another under the title. */
-  themes?: string[]
+  /** Themes announced one after another under the title, each with the author's comment if any. */
+  themes?: { name: string; comment?: string }[]
   hint?: string
 }>()
 defineEmits<{ (e: 'next'): void }>()
@@ -34,7 +34,7 @@ const titleMs = computed(() => letters.value.length * 45 + 500)
         :key="i"
         class="theme"
         :style="{ animationDelay: `${titleMs + i * 260}ms` }"
-      >{{ theme }}</li>
+      ><span class="theme-name">{{ theme.name }}</span><span v-if="theme.comment" class="theme-comment">{{ theme.comment }}</span></li>
     </ul>
     <p v-if="hint" class="hint">{{ hint }}</p>
   </section>
@@ -91,6 +91,9 @@ const titleMs = computed(() => letters.value.length * 45 + 500)
   list-style: none;
 }
 .theme {
+  display: grid;
+  justify-items: center;
+  gap: 0.15em;
   padding: 0.45em 1.1em;
   border-radius: 999px;
   border: 1px solid color-mix(in oklch, var(--gold) 55%, transparent);
@@ -102,6 +105,15 @@ const titleMs = computed(() => letters.value.length * 45 + 500)
   color: var(--gold);
   box-shadow: 0 12px 30px -16px oklch(0.05 0.1 280 / 0.9);
   animation: pop 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
+}
+.theme-comment {
+  max-width: 32em;
+  font-family: var(--font-sans, inherit);
+  font-size: 0.5em;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--foreground);
+  opacity: 0.85;
 }
 .hint {
   margin: 0;

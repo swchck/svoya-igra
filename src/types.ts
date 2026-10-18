@@ -20,6 +20,8 @@ export interface MediaItem {
   start?: number
   /** Where playback stops, in seconds from the beginning; unset plays to the end. */
   end?: number
+  /** Pictures only: blurred while the question is up, shown clear with the answer. */
+  blur?: boolean
 }
 
 /** What only the host sees: other ways to give the answer and notes for judging. */
@@ -57,18 +59,30 @@ export interface Question extends HostInfo {
   correctOption?: number
   /** Clues opened one by one after the question; each one lowers what it is worth. */
   hints?: Hint[]
+  /** Seconds to answer, overriding the round and the game; 0 means no timer. */
+  seconds?: number
 }
 
 export interface Theme {
   id: string
   name: string
   questions: Question[]
+  /** What the host says about the theme when the round opens; players see it on the intro. */
+  comment?: string
+}
+
+/** A round's own rules; anything unset follows the game and the house rules. */
+export interface RoundRules {
+  /** Seconds to answer; 0 means no timer. */
+  answerSeconds?: number
+  wrongPenalty?: boolean
 }
 
 export interface Round {
   id: string
   name: string
   themes: Theme[]
+  rules?: RoundRules
 }
 
 export interface FinalQuestion extends HostInfo {

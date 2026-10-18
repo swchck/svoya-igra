@@ -17,8 +17,7 @@ import { useRemaining } from '@/play/timer'
 import { HOST_PING_MS, openPlayChannel, type HostCommand, type PlayChannel } from '@/play/channel'
 import type { MediaAction, MediaStatus } from '@/play/mediaControl'
 import { answerLabel, buzzable, buzzWindow, buzzWinner, type LanStatus } from '@/play/lan'
-import { prefs } from '@/prefs'
-import { hintedValue, isSpecial, kindInfo, optionLetter, revealedAnswer } from '@/game/kinds'
+import { answerMedia, hintedValue, isSpecial, kindInfo, optionLetter, revealedAnswer } from '@/game/kinds'
 import BoardGrid from '@/components/play/BoardGrid.vue'
 import AnimatedNumber from '@/components/play/AnimatedNumber.vue'
 import AuctionPanel from '@/components/play/AuctionPanel.vue'
@@ -80,7 +79,7 @@ function onScreen(): MediaItem[] {
   const f = mirror.activeFinal.value
   switch (state.phase) {
     case 'question': return q?.media ?? []
-    case 'answer': return q?.answerMedia ?? []
+    case 'answer': return q ? answerMedia(q) : []
     case 'final-question': return f?.media ?? []
     case 'final-answer': return f?.answerMedia ?? []
     default: return []
@@ -90,7 +89,7 @@ function onScreen(): MediaItem[] {
 const stageMedia = computed(() => onScreen().filter((m) => m.kind !== 'image'))
 
 const accent = computed(() => accentStyle(game.value?.settings))
-const answerMs = computed(() => (game.value?.settings?.answerSeconds ?? 0) * 1000)
+const answerMs = mirror.answerMs
 const remaining = useRemaining(() => state.timer)
 const timerRunning = computed(() => state.timer.endsAt !== null && remaining.value > 0)
 const showTimer = computed(() => answerMs.value > 0 && (state.phase === 'question' || state.phase === 'final-question'))
@@ -223,6 +222,9 @@ onUnmounted(() => {
 
         <div v-else-if="state.phase === 'round-intro' || state.phase === 'final-intro'" class="center">
           <p class="title-gold text-4xl">{{ state.phase === 'final-intro' ? t('host.final') : round?.name }}</p>
+          <ul v-if="state.phase === 'round-intro' && round?.themes.some((th) => th.comment)" class="theme-notes">
+            <li v-for="th in round.themes" :key="th.id"><b>{{ th.name }}</b><span v-if="th.comment"> — {{ th.comment }}</span></li>
+          </ul>
           <Button size="lg" class="big" @click="send('advance')">{{ state.phase === 'final-intro' ? (mirror.finalLeft.value.length > 1 ? t('host.toThemes') : t('host.toBets')) : t('host.toBoard') }}</Button>
         </div>
 
@@ -318,7 +320,7 @@ onUnmounted(() => {
               :status="lan"
               :value="activeValue"
               :armed="state.buzzArmed"
-              :penalty="prefs.wrongPenalty"
+              :penalty="mirror.wrongPenalty.value"
               @reopen="(wrong) => send('buzzReopen', wrong)"
               @open="send('openBuzz')"
             />
@@ -619,6 +621,14 @@ onUnmounted(() => {
 }
 .rich :deep(code) {
   font-size: 0.85em;
+}
+.theme-notes {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
 }
 .host-hints {
   display: grid;
