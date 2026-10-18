@@ -1,0 +1,80 @@
+[
+  {
+    "version": "0.4.0",
+    "date": "2026-10-04",
+    "notes": {
+      "ru": [
+        "Игроки отвечают с телефонов: ведущий показывает QR-код, и у каждого появляется большая кнопка. С телефона же выбирают вопрос, делают ставку и пишут ответ в финале.",
+        "Готовую игру можно передать по Wi‑Fi: другое устройство в той же сети скачает файл по ссылке.",
+        "Таймер на ответ, игра командами, отмена последнего шага и итоги с лучшими ответами и сериями.",
+        "Импорт пакетов из SIGame (.siq) и история версий игры в редакторе.",
+        "Настройки: правила игры, экран и звук, кнопки на телефонах, сжатие картинок и резервная копия всех игр.",
+        "Короткие подсказки по главным кнопкам на каждом экране, в том числе в пульте ведущего."
+      ],
+      "en": [
+        "Players answer from their phones: the host shows a QR code and each player gets a big buzzer. Phones also pick questions, place bets and type final answers.",
+        "Share a finished game over Wi‑Fi: another device on the same network downloads it from a link.",
+        "An answer timer, team play, undo for the last step and a results screen with best answers and streaks.",
+        "Import SIGame packages (.siq) and restore earlier versions of a game in the editor.",
+        "Settings for house rules, stage and sound, phone buzzers, picture compression and a backup of every game.",
+        "Short guided tours of the main buttons on each screen, the host console included."
+      ],
+      "sr": [
+        "Igrači odgovaraju sa telefona: voditelj pokazuje QR kod i svako dobija veliko dugme. Sa telefona se biraju pitanja, stavljaju ulozi i pišu odgovori u finalu.",
+        "Gotova igra se deli preko Wi‑Fi mreže: drugi uređaj u istoj mreži preuzima je preko linka.",
+        "Tajmer za odgovor, igra u timovima, poništavanje poslednjeg koraka i rezultati sa najboljim odgovorima i serijama.",
+        "Uvoz SIGame paketa (.siq) i vraćanje ranijih verzija igre u uređivaču.",
+        "Podešavanja pravila igre, ekrana i zvuka, dugmadi na telefonima, kompresije slika i rezervne kopije svih igara.",
+        "Kratki vodiči kroz glavna dugmad na svakom ekranu, uključujući pult voditelja."
+      ]
+    }
+  },
+  {
+    "version": "0.3.0",
+    "date": "2026-10-03",
+    "notes": {
+      "ru": [
+        "Программа говорит по-английски и по-сербски.",
+        "Новый редактор: игра собирается прямо на табло, вопрос открывается в отдельном окне.",
+        "Обновлённые экран для зрителей и пульт: ведущий запускает и останавливает звук и видео со своего окна.",
+        "Онлайн-версия в браузере."
+      ],
+      "en": [
+        "The app speaks English and Serbian.",
+        "A new editor: build the game right on the board and edit each question in its own window.",
+        "A redesigned stage and host console: the host starts and stops sound and video from their window.",
+        "An online version that runs in the browser."
+      ],
+      "sr": [
+        "Program govori engleski i srpski.",
+        "Novi uređivač: igra se pravi pravo na tabli, a pitanje se uređuje u posebnom prozoru.",
+        "Obnovljeni ekran za gledaoce i pult: voditelj pušta i zaustavlja zvuk i video iz svog prozora.",
+        "Onlajn verzija u pregledaču."
+      ]
+    }
+  },
+  {
+    "version": "0.2.0",
+    "date": "2026-10-03",
+    "notes": {
+      "ru": [
+        "Первая версия для macOS, Windows и Linux.",
+        "Аукцион, кот в мешке и финал со ставками.",
+        "Пульт ведущего во втором окне.",
+        "Игра сохраняется в файл .gamezip и открывается двойным кликом."
+      ],
+      "en": [
+        "The first version for macOS, Windows and Linux.",
+        "Auctions, cats in the bag and a final with bets.",
+        "A host console in a second window.",
+        "Games save to a .gamezip file that opens with a double-click."
+      ],
+      "sr": [
+        "Prva verzija za macOS, Windows i Linux.",
+        "Aukcija, mačka u džaku i finale sa ulozima.",
+        "Pult voditelja u drugom prozoru.",
+        "Igra se čuva u .gamezip fajl koji se otvara dvostrukim klikom."
+      ]
+    }
+  }
+]

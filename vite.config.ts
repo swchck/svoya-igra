@@ -4,6 +4,7 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import { version } from './package.json'
 
 export default defineConfig({
   // relative asset paths: the desktop shell serves the build from its own scheme
@@ -53,6 +54,7 @@ export default defineConfig({
   // only the Composition API and t() are used, no legacy API, <i18n-t> or v-t: lets the
   // bundler drop that part of vue-i18n
   define: {
+    __APP_VERSION__: JSON.stringify(version),
     __VUE_I18N_LEGACY_API__: 'false',
     __VUE_I18N_FULL_INSTALL__: 'false',
     __INTLIFY_PROD_DEVTOOLS__: 'false',

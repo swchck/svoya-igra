@@ -18,6 +18,8 @@ export default {
   checking: 'Checking…',
   upToDate: 'You have the latest version',
   updateAvailable: 'Version {version} is available',
-  install: 'Update and restart',
   test: 'Try it',
+  changelog: 'What’s new',
+  checkFailed: 'Could not check: the update server is out of reach',
+  autoUpdate: 'Check for updates automatically',
 } satisfies typeof ru

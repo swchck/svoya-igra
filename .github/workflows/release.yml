@@ -95,8 +95,12 @@ jobs:
           # v1.0.0-rc1 and the like must not become releases/latest, which feeds the updater
           prerelease=()
           [[ "$GITHUB_REF_NAME" == *-* ]] && prerelease=(--prerelease)
+          # the changelog entry describes the release; without one GitHub lists the commits
+          notes=(--generate-notes)
+          node scripts/release-notes.mjs "${GITHUB_REF_NAME#v}" > notes.md
+          [ -s notes.md ] && notes=(--notes-file notes.md)
           gh release create "$GITHUB_REF_NAME" \
             --title "Своя Игра ${GITHUB_REF_NAME#v}" \
-            --generate-notes \
+            "${notes[@]}" \
             "${prerelease[@]}" \
             release/*

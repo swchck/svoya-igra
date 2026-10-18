@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { ArrowLeft, Download, Loader2, RefreshCw, Volume2 } from '@lucide/vue'
+import { ref } from 'vue'
+import { ArrowLeft, Download, Loader2, RefreshCw, Sparkles, Volume2 } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { Button } from '@/components/ui/button'
@@ -12,7 +12,10 @@ import SettingsDisplay from '@/components/prefs/SettingsDisplay.vue'
 import SettingsLibrary from '@/components/prefs/SettingsLibrary.vue'
 import { playSound, setSoundEffects, setSoundVolume, soundEffectsOn, soundVolume } from '@/play/sounds'
 import { lanAvailable, phonesPreferred, setPhonesPreferred } from '@/play/lan'
-import { findUpdate, isDesktop, type AvailableUpdate } from '@/platform'
+import { canSelfUpdate } from '@/platform'
+import { prefs } from '@/prefs'
+import { APP_VERSION, CHANGELOG } from '@/updates/changelog'
+import { checkForUpdates, offerUpdate, showChangelog, updates } from '@/updates/state'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -23,24 +26,6 @@ function togglePhones(on: boolean) {
   setPhonesPreferred(on)
 }
 
-const version = ref('')
-const update = ref<AvailableUpdate | null>(null)
-const updateState = ref<'idle' | 'checking' | 'latest' | 'available' | 'installing'>('idle')
-onMounted(async () => {
-  if (isDesktop) version.value = await (await import('@tauri-apps/api/app')).getVersion()
-})
-
-async function checkUpdates() {
-  updateState.value = 'checking'
-  update.value = await findUpdate()
-  updateState.value = update.value ? 'available' : 'latest'
-}
-
-async function install() {
-  if (!update.value) return
-  updateState.value = 'installing'
-  await update.value.install().catch(() => (updateState.value = 'available'))
-}
 
 function back() {
   if (window.history.state?.back) router.back()
@@ -100,20 +85,25 @@ function back() {
         </label>
       </section>
 
-      <section v-if="isDesktop" class="glass section">
+      <section class="glass section">
         <h2 class="section-title">{{ t('prefs.about') }}</h2>
         <div class="about">
-          <span>{{ t('prefs.version', { version }) }}</span>
+          <span>{{ t('prefs.version', { version: APP_VERSION }) }}</span>
+          <Button variant="ghost" size="sm" @click="showChangelog([...CHANGELOG])"><Sparkles />{{ t('prefs.changelog') }}</Button>
           <span class="flex-1" />
-          <span v-if="updateState === 'latest'" class="text-sm text-cyan">{{ t('prefs.upToDate') }}</span>
-          <span v-else-if="update" class="text-sm text-gold">{{ t('prefs.updateAvailable', { version: update.version }) }}</span>
-          <Button v-if="update" :disabled="updateState === 'installing'" @click="install">
-            <Loader2 v-if="updateState === 'installing'" class="animate-spin" /><Download v-else />{{ t('prefs.install') }}
-          </Button>
-          <Button v-else variant="secondary" :disabled="updateState === 'checking'" @click="checkUpdates">
-            <Loader2 v-if="updateState === 'checking'" class="animate-spin" /><RefreshCw v-else />{{ updateState === 'checking' ? t('prefs.checking') : t('prefs.checkUpdates') }}
-          </Button>
+          <template v-if="canSelfUpdate">
+            <span v-if="updates.status === 'latest'" class="text-sm text-cyan">{{ t('prefs.upToDate') }}</span>
+            <span v-else-if="updates.status === 'failed' && !updates.available" class="text-sm text-destructive">{{ t('prefs.checkFailed') }}</span>
+            <Button v-if="updates.available" @click="offerUpdate"><Download />{{ t('prefs.updateAvailable', { version: updates.available.version }) }}</Button>
+            <Button v-else variant="secondary" :disabled="updates.status === 'checking'" @click="checkForUpdates()">
+              <Loader2 v-if="updates.status === 'checking'" class="animate-spin" /><RefreshCw v-else />{{ updates.status === 'checking' ? t('prefs.checking') : t('prefs.checkUpdates') }}
+            </Button>
+          </template>
         </div>
+        <label v-if="canSelfUpdate" class="toggle">
+          <input v-model="prefs.autoUpdateCheck" type="checkbox" />
+          {{ t('prefs.autoUpdate') }}
+        </label>
       </section>
     </main>
   </div>

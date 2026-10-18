@@ -44,6 +44,8 @@ export interface Prefs {
   /** Phones buzz in the hand when their player is first. */
   phoneVibration: boolean
   imageQuality: ImageQuality
+  /** Desktop: look for a new version in the background and offer it. */
+  autoUpdateCheck: boolean
 }
 
 export const DEFAULT_PREFS: Readonly<Prefs> = Object.freeze({
@@ -63,6 +65,7 @@ export const DEFAULT_PREFS: Readonly<Prefs> = Object.freeze({
   fixedRoomCode: false,
   phoneVibration: true,
   imageQuality: 'normal',
+  autoUpdateCheck: true,
 })
 
 const STORAGE_KEY = 'svoya-igra:prefs'
