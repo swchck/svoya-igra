@@ -8,9 +8,13 @@ import ConfirmHost from '@/components/ConfirmHost.vue'
 import { useDesktopIntegration } from '@/composables/useDesktopIntegration'
 import { syncMotionClass } from '@/lib/motion'
 import { tour } from '@/tour/state'
+import { isMainWindow } from '@/platform'
 import 'vue-sonner/style.css'
 
 const TourOverlay = defineAsyncComponent(() => import('@/tour/TourOverlay.vue'))
+const UpdateCenter = defineAsyncComponent(() => import('@/components/updates/UpdateCenter.vue'))
+// stage and host windows run this app too; only the library tells about updates
+const libraryWindow = isMainWindow()
 
 const { t } = useI18n()
 
@@ -28,6 +32,7 @@ syncMotionClass()
       <RouterView />
     </div>
     <ConfirmHost />
+    <UpdateCenter v-if="libraryWindow" />
     <TourOverlay v-if="tour.active" />
     <Toaster position="bottom-right" rich-colors close-button />
   </TooltipProvider>

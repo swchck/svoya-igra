@@ -97,29 +97,47 @@ export async function onOpenedFiles(handle: (files: File[]) => void): Promise<()
   return unlisten
 }
 
+/** How far an update download has got: bytes so far, and in all when the server says. */
+export interface UpdateProgress {
+  done: number
+  total: number | null
+}
+
 /** An update offered by the release feed. */
 export interface AvailableUpdate {
   version: string
-  install: () => Promise<void>
+  /** The release notes as the feed carries them; see parseFeedNotes. */
+  notes: string
+  /** Downloads and installs the update, then restarts the app; resolves only if the restart fails. */
+  install: (progress?: (p: UpdateProgress) => void) => Promise<void>
 }
 
-/** Desktop: asks the release feed for a newer version. Null when up to date or offline. */
+/** Reports whether this build can update itself: the desktop app, built for release. */
+export const canSelfUpdate = isDesktop && !import.meta.env.DEV
+
+/**
+ * Desktop: asks the release feed for a newer version; null when this one is the latest.
+ *
+ * @throws when the feed cannot be reached or read.
+ */
 export async function findUpdate(): Promise<AvailableUpdate | null> {
-  if (!isDesktop || import.meta.env.DEV) return null
-  try {
-    const { check } = await import('@tauri-apps/plugin-updater')
-    const update = await check()
-    if (!update) return null
-    return {
-      version: update.version,
-      install: async () => {
-        await update.downloadAndInstall()
-        const { relaunch } = await import('@tauri-apps/plugin-process')
-        await relaunch()
-      },
-    }
-  } catch {
-    // no network or no release feed yet: nothing to offer
-    return null
+  if (!canSelfUpdate) return null
+  const { check } = await import('@tauri-apps/plugin-updater')
+  const update = await check()
+  if (!update) return null
+  return {
+    version: update.version,
+    notes: update.body ?? '',
+    install: async (progress) => {
+      let done = 0
+      let total: number | null = null
+      await update.downloadAndInstall((event) => {
+        if (event.event === 'Started') total = event.data.contentLength ?? null
+        else if (event.event === 'Progress') done += event.data.chunkLength
+        progress?.({ done, total })
+      })
+      const { relaunch } = await import('@tauri-apps/plugin-process')
+      await relaunch()
+    },
   }
 }

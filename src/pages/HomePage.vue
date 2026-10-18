@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { offerUpdate, updates } from '@/updates/state'
 import { defineAsyncComponent, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -163,6 +164,7 @@ function fmtDate(ts: number) {
   <main class="home">
     <header class="hero" data-tauri-drag-region>
       <div class="locale" data-tour="home-tools">
+        <Button v-if="updates.available" variant="secondary" size="sm" class="update-pill" @click="offerUpdate"><Download />{{ t('system.updates.pill', { version: updates.available.version }) }}</Button>
         <TourHelpButton id="home" />
         <Button variant="ghost" size="icon" :aria-label="t('prefs.open')" :title="t('prefs.open')" @click="router.push({ name: 'settings' })"><Settings /></Button>
       </div>

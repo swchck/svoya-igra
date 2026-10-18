@@ -18,6 +18,8 @@ export default {
   checking: 'Proveravamo…',
   upToDate: 'Imate najnoviju verziju',
   updateAvailable: 'Dostupna je verzija {version}',
-  install: 'Ažuriraj i pokreni ponovo',
   test: 'Proveri',
+  changelog: 'Šta je novo',
+  checkFailed: 'Provera nije uspela: server za ažuriranja nije dostupan',
+  autoUpdate: 'Automatski proveravaj ažuriranja',
 } satisfies typeof ru

@@ -4,9 +4,9 @@ import { toast } from 'vue-sonner'
 import { t } from '@/i18n'
 import { useGamesStore } from '@/stores/games'
 import { endTour } from '@/tour/state'
-import { findUpdate, isDesktop, isMainWindow, onOpenedFiles } from '@/platform'
+import { isDesktop, isMainWindow, onOpenedFiles } from '@/platform'
 
-/** Desktop-only wiring of the main window: files opened through the OS and update offers. */
+/** Desktop-only wiring of the main window: files opened through the OS. */
 export function useDesktopIntegration() {
   // host windows run the same app; they must not race the main one for opened files
   if (!isDesktop || !isMainWindow()) return
@@ -33,18 +33,6 @@ export function useDesktopIntegration() {
 
   onMounted(async () => {
     stop = await onOpenedFiles(importOpened)
-    const update = await findUpdate()
-    if (update) {
-      toast.info(t('system.desktop.updateAvailable', { version: update.version }), {
-        duration: Infinity,
-        action: {
-          label: t('system.desktop.update'),
-          onClick: () => {
-            toast.promise(update.install(), { loading: t('system.desktop.downloading'), error: t('system.desktop.updateFailed') })
-          },
-        },
-      })
-    }
   })
   onUnmounted(() => stop?.())
 }
