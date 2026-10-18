@@ -1,5 +1,53 @@
 [
   {
+    "version": "0.5.0",
+    "date": "2026-10-19",
+    "notes": {
+      "ru": [
+        "Новые типы вопросов: без риска, ва-банк и вопрос для всех, на который отвечают все сразу.",
+        "Варианты ответа A–F: игроки выбирают их на экране и на телефонах, а программа сама отмечает верные.",
+        "Вопрос по частям: ведущий открывает подсказки по одной, и с каждой вопрос стоит меньше.",
+        "Финал из нескольких тем: игроки по очереди убирают лишние, в том числе с телефонов.",
+        "Для ведущего: какие ещё ответы засчитывать, какие нет, и заметка, которую игроки не видят.",
+        "Отмена и повтор любого изменения в редакторе, поиск по игре, копирование тем и вопросов между играми.",
+        "Массовые правки на табло, переходы стрелками, стоимости раунда разом и вопросы, вписанные текстом.",
+        "Шаблоны новых игр, импорт из таблицы CSV и выгрузка в SIGame (.siq).",
+        "Своё время на ответ у вопроса, правила раунда и комментарии к темам на заставке раунда.",
+        "Запись звука с микрофона, повторное использование файлов игры и картинки, размытые до ответа.",
+        "Статистика вопросов после партий, оценка длительности игры и новые предупреждения перед игрой.",
+        "Программа сама находит новые версии, предлагает обновиться и рассказывает, что нового."
+      ],
+      "en": [
+        "New kinds of questions: no risk, all in, and a question for all that everyone answers at once.",
+        "Answer choices A–F: players pick them on the stage and on their phones, and the app marks the right ones.",
+        "Questions in parts: the host opens hints one by one, and each makes the question worth less.",
+        "A final with several categories: players take turns striking them, from their phones too.",
+        "For the host: other answers to accept, answers not to accept, and a note players never see.",
+        "Undo and redo for every change in the editor, search across the game, and copying categories and questions between games.",
+        "Bulk edits on the board, arrow-key navigation, a round's values set at once, and questions typed in as text.",
+        "Templates for new games, import from a CSV table, and export to SIGame (.siq).",
+        "A question's own answer time, round rules, and category comments on the round intro.",
+        "Recording sound from the microphone, reusing the game's files, and pictures blurred until the answer.",
+        "Question statistics after games, an estimate of how long the game takes, and new warnings before playing.",
+        "The app finds new versions on its own, offers to update and tells what's new."
+      ],
+      "sr": [
+        "Nove vrste pitanja: bez rizika, va bank i pitanje za sve, na koje svi odgovaraju odjednom.",
+        "Ponuđeni odgovori A–F: igrači ih biraju na ekranu i na telefonima, a program sam označava tačne.",
+        "Pitanje u delovima: voditelj otvara nagoveštaje jedan po jedan i svaki smanjuje vrednost pitanja.",
+        "Finale sa više tema: igrači ih redom uklanjaju, i sa telefona.",
+        "Za voditelja: koje još odgovore priznati, koje ne, i beleška koju igrači ne vide.",
+        "Poništavanje i ponavljanje svake izmene u uređivaču, pretraga igre i kopiranje tema i pitanja između igara.",
+        "Masovne izmene na tabli, kretanje strelicama, vrednosti cele runde odjednom i pitanja upisana tekstom.",
+        "Šabloni novih igara, uvoz iz CSV tabele i izvoz u SIGame (.siq).",
+        "Posebno vreme za odgovor na pitanje, pravila runde i komentari tema na najavi runde.",
+        "Snimanje zvuka mikrofonom, ponovna upotreba fajlova igre i slike zamućene do odgovora.",
+        "Statistika pitanja posle partija, procena trajanja igre i nova upozorenja pre igre.",
+        "Program sam pronalazi nove verzije, nudi ažuriranje i govori šta je novo."
+      ]
+    }
+  },
+  {
     "version": "0.4.0",
     "date": "2026-10-04",
     "notes": {
