@@ -13,12 +13,6 @@ import { fileSlug } from './files'
 
 export type GameFileFormat = 'gamezip' | 'json'
 
-/** A game read from a file, with notes on what the file held that the game could not. */
-export interface ImportedGame {
-  game: Game
-  notes: string[]
-}
-
 async function importPlainFile(file: File): Promise<Game> {
   if (/\.(gamezip|zip)$/i.test(file.name)) return importGameZip(file)
   let data: unknown
@@ -35,15 +29,9 @@ async function importPlainFile(file: File): Promise<Game> {
 }
 
 /** Reads a .gamezip, .siq or .json file into a new game with fresh ids, storing its attachments. */
-export async function importGameFileWithNotes(file: File): Promise<ImportedGame> {
-  if (!/\.siq$/i.test(file.name)) return { game: await importPlainFile(file), notes: [] }
-  const { game, droppedFinalThemes } = await importSiq(file, file.name.replace(/\.siq$/i, ''))
-  return { game, notes: droppedFinalThemes ? [t('home.toast.siqFinalSkipped', { n: droppedFinalThemes })] : [] }
-}
-
-/** Reads a .gamezip, .siq or .json file into a new game with fresh ids, storing its attachments. */
 export async function importGameFile(file: File): Promise<Game> {
-  return (await importGameFileWithNotes(file)).game
+  if (/\.siq$/i.test(file.name)) return importSiq(file, file.name.replace(/\.siq$/i, ''))
+  return importPlainFile(file)
 }
 
 /** JSON export is self-contained: stored attachments are inlined as data URLs. */

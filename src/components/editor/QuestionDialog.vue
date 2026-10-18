@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ArrowLeft, ArrowRight, Cat, ChevronLeft, ChevronRight, CircleHelp, Gavel, MonitorPlay, Trash2 } from '@lucide/vue'
-import type { Question, QuestionKind } from '@/types'
+import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, Copy, CopyPlus, MonitorPlay, PencilLine, Trash2 } from '@lucide/vue'
+import { toast } from 'vue-sonner'
+import { useBoardClipboard } from '@/composables/useBoardClipboard'
+import type { Question } from '@/types'
+import { KINDS, kindInfo } from '@/game/kinds'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
@@ -10,6 +13,9 @@ import IconButton from '@/components/IconButton.vue'
 import NumberInput from '@/components/NumberInput.vue'
 import MediaList from '@/components/MediaList.vue'
 import MarkdownEditor from '@/components/MarkdownEditor.vue'
+import HostFields from './HostFields.vue'
+import OptionsEditor from './OptionsEditor.vue'
+import HintsEditor from './HintsEditor.vue'
 
 const { t } = useI18n()
 const question = defineModel<Question>({ required: true })
@@ -27,18 +33,22 @@ const emit = defineEmits<{
   (e: 'move', offset: -1 | 1): void
   (e: 'remove'): void
   (e: 'preview'): void
+  (e: 'duplicate'): void
 }>()
 
-const KINDS: { value: QuestionKind; key: string; icon: typeof Gavel }[] = [
-  { value: 'normal', key: 'normal', icon: CircleHelp },
-  { value: 'auction', key: 'auction', icon: Gavel },
-  { value: 'cat-in-bag', key: 'catInBag', icon: Cat },
-]
+const { copy } = useBoardClipboard()
+function copyQuestion() {
+  copy({ kind: 'question', question: question.value })
+  toast.success(t('editor.clipboard.questionCopied'))
+}
+
+function toggleDraft() {
+  if (question.value.draft) delete question.value.draft
+  else question.value.draft = true
+}
+
 const PRESETS = [100, 200, 300, 400, 500, 1000]
-const kindHint = computed(() => {
-  const k = KINDS.find((k) => k.value === question.value.kind)
-  return k && t(`editor.dialog.kinds.${k.key}.hint`)
-})
+const kindHint = computed(() => t(`editor.dialog.kinds.${kindInfo(question.value.kind).key}.hint`))
 
 // Alt+arrows is word movement inside a text field, so there it needs Ctrl or Cmd as well
 function onKeydown(e: KeyboardEvent) {
@@ -76,13 +86,13 @@ function onKeydown(e: KeyboardEvent) {
             <div class="kinds" role="radiogroup" :aria-label="t('editor.dialog.kindLabel')">
               <button
                 v-for="k in KINDS"
-                :key="k.value"
+                :key="k.kind"
                 type="button"
                 role="radio"
                 class="kind"
-                :class="[k.value, { on: question.kind === k.value }]"
-                :aria-checked="question.kind === k.value"
-                @click="question.kind = k.value"
+                :class="[k.kind, { on: question.kind === k.kind }]"
+                :aria-checked="question.kind === k.kind"
+                @click="question.kind = k.kind"
               >
                 <component :is="k.icon" class="size-4" />{{ t(`editor.dialog.kinds.${k.key}.label`) }}
               </button>
@@ -105,6 +115,13 @@ function onKeydown(e: KeyboardEvent) {
             </div>
           </div>
 
+          <div class="grid gap-2">
+            <Label as="span">{{ t('editor.dialog.status') }}</Label>
+            <button type="button" class="draft-toggle" :class="{ on: question.draft }" :aria-pressed="!!question.draft" :title="t('editor.dialog.draftHint')" @click="toggleDraft">
+              <PencilLine class="size-4" />{{ t('editor.dialog.draft') }}
+            </button>
+          </div>
+
           <div v-if="question.kind === 'cat-in-bag'" class="grid gap-2">
             <Label>{{ t('editor.dialog.catValue') }}</Label>
             <NumberInput v-model="question.catValue" class="value-input" :min="1" :step="100" :step-snapping="false" :placeholder="String(question.value)" />
@@ -116,11 +133,14 @@ function onKeydown(e: KeyboardEvent) {
             <h3 class="col-title">{{ t('editor.dialog.question') }}</h3>
             <MarkdownEditor v-model="question.text" data-tour="q-text" :label="t('editor.dialog.question')" :placeholder="t('editor.dialog.questionPlaceholder')" />
             <MediaList v-model="question.media" data-tour="q-media" :label="t('editor.dialog.questionMedia')" />
+            <OptionsEditor v-model="question" />
+            <HintsEditor v-model="question" />
           </section>
           <section class="col answer" :aria-label="t('editor.dialog.answer')">
             <h3 class="col-title">{{ t('editor.dialog.answer') }}</h3>
             <MarkdownEditor v-model="question.answer" display :label="t('editor.dialog.answer')" :placeholder="t('editor.dialog.answerPlaceholder')" />
             <MediaList v-model="question.answerMedia" :label="t('editor.dialog.answerMedia')" />
+            <HostFields v-model="question" />
           </section>
         </div>
       </div>
@@ -128,6 +148,8 @@ function onKeydown(e: KeyboardEvent) {
       <footer class="foot">
         <Button variant="secondary" @click="$emit('preview')"><MonitorPlay />{{ t('editor.dialog.preview') }}</Button>
         <span class="flex-1" />
+        <IconButton :label="t('editor.dialog.duplicate')" @click="$emit('duplicate')"><CopyPlus /></IconButton>
+        <IconButton :label="t('editor.dialog.copy')" @click="copyQuestion"><Copy /></IconButton>
         <IconButton :label="t('editor.dialog.moveLeft')" :disabled="first" @click="$emit('move', -1)"><ArrowLeft /></IconButton>
         <IconButton :label="t('editor.dialog.moveRight')" :disabled="last" @click="$emit('move', 1)"><ArrowRight /></IconButton>
         <IconButton :label="t('editor.dialog.remove')" class="text-destructive" @click="$emit('remove')"><Trash2 /></IconButton>
@@ -225,6 +247,9 @@ function onKeydown(e: KeyboardEvent) {
 .kind.normal.on { background: var(--gold); }
 .kind.auction.on { background: oklch(0.78 0.15 70); }
 .kind.cat-in-bag.on { background: var(--magenta); color: white; }
+.kind.no-risk.on { background: oklch(0.72 0.14 160); }
+.kind.all-in.on { background: oklch(0.7 0.19 40); }
+.kind.for-all.on { background: var(--cyan); }
 .hint {
   margin: 6px 0 0;
   font-size: 13px;
@@ -232,6 +257,27 @@ function onKeydown(e: KeyboardEvent) {
 }
 .value-input {
   width: 9rem;
+}
+.draft-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid oklch(1 0 0 / 0.12);
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  cursor: pointer;
+}
+.draft-toggle:hover {
+  color: var(--foreground);
+}
+.draft-toggle.on {
+  border-color: var(--cyan);
+  background: color-mix(in oklch, var(--cyan) 16%, transparent);
+  color: var(--cyan);
 }
 .value-input :deep(input) {
   font-family: var(--font-display);

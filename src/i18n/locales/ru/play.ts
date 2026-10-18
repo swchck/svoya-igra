@@ -59,12 +59,22 @@ export default {
   },
   auction: {
     winner: 'Кто выиграл торги',
+    allInWho: 'Кто идёт ва-банк',
     stakeRange: 'Ставка (от {min} до {max})',
     allIn: 'Ва-банк',
     play: 'Играть за {amount}',
   },
   cat: {
     give: 'Кому отдать вопрос за {value}?',
+  },
+  noRisk: {
+    who: 'Кто отвечает на вопрос за {value}?',
+  },
+  forAll: {
+    done: 'Начислить очки',
+  },
+  hints: {
+    next: 'Подсказка {n} из {total}',
   },
   verdict: {
     nobody: 'Никто не ответил',
@@ -86,11 +96,12 @@ export default {
     up: 'Время!',
   },
   stage: {
+    kinds: { auction: 'Аукцион', catInBag: 'Кот в мешке', noRisk: 'Без риска', allIn: 'Ва-банк', forAll: 'Вопрос для всех' },
     undo: 'Отменить',
     logo: 'Логотип игры',
-    auction: 'Аукцион',
-    catInBag: 'Кот в мешке',
     catText: 'Вопрос достаётся другому игроку',
+    allInText: 'Игрок ставит всё, что заработал',
+    noRiskText: 'За ошибку очки не снимаются',
     final: 'Финал',
     finalTopic: 'Финал: {theme}',
     finalBetsText: 'Игроки делают ставки',
@@ -103,6 +114,7 @@ export default {
     start: 'Начать игру',
     hintToBoard: 'Пробел или клик: к табло',
     hintToBets: 'Пробел или клик: к ставкам',
+    hintToThemes: 'Пробел или клик: к темам финала',
     skipRound: 'Пропустить раунд',
     showAnswer: 'Показать ответ',
     leaveConfirm: {
@@ -115,5 +127,10 @@ export default {
       description: 'Оставшиеся вопросы этого раунда сыграны не будут.',
       confirm: 'Пропустить',
     },
+  },
+  finalThemes: {
+    title: 'Темы финала',
+    turn: 'Тему убирает {name}',
+    remove: 'Убрать тему «{theme}»',
   },
 }

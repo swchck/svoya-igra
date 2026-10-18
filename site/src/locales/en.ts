@@ -55,7 +55,7 @@ export default {
     title: 'What the app does',
     editor: {
       title: 'An editor shaped like the board',
-      text: 'You build the game on the same board your players will see. Click a cell to open the question window: the question on the left, the answer on the right, each with formatted text, pictures, sound and video. Drag rounds, categories and questions to reorder them. Changes save as you type, and earlier versions of the game can be restored.',
+      text: 'You build the game on the same board your players will see. Click a cell to open the question window: the question on the left, the answer on the right, each with formatted text, pictures, sound and video. Drag rounds, categories and questions to reorder them, copy categories between games, or type questions in from a spreadsheet. Changes save as you type, and earlier versions of the game can be restored.',
       alt: 'The editor with a round board and an open question',
     },
     board: {
@@ -76,8 +76,8 @@ export default {
   },
   facts: {
     special: {
-      title: 'Auctions and cats in the bag',
-      text: 'In an auction a player can bet up to their whole score. A cat in the bag is a question the host hands to another player. In the final everyone places a bet.',
+      title: 'Six kinds of questions',
+      text: 'Auction, cat in the bag, all in, no risk, and a question for all that everyone answers at once. Add answer choices or open hints one by one. In the final, players strike categories and place bets.',
     },
     saved: {
       title: 'Games survive a closed window',
@@ -118,7 +118,7 @@ export default {
     },
     siq: {
       q: 'Can I play a ready-made SIGame package?',
-      a: 'Yes. Click Import on the home screen and pick a .siq file. Rounds, categories, questions, pictures and sound come across. The final keeps its first category, because our final is a single question.',
+      a: 'Yes. Click Import on the home screen and pick a .siq file. Rounds, categories, questions, pictures and sound come across, along with special questions, other accepted answers, the author’s comments and every final category.',
     },
     share: {
       q: 'How do I send a game to another host?',

@@ -1,7 +1,8 @@
 import { computed, reactive, ref, type Ref } from 'vue'
-import type { Game, Player, Question, Round } from '../types'
+import type { Game, Player, Question, QuestionKind, Round } from '../types'
 import { uid } from '../game/model'
 import { plainCopy } from '../lib/plain'
+import { hintedValue } from '../game/kinds'
 import { t } from '../i18n'
 import { nextColorId } from '../play/palette'
 import { prefs, type Prefs } from '../prefs'
@@ -12,18 +13,22 @@ export type Phase =
   | 'board'
   | 'auction'
   | 'cat'
+  | 'no-risk'
   | 'question'
   | 'answer'
   | 'final-intro'
+  | 'final-themes'
   | 'final-bets'
   | 'final-question'
   | 'final-answer'
   | 'results'
 
-/** One player answers for a fixed amount: the auction winner or the cat's recipient. */
+/** One player answers for a fixed amount: the auction winner, the cat's recipient or the no-risk taker. */
 interface Stake {
   playerId: string
   amount: number
+  /** A wrong answer costs nothing. */
+  safe?: boolean
 }
 
 /** Correct (+1) or wrong (−1). */
@@ -66,6 +71,9 @@ interface TurnState {
   stake: Stake | null
   chooserId: string | null
   buzzArmed: boolean
+  groupVerdicts: Record<string, Sign> | null
+  hintsShown: number
+  finalRemoved: string[]
   scores: Record<string, number>
   stats: Record<string, PlayerStats>
 }
@@ -94,6 +102,12 @@ export interface SessionSnapshot {
   chooserId: string | null
   /** The phone buttons may open for the open question; see `buzzWindow`. */
   buzzArmed: boolean
+  /** A question for everyone is open: the host's verdict per player so far; null otherwise. */
+  groupVerdicts: Record<string, Sign> | null
+  /** How many hints of the open question are on the stage. */
+  hintsShown: number
+  /** Final themes struck out so far, by id, in order. */
+  finalRemoved: string[]
   finalBets: Record<string, number>
   finalVerdicts: Record<string, Sign>
   players: Player[]
@@ -103,6 +117,19 @@ export interface SessionSnapshot {
   timer: TimerState
   /** Score-affecting actions, oldest first, for undo. */
   history: HistoryEntry[]
+}
+
+/** Phases with a question open on the board. */
+export const QUESTION_PHASES: readonly Phase[] = ['auction', 'cat', 'no-risk', 'question', 'answer']
+
+/** The phase a picked question of this kind opens with. */
+const OPENING_PHASE: Record<QuestionKind, Phase> = {
+  normal: 'question',
+  auction: 'auction',
+  'all-in': 'auction',
+  'cat-in-bag': 'cat',
+  'no-risk': 'no-risk',
+  'for-all': 'question',
 }
 
 function isRoundDone(round: Round, played: Record<string, true>): boolean {
@@ -118,6 +145,9 @@ function initialSnapshot(): SessionSnapshot {
     stake: null,
     chooserId: null,
     buzzArmed: false,
+    groupVerdicts: null,
+    hintsShown: 0,
+    finalRemoved: [],
     finalBets: {},
     finalVerdicts: {},
     players: [],
@@ -146,8 +176,10 @@ export function fitsGame(snapshot: SessionSnapshot, game: Game): boolean {
   if (!round || !Array.isArray(snapshot.players) || snapshot.players.length === 0) return false
   const questionIds = new Set(round.themes.flatMap((t) => t.questions.map((q) => q.id)))
   if (snapshot.activeQuestionId !== null && !questionIds.has(snapshot.activeQuestionId)) return false
-  if (['auction', 'cat', 'question', 'answer'].includes(snapshot.phase) && snapshot.activeQuestionId === null) return false
-  if (snapshot.phase.startsWith('final') && !game.finalRound) return false
+  if (QUESTION_PHASES.includes(snapshot.phase) && snapshot.activeQuestionId === null) return false
+  if (snapshot.phase.startsWith('final') && !game.finalThemes?.length) return false
+  const finalIds = new Set(game.finalThemes?.map((f) => f.id))
+  if (snapshot.finalRemoved?.some((id) => !finalIds.has(id))) return false
   return !snapshot.stake || snapshot.players.some((p) => p.id === snapshot.stake!.playerId)
 }
 
@@ -171,6 +203,9 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
   state.chooserId ??= null
   // sessions saved before the host could hold the buttons had them open on every question
   if (restored && restored.buzzArmed === undefined) state.buzzArmed = true
+  state.groupVerdicts ??= null
+  state.hintsShown ??= 0
+  state.finalRemoved ??= []
 
   const round = computed(() => game.value?.rounds[state.roundIndex])
   const activeQuestion = computed<Question | null>(
@@ -178,6 +213,20 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
       round.value?.themes.flatMap((t) => t.questions).find((q) => q.id === state.activeQuestionId) ?? null,
   )
   const ranking = computed(() => [...players.value].sort((a, b) => b.score - a.score))
+  /** Final themes not struck out yet, in the editor's order. */
+  const finalLeft = computed(() => (game.value?.finalThemes ?? []).filter((f) => !state.finalRemoved.includes(f.id)))
+  /** The final being played: the one theme left, or the first while several are. */
+  const activeFinal = computed(() => finalLeft.value[0] ?? null)
+  /**
+   * Whose turn it is to strike a final theme: those with points take turns, lowest score
+   * first, as on the show; ties keep the seating order. Nobody in the plus means everyone.
+   */
+  const finalPicker = computed(() => {
+    if (state.phase !== 'final-themes') return null
+    const plus = players.value.filter((p) => p.score > 0)
+    const order = [...(plus.length ? plus : players.value)].sort((a, b) => a.score - b.score)
+    return order.length ? order[state.finalRemoved.length % order.length].id : null
+  })
   const canUndo = computed(() => state.history.length > 0)
   const inProgress = computed(() => state.phase !== 'title' && state.phase !== 'results')
   /** What the open question is worth to whoever answers it. */
@@ -185,8 +234,14 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
     const q = activeQuestion.value
     if (!q) return 0
     if (state.stake) return state.stake.amount
-    return q.value
+    return hintedValue(q.value, q.hints?.length ?? 0, state.hintsShown)
   })
+
+  /** What a wrong answer to the open question costs under the rules and the stake. */
+  function penalty(): number {
+    return !rules().wrongPenalty || state.stake?.safe ? 0 : activeValue.value
+  }
+  const activePenalty = computed(penalty)
 
   function player(id: string): Player | undefined {
     return players.value.find((p) => p.id === id)
@@ -205,6 +260,9 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
       stake: state.stake,
       chooserId: state.chooserId,
       buzzArmed: state.buzzArmed,
+      groupVerdicts: state.groupVerdicts,
+      hintsShown: state.hintsShown,
+      finalRemoved: state.finalRemoved,
       scores: Object.fromEntries(players.value.map((p) => [p.id, p.score])),
       stats: state.stats,
     })
@@ -292,7 +350,7 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
       state.chooserId = trailing()
       state.phase = 'round-intro'
     } else {
-      state.phase = game.value.finalRound ? 'final-intro' : 'results'
+      state.phase = game.value.finalThemes?.length ? 'final-intro' : 'results'
     }
   }
 
@@ -306,16 +364,19 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
     if (state.phase !== 'board' || !inRound || state.played[questionId]) return
     state.activeQuestionId = questionId
     state.stake = null
-    const kind = activeQuestion.value?.kind
-    state.phase = kind === 'auction' ? 'auction' : kind === 'cat-in-bag' ? 'cat' : 'question'
+    const kind = activeQuestion.value?.kind ?? 'normal'
+    state.groupVerdicts = kind === 'for-all' ? {} : null
+    state.hintsShown = 0
+    state.phase = OPENING_PHASE[kind] ?? 'question'
     if (state.phase === 'question') armTimer()
   }
 
-  /** Auction: the winner and their bid, at least the question's value. */
+  /** Auction: the winner and their bid, at least the question's value; all-in takes everything they have. */
   function setAuctionStake(playerId: string, amount: number) {
     const q = activeQuestion.value
     if (!q || state.phase !== 'auction' || !player(playerId) || !Number.isFinite(amount)) return
-    const bid = Math.min(Math.max(amount, q.value), maxStake(player(playerId), q.value))
+    const limit = maxStake(player(playerId), q.value)
+    const bid = q.kind === 'all-in' ? limit : Math.min(Math.max(amount, q.value), limit)
     state.stake = { playerId, amount: bid }
     state.phase = 'question'
     armTimer()
@@ -330,24 +391,67 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
     armTimer()
   }
 
+  /** No risk: who answers, alone and without losing anything for a wrong answer. */
+  function takeNoRisk(playerId: string) {
+    const q = activeQuestion.value
+    if (!q || state.phase !== 'no-risk' || !player(playerId)) return
+    state.stake = { playerId, amount: q.value, safe: true }
+    state.phase = 'question'
+    armTimer()
+  }
+
   /** Closes the open question, scoring the verdict if there is one; only an answered question takes a verdict. */
   function close(verdict?: { playerId: string; sign: Sign }) {
     const q = activeQuestion.value
-    if (!q || !['auction', 'cat', 'question', 'answer'].includes(state.phase) || (verdict && state.phase !== 'answer')) return
+    if (!q || !QUESTION_PHASES.includes(state.phase) || (verdict && state.phase !== 'answer')) return
     record({ kind: 'turn', before: turnState() })
-    state.played[q.id] = true
     // with a stake on the table only its holder can win or lose points
     const allowed = verdict && (!state.stake || state.stake.playerId === verdict.playerId)
     const target = allowed ? player(verdict.playerId) : undefined
     if (target && (verdict!.sign === 1 || verdict!.sign === -1)) {
-      const points = verdict!.sign === -1 && !rules().wrongPenalty ? 0 : activeValue.value
+      const points = verdict!.sign === -1 ? penalty() : activeValue.value
       target.score += verdict!.sign * points
       recordAnswer(target.id, verdict!.sign, points)
       if (verdict!.sign === 1) state.chooserId = target.id
     }
+    leaveQuestion(q)
+  }
+
+  /** Opens the next hint of the question on the stage; with no stake, it lowers the value. */
+  function revealHint() {
+    const count = activeQuestion.value?.hints?.length ?? 0
+    if (state.phase === 'question' && state.hintsShown < count) state.hintsShown += 1
+  }
+
+  /** A question for everyone: marks one player's answer right or wrong, or clears the mark. */
+  function setGroupVerdict(playerId: string, sign: Sign | null) {
+    if (state.phase !== 'answer' || !state.groupVerdicts || !player(playerId)) return
+    if (sign === 1 || sign === -1) state.groupVerdicts[playerId] = sign
+    else if (sign === null) delete state.groupVerdicts[playerId]
+  }
+
+  /** A question for everyone: scores every marked answer at the question's value and closes it. */
+  function scoreGroup() {
+    const q = activeQuestion.value
+    if (!q || state.phase !== 'answer' || !state.groupVerdicts) return
+    record({ kind: 'turn', before: turnState() })
+    for (const p of players.value) {
+      const sign = state.groupVerdicts[p.id]
+      if (!sign) continue
+      const points = sign === 1 ? activeValue.value : penalty()
+      p.score += sign * points
+      recordAnswer(p.id, sign, points)
+    }
+    leaveQuestion(q)
+  }
+
+  function leaveQuestion(q: Question) {
+    state.played[q.id] = true
     state.activeQuestionId = null
     state.stake = null
     state.buzzArmed = false
+    state.groupVerdicts = null
+    state.hintsShown = 0
     if (round.value && isRoundDone(round.value, state.played)) finishRound()
     else state.phase = 'board'
   }
@@ -361,6 +465,14 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
   function setFinalVerdict(playerId: string, sign: Sign) {
     if (state.phase !== 'final-answer' || !player(playerId) || (sign !== 1 && sign !== -1)) return
     state.finalVerdicts[playerId] = sign
+  }
+
+  /** Strikes out a final theme; once one is left, the final moves on to bets. */
+  function removeFinalTheme(themeId: string) {
+    if (state.phase !== 'final-themes' || finalLeft.value.length < 2 || !finalLeft.value.some((f) => f.id === themeId)) return
+    record({ kind: 'turn', before: turnState() })
+    state.finalRemoved.push(themeId)
+    if (finalLeft.value.length === 1) state.phase = 'final-bets'
   }
 
   /** Applies final bets by the marked verdicts and shows the results. */
@@ -382,7 +494,7 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
     const next: Partial<Record<Phase, Phase>> = {
       'round-intro': 'board',
       question: 'answer',
-      'final-intro': 'final-bets',
+      'final-intro': finalLeft.value.length > 1 ? 'final-themes' : 'final-bets',
       'final-bets': 'final-question',
       'final-question': 'final-answer',
     }
@@ -415,7 +527,7 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
   /** Marks a wrong answer while the question stays open, charging for it if the rules say so. */
   function answerWrong(playerId: string) {
     const p = player(playerId)
-    if (p && answering()) scoreAnswer(p, -1, rules().wrongPenalty ? activeValue.value : 0)
+    if (p && answering()) scoreAnswer(p, -1, penalty())
   }
 
   /** Takes back the last scoring action, with the board state it changed. */
@@ -464,6 +576,10 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
     round,
     activeQuestion,
     activeValue,
+    activePenalty,
+    activeFinal,
+    finalLeft,
+    finalPicker,
     ranking,
     canUndo,
     inProgress,
@@ -473,9 +589,14 @@ export function usePlaySession(game: Ref<Game | null>, restored?: SessionSnapsho
     pick,
     setAuctionStake,
     giveCat,
+    takeNoRisk,
     close,
+    setGroupVerdict,
+    scoreGroup,
+    revealHint,
     advance,
     nextRound,
+    removeFinalTheme,
     setFinalBet,
     setFinalVerdict,
     scoreFinal,

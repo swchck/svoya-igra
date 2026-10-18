@@ -1,4 +1,10 @@
-export type QuestionKind = 'normal' | 'auction' | 'cat-in-bag'
+/**
+ * Who answers and for how much: `normal` goes to the first buzzer, `auction` to the highest
+ * bidder, `cat-in-bag` to whoever the chooser hands it, `no-risk` to the chooser with no loss
+ * for a wrong answer, `all-in` to one player betting everything they have, `for-all` to every
+ * player at once, each scored on their own.
+ */
+export type QuestionKind = 'normal' | 'auction' | 'cat-in-bag' | 'no-risk' | 'all-in' | 'for-all'
 export type MediaKind = 'image' | 'audio' | 'video' | 'youtube'
 export type MediaMode = 'video' | 'audio'
 
@@ -16,7 +22,24 @@ export interface MediaItem {
   end?: number
 }
 
-export interface Question {
+/** What only the host sees: other ways to give the answer and notes for judging. */
+export interface HostInfo {
+  /** Other answers that count, besides `answer`. */
+  accepted?: string[]
+  /** Close answers that do not count. */
+  rejected?: string[]
+  /** Plain text: sources, how to judge, a story to tell after the answer. */
+  notes?: string
+}
+
+/** One more clue of a question asked in parts, shown when the host opens it. */
+export interface Hint {
+  id: string
+  text: string
+  media?: MediaItem[]
+}
+
+export interface Question extends HostInfo {
   id: string
   value: number
   kind: QuestionKind
@@ -26,6 +49,14 @@ export interface Question {
   media?: MediaItem[]
   answer: string
   answerMedia?: MediaItem[]
+  /** The author marked it as still in the works, however complete it looks. */
+  draft?: true
+  /** Choices shown with the question, A, B, C…; unset for an open question. */
+  options?: string[]
+  /** Index into `options` of the right one. */
+  correctOption?: number
+  /** Clues opened one by one after the question; each one lowers what it is worth. */
+  hints?: Hint[]
 }
 
 export interface Theme {
@@ -40,7 +71,7 @@ export interface Round {
   themes: Theme[]
 }
 
-export interface FinalQuestion {
+export interface FinalQuestion extends HostInfo {
   id: string
   theme: string
   text: string
@@ -70,7 +101,8 @@ export interface Game {
   title: string
   subtitle?: string
   rounds: Round[]
-  finalRound?: FinalQuestion
+  /** Themes of the final, one question each; players strike them out until one is left. Unset: no final. */
+  finalThemes?: FinalQuestion[]
   settings?: GameSettings
   /** Unix time, ms. */
   createdAt: number

@@ -30,7 +30,7 @@ function shape(game: Game) {
       name: r.name,
       themes: r.themes.map((th) => ({ name: th.name, questions: th.questions.map((q) => [q.value, q.text, q.answer]) })),
     })),
-    final: game.finalRound?.text,
+    final: game.finalThemes?.map((f) => f.text),
   }
 }
 
@@ -43,7 +43,7 @@ describe('gamebackup', () => {
     first.rounds[0].themes[0].questions[0].text = 'Вопрос'
     first.rounds[0].themes[0].questions[0].media = [{ id: 'a', url: stored, kind: 'image' }]
     const second = makeEmptyGame('Вторая')
-    second.finalRound!.text = 'Финал'
+    second.finalThemes![0].text = 'Финал'
 
     const progress: number[] = []
     const blob = await exportBackup([first, second], (done) => progress.push(done), source.load)

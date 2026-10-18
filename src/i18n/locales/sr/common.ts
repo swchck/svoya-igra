@@ -19,4 +19,7 @@ export default {
     orderedList: 'Numerisana lista',
     quote: 'Citat',
   },
+  chips: {
+    remove: 'Ukloni „{value}“',
+  },
 } satisfies typeof ru

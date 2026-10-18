@@ -111,8 +111,16 @@ export const sample = {
             },
             {
               value: 300,
+              kind: 'for-all',
               text: { ru: 'Какой океан самый большой по площади?', en: 'Which ocean is the largest by area?', sr: 'Koji je okean najveći po površini?' },
-              answer: { ru: 'Тихий', en: 'The Pacific', sr: 'Tihi okean' },
+              options: [
+                { ru: 'Атлантический', en: 'Atlantic', sr: 'Atlantski' },
+                { ru: 'Индийский', en: 'Indian', sr: 'Indijski' },
+                { ru: 'Тихий', en: 'Pacific', sr: 'Tihi' },
+                { ru: 'Северный Ледовитый', en: 'Arctic', sr: 'Severni ledeni' },
+              ],
+              correctOption: 2,
+              answer: { ru: '', en: '', sr: '' },
             },
             {
               value: 400,
@@ -121,12 +129,15 @@ export const sample = {
             },
             {
               value: 500,
-              text: {
-                ru: 'Какое животное — самое крупное из ныне живущих на Земле?',
-                en: 'What is the largest animal living on Earth today?',
-                sr: 'Koja je najveća životinja koja danas živi na Zemlji?',
-              },
+              text: { ru: 'Угадайте животное', en: 'Guess the animal', sr: 'Pogodite životinju' },
+              hints: [
+                { ru: 'Оно живёт в океане', en: 'It lives in the ocean', sr: 'Živi u okeanu' },
+                { ru: 'Это млекопитающее, а не рыба', en: 'It is a mammal, not a fish', sr: 'To je sisar, a ne riba' },
+                { ru: 'Питается крошечными рачками — крилем', en: 'It feeds on tiny shrimp-like krill', sr: 'Hrani se sićušnim račićima, krilom' },
+                { ru: 'Самое крупное животное из ныне живущих', en: 'The largest animal alive today', sr: 'Najveća životinja koja danas živi' },
+              ],
               answer: { ru: 'Синий кит', en: 'The blue whale', sr: 'Plavi kit' },
+              accepted: { ru: ['Голубой кит'], en: ['Blue whale'], sr: ['Plavetni kit'] },
             },
           ],
         },
@@ -255,6 +266,11 @@ export const sample = {
                 sr: 'Otprilike za koliko minuta sunčeva svetlost stigne do Zemlje?',
               },
               answer: { ru: 'Около 8 минут', en: 'About 8 minutes', sr: 'Oko 8 minuta' },
+              notes: {
+                ru: 'Точнее, 8 минут 20 секунд. Засчитывайте ответы от 7 до 9 минут.',
+                en: 'More precisely, 8 minutes 20 seconds. Accept anything from 7 to 9 minutes.',
+                sr: 'Tačnije, 8 minuta i 20 sekundi. Priznajte odgovore od 7 do 9 minuta.',
+              },
             },
             {
               value: 800,
@@ -268,6 +284,7 @@ export const sample = {
             },
             {
               value: 1000,
+              kind: 'no-risk',
               text: {
                 ru: 'Кто в 1961 году стал первым человеком в космосе?',
                 en: 'Who became the first person in space, in 1961?',
@@ -282,12 +299,15 @@ export const sample = {
           questions: [
             {
               value: 200,
+              kind: 'for-all',
               text: {
                 ru: 'Кто сформулировал закон всемирного тяготения?',
                 en: 'Who formulated the law of universal gravitation?',
                 sr: 'Ko je formulisao zakon univerzalne gravitacije?',
               },
               answer: { ru: 'Исаак Ньютон', en: 'Isaac Newton', sr: 'Isak Njutn' },
+              accepted: { ru: ['Ньютон'], en: ['Newton'], sr: ['Njutn'] },
+              rejected: { ru: ['Галилей', 'Эйнштейн'], en: ['Galileo', 'Einstein'], sr: ['Galilej', 'Ajnštajn'] },
             },
             {
               value: 400,
@@ -320,6 +340,7 @@ export const sample = {
             },
             {
               value: 1000,
+              kind: 'all-in',
               text: {
                 ru: 'Чему примерно равна скорость света в вакууме в километрах в секунду?',
                 en: 'Roughly what is the speed of light in a vacuum, in kilometres per second?',
@@ -344,7 +365,8 @@ export const sample = {
                 en: 'What is the deepest ocean trench on Earth called?',
                 sr: 'Kako se zove najdublji okeanski rov na Zemlji?',
               },
-              answer: { ru: 'Марианский жёлоб (Марианская впадина)', en: 'The Mariana Trench', sr: 'Marijanski rov' },
+              answer: { ru: 'Марианский жёлоб', en: 'The Mariana Trench', sr: 'Marijanski rov' },
+              accepted: { ru: ['Марианская впадина'], en: ['Marianas Trench'], sr: ['Marijanska brazda'] },
             },
             {
               value: 600,
@@ -426,18 +448,29 @@ export const sample = {
       ],
     },
   ],
-  finalRound: {
-    theme: { ru: 'Чудеса света', en: 'Wonders of the world', sr: 'Svetska čuda' },
-    text: {
-      ru: 'Это единственное из семи чудес света Древнего мира, сохранившееся до наших дней.',
-      en: 'It is the only one of the Seven Wonders of the Ancient World still standing today.',
-      sr: 'To je jedino od sedam svetskih čuda antičkog sveta koje je sačuvano do danas.',
+  finalThemes: [
+    {
+      theme: { ru: 'Литература', en: 'Literature', sr: 'Književnost' },
+      text: {
+        ru: 'Этот сыщик жил в Лондоне на Бейкер-стрит, в доме 221b.',
+        en: 'This detective lived in London at 221B Baker Street.',
+        sr: 'Ovaj detektiv je živeo u Londonu, u Ulici Bejker 221b.',
+      },
+      answer: { ru: 'Шерлок Холмс', en: 'Sherlock Holmes', sr: 'Šerlok Holms' },
     },
-    answer: {
-      ru: 'Великая пирамида в Гизе (пирамида Хеопса)',
-      en: 'The Great Pyramid of Giza',
-      sr: 'Velika piramida u Gizi (Keopsova piramida)',
+    {
+      theme: { ru: 'Чудеса света', en: 'Wonders of the world', sr: 'Svetska čuda' },
+      text: {
+        ru: 'Это единственное из семи чудес света Древнего мира, сохранившееся до наших дней.',
+        en: 'It is the only one of the Seven Wonders of the Ancient World still standing today.',
+        sr: 'To je jedino od sedam svetskih čuda antičkog sveta koje je sačuvano do danas.',
+      },
+      answer: {
+        ru: 'Великая пирамида в Гизе (пирамида Хеопса)',
+        en: 'The Great Pyramid of Giza',
+        sr: 'Velika piramida u Gizi (Keopsova piramida)',
+      },
+      answerMedia: [img('pyramids.webp')],
     },
-    answerMedia: [img('pyramids.webp')],
-  },
+  ],
 }

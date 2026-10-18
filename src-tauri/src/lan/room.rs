@@ -43,6 +43,23 @@ pub enum FinalMode {
     Answer,
 }
 
+/// A question every player answers at once from their phone.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Ask {
+    /// Changes with each question; a new key throws away the answers to the last one.
+    pub key: String,
+    /// The theme, shown above the answer field.
+    #[serde(default)]
+    pub topic: String,
+    /// Choices to pick one of; empty means a typed answer.
+    #[serde(default)]
+    pub options: Vec<String>,
+    /// Answers are taken; the stage closes this when it reveals the answer.
+    #[serde(default)]
+    pub open: bool,
+}
+
 /// One cell of the board a phone may pick from.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -51,6 +68,9 @@ pub struct BoardCell {
     pub value: i64,
     #[serde(default)]
     pub played: bool,
+    /// Shown on the tile instead of the value; the final's themes carry none.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub label: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -66,6 +86,9 @@ pub struct BoardTheme {
 pub struct Board {
     #[serde(default)]
     pub round: String,
+    /// What the chooser is asked to do; empty means picking a question.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub title: String,
     pub themes: Vec<BoardTheme>,
 }
 
@@ -87,6 +110,9 @@ pub struct StageInfo {
     /// Final round: the highest bet each playing competitor may make. Absent ones sit it out.
     #[serde(default)]
     pub caps: HashMap<String, i64>,
+    /// A question for everyone, while it is on the stage.
+    #[serde(default)]
+    pub ask: Option<Ask>,
     /// Present only while the board waits for the next question.
     #[serde(default)]
     pub board: Option<Board>,
@@ -111,6 +137,7 @@ impl Default for StageInfo {
             teams: false,
             final_mode: None,
             caps: HashMap::new(),
+            ask: None,
             board: None,
             chooser: None,
             vibrate: yes(),
@@ -140,6 +167,7 @@ pub enum Reject {
     Excluded,
     NotEligible,
     NotYourTurn,
+    BadChoice,
 }
 
 impl Reject {
@@ -156,6 +184,7 @@ impl Reject {
             Reject::Excluded => "excluded",
             Reject::NotEligible => "not-eligible",
             Reject::NotYourTurn => "not-your-turn",
+            Reject::BadChoice => "bad-choice",
         }
     }
 
@@ -164,7 +193,7 @@ impl Reject {
             Reject::Disabled | Reject::NoSuchPlayer => 404,
             Reject::UnknownClient => 401,
             Reject::Full => 503,
-            Reject::BadName => 400,
+            Reject::BadName | Reject::BadChoice => 400,
             Reject::JoinClosed => 403,
             Reject::NotBound | Reject::NotOpen | Reject::Excluded | Reject::NotEligible | Reject::NotYourTurn => 409,
         }
@@ -287,6 +316,7 @@ pub struct PhoneView {
     pub reset: bool,
     pub buzz: PhoneBuzz,
     pub final_mode: Option<FinalMode>,
+    pub ask: Option<Ask>,
     /// Final round: the most this phone's player may bet; absent when they sit it out.
     pub cap: Option<i64>,
     pub bet: Option<i64>,
@@ -428,6 +458,10 @@ impl Room {
         }
         if info.final_mode == Some(FinalMode::Bet) && self.stage.final_mode != Some(FinalMode::Bet) {
             self.bets.clear();
+            self.answers.clear();
+        }
+        let ask_key = |stage: &StageInfo| stage.ask.as_ref().map(|a| a.key.clone());
+        if info.ask.is_some() && ask_key(&info) != ask_key(&self.stage) {
             self.answers.clear();
         }
         if info.board != self.stage.board || info.chooser != self.stage.chooser {
@@ -621,14 +655,27 @@ impl Room {
         Ok(bet)
     }
 
-    /// Takes a final answer; a later one from the same player replaces it.
+    /// Takes an answer to the final or to a question for everyone; a later one from the same
+    /// player replaces it. A choice comes as the option's index.
     pub fn answer(&mut self, token: &str, text: &str) -> Result<(), Reject> {
         let player_id = self.bound(token)?;
-        if self.stage.final_mode != Some(FinalMode::Answer) {
-            return Err(Reject::NotOpen);
-        }
-        self.cap(&player_id).ok_or(Reject::NotEligible)?;
-        let text = sanitize_answer(text);
+        let text = match &self.stage.ask {
+            Some(ask) if ask.open => {
+                let text = sanitize_answer(text);
+                if !ask.options.is_empty() && !text.is_empty() && text.parse::<usize>().map_or(true, |i| i >= ask.options.len()) {
+                    return Err(Reject::BadChoice);
+                }
+                text
+            }
+            Some(_) => return Err(Reject::NotOpen),
+            None => {
+                if self.stage.final_mode != Some(FinalMode::Answer) {
+                    return Err(Reject::NotOpen);
+                }
+                self.cap(&player_id).ok_or(Reject::NotEligible)?;
+                sanitize_answer(text)
+            }
+        };
         if text.is_empty() {
             self.answers.remove(&player_id);
         } else {
@@ -721,6 +768,7 @@ impl Room {
                 winner_by: self.buzz.by.first().cloned().flatten(),
             },
             final_mode: self.stage.final_mode,
+            ask: self.stage.ask.clone(),
             cap: my_id.and_then(|id| self.cap(id)),
             bet: my_id.and_then(|id| self.bets.get(id).copied()),
             answer: my_id.and_then(|id| self.answers.get(id).cloned()),
@@ -846,6 +894,33 @@ mod tests {
         assert_eq!(room.buzz("ta"), Ok(1));
     }
 
+    fn ask(key: &str, options: &[&str], open: bool) -> StageInfo {
+        let ask = Ask { key: key.into(), topic: String::new(), options: options.iter().map(|o| o.to_string()).collect(), open };
+        StageInfo { roster: roster(), ask: Some(ask), ..StageInfo::default() }
+    }
+
+    #[test]
+    fn everyone_answers_a_question_for_all_until_it_closes() {
+        let (mut room, _) = room();
+        assert_eq!(room.answer("ta", "x"), Err(Reject::NotOpen));
+        room.set_stage(ask("q1", &[], true));
+        room.answer("ta", " Париж ").unwrap();
+        room.answer("tb", "Лион").unwrap();
+        assert_eq!(room.status(Instant::now()).answers, BTreeMap::from([("a".into(), "Париж".into()), ("b".into(), "Лион".into())]));
+
+        room.set_stage(ask("q1", &[], false));
+        assert_eq!(room.answer("tc", "late"), Err(Reject::NotOpen));
+        assert_eq!(room.status(Instant::now()).answers.len(), 2, "closing keeps the answers for judging");
+
+        room.set_stage(ask("q2", &["A", "B", "C"], true));
+        assert!(room.status(Instant::now()).answers.is_empty(), "a new question starts afresh");
+        assert_eq!(room.answer("ta", "3"), Err(Reject::BadChoice));
+        assert_eq!(room.answer("ta", "B"), Err(Reject::BadChoice));
+        room.answer("ta", "2").unwrap();
+        assert_eq!(room.view(Some("ta"), Instant::now()).answer.as_deref(), Some("2"));
+        assert_eq!(room.view(Some("ta"), Instant::now()).ask.map(|a| a.options.len()), Some(3));
+    }
+
     #[test]
     fn bets_are_capped_by_score_and_only_for_eligible_players() {
         let (mut room, _) = room();
@@ -957,11 +1032,12 @@ mod tests {
     fn board() -> Board {
         Board {
             round: "1".into(),
+            title: String::new(),
             themes: vec![BoardTheme {
                 name: "Флаги".into(),
                 questions: vec![
-                    BoardCell { id: "q1".into(), value: 100, played: true },
-                    BoardCell { id: "q2".into(), value: 200, played: false },
+                    BoardCell { id: "q1".into(), value: 100, played: true, label: String::new() },
+                    BoardCell { id: "q2".into(), value: 200, played: false, label: String::new() },
                 ],
             }],
         }

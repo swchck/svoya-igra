@@ -14,16 +14,20 @@ import { putMedia } from '../media/store'
  * Spec: github.com/VladimirKhil/SI, assets/siq_5.xsd.
  */
 
-/** A package converted to a game, plus what the model had no room for. */
-export interface SiqImport {
-  game: Game
-  /** Final-round themes beyond the first one, which the model cannot hold. */
-  droppedFinalThemes: number
-}
-
 const SUBTITLE_MAX = 80
-const AUCTION_TYPES = new Set(['auction', 'stake', 'stakeall'])
-const CAT_TYPES = new Set(['cat', 'bagcat', 'secret', 'secretpublicprice', 'secretnoquestion'])
+const KIND_BY_TYPE: Record<string, QuestionKind> = {
+  auction: 'auction',
+  stake: 'auction',
+  stakeall: 'all-in',
+  sponsored: 'no-risk',
+  forall: 'for-all',
+  norisk: 'no-risk',
+  cat: 'cat-in-bag',
+  bagcat: 'cat-in-bag',
+  secret: 'cat-in-bag',
+  secretpublicprice: 'cat-in-bag',
+  secretnoquestion: 'cat-in-bag',
+}
 const FOLDER_BY_KIND: Partial<Record<MediaKind, string>> = { image: 'images', audio: 'audio', video: 'video' }
 
 type Side = 'question' | 'answer'
@@ -42,6 +46,9 @@ interface RawQuestion {
   catTheme: string
   fragments: Fragment[]
   rightAnswers: string[]
+  wrongAnswers: string[]
+  /** The author's comments and sources, for the host. */
+  notes: string
 }
 
 function broken(): Error {
@@ -151,9 +158,23 @@ function readFragments(q: Element): Fragment[] {
   return out
 }
 
+function answerList(q: Element, list: 'right' | 'wrong'): string[] {
+  const el = child(q, list)
+  return el ? children(el, 'answer').map((a) => text(a)).filter(Boolean) : []
+}
+
+function questionNotes(q: Element): string {
+  const info = child(q, 'info')
+  if (!info) return ''
+  const comments = text(child(info, 'comments'))
+  const sourcesEl = child(info, 'sources')
+  const sources = sourcesEl ? children(sourcesEl, 'source').map((s) => text(s)).filter(Boolean) : []
+  return [comments, ...sources].filter(Boolean).join('\n')
+}
+
 function readQuestion(q: Element): RawQuestion {
   const name = typeName(q)
-  const kind: QuestionKind = AUCTION_TYPES.has(name) ? 'auction' : CAT_TYPES.has(name) ? 'cat-in-bag' : 'normal'
+  const kind = KIND_BY_TYPE[name] ?? 'normal'
   const isCat = kind === 'cat-in-bag'
   return {
     value: Number(q.getAttribute('price')) || 0,
@@ -161,7 +182,9 @@ function readQuestion(q: Element): RawQuestion {
     catValue: isCat ? firstInt(paramText(q, 'cost') || paramText(q, 'price')) : undefined,
     catTheme: isCat ? paramText(q, 'theme') : '',
     fragments: readFragments(q),
-    rightAnswers: children(child(q, 'right') ?? q, 'answer').map((a) => text(a)).filter(Boolean),
+    rightAnswers: answerList(q, 'right'),
+    wrongAnswers: answerList(q, 'wrong'),
+    notes: questionNotes(q),
   }
 }
 
@@ -188,7 +211,7 @@ export async function importSiq(
   file: Blob,
   fallbackTitle = '',
   storeMedia: (blob: Blob) => Promise<string> = putMedia,
-): Promise<SiqImport> {
+): Promise<Game> {
   let entries: Unzipped
   try {
     entries = await unzipAsync(new Uint8Array(await file.arrayBuffer()))
@@ -239,33 +262,33 @@ export async function importSiq(
     const question = await sideContent(raw, 'question')
     const answer = await sideContent(raw, 'answer')
     const header = raw.catTheme ? `**${t('system.siq.catTheme', { theme: escapeMarkdown(raw.catTheme) })}**` : ''
+    const [first, ...others] = raw.rightAnswers
     return {
       text: [header, question.text].filter(Boolean).join('\n\n'),
       media: question.media,
-      answer: raw.rightAnswers.length ? raw.rightAnswers.map(escapeMarkdown).join(' / ') : answer.text,
+      answer: first ? escapeMarkdown(first) : answer.text,
       answerMedia: answer.media,
+      ...(others.length && { accepted: others }),
+      ...(raw.wrongAnswers.length && { rejected: raw.wrongAnswers }),
+      ...(raw.notes && { notes: raw.notes }),
     }
   }
 
   const rounds: Round[] = []
-  let finalRound: FinalQuestion | undefined
-  let droppedFinalThemes = 0
+  const finalThemes: FinalQuestion[] = []
 
   for (const roundEl of children(child(pkg, 'rounds') ?? pkg, 'round')) {
     const themeEls = children(child(roundEl, 'themes') ?? roundEl, 'theme')
     if (roundEl.getAttribute('type')?.toLowerCase() === 'final') {
-      const firstTheme = themeEls[0]
-      const firstQuestion = firstTheme && children(child(firstTheme, 'questions') ?? firstTheme, 'question')[0]
-      if (!firstQuestion) continue
-      if (finalRound) {
-        droppedFinalThemes += themeEls.length
-        continue
-      }
-      droppedFinalThemes += themeEls.length - 1
-      finalRound = {
-        id: uid('f_'),
-        theme: firstTheme.getAttribute('name') ?? t('system.defaults.final'),
-        ...(await convert(readQuestion(firstQuestion))),
+      // a final theme holds one question; any more are alternates SIGame never plays
+      for (const themeEl of themeEls) {
+        const question = children(child(themeEl, 'questions') ?? themeEl, 'question')[0]
+        if (!question) continue
+        finalThemes.push({
+          id: uid('f_'),
+          theme: themeEl.getAttribute('name') ?? t('system.defaults.final'),
+          ...(await convert(readQuestion(question))),
+        })
       }
       continue
     }
@@ -292,20 +315,17 @@ export async function importSiq(
       })
     }
   }
-  if (!rounds.length && !finalRound) throw new Error(t('system.errors.siqEmpty'))
+  if (!rounds.length && !finalThemes.length) throw new Error(t('system.errors.siqEmpty'))
 
   const authors = children(child(child(pkg, 'info') ?? pkg, 'authors') ?? pkg, 'author').map((a) => text(a)).filter(Boolean).join(', ')
   const now = Date.now()
   return {
-    game: {
-      id: uid('g_'),
-      title: pkg.getAttribute('name') || fallbackTitle || t('system.defaults.game'),
-      ...(authors && authors.length <= SUBTITLE_MAX ? { subtitle: authors } : {}),
-      rounds,
-      finalRound,
-      createdAt: now,
-      updatedAt: now,
-    },
-    droppedFinalThemes,
+    id: uid('g_'),
+    title: pkg.getAttribute('name') || fallbackTitle || t('system.defaults.game'),
+    ...(authors && authors.length <= SUBTITLE_MAX ? { subtitle: authors } : {}),
+    rounds,
+    ...(finalThemes.length && { finalThemes }),
+    createdAt: now,
+    updatedAt: now,
   }
 }

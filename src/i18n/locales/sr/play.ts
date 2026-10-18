@@ -61,12 +61,22 @@ export default {
   },
   auction: {
     winner: 'Ko je dobio licitaciju',
+    allInWho: 'Ko ide va bank',
     stakeRange: 'Ulog (od {min} do {max})',
     allIn: 'Va-bank',
     play: 'Igraj za {amount}',
   },
   cat: {
     give: 'Ko dobija pitanje za {value}?',
+  },
+  noRisk: {
+    who: 'Ko odgovara na pitanje za {value}?',
+  },
+  forAll: {
+    done: 'Dodeli poene',
+  },
+  hints: {
+    next: 'Nagoveštaj {n} od {total}',
   },
   verdict: {
     nobody: 'Niko nije odgovorio',
@@ -88,11 +98,12 @@ export default {
     up: 'Vreme!',
   },
   stage: {
+    kinds: { auction: 'Aukcija', catInBag: 'Mačka u džaku', noRisk: 'Bez rizika', allIn: 'Va bank', forAll: 'Pitanje za sve' },
     undo: 'Poništi',
     logo: 'Logo igre',
-    auction: 'Aukcija',
-    catInBag: 'Mačka u džaku',
     catText: 'Pitanje ide drugom igraču',
+    allInText: 'Igrač ulaže sve što je zaradio',
+    noRiskText: 'Za grešku se poeni ne oduzimaju',
     final: 'Finale',
     finalTopic: 'Finale: {theme}',
     finalBetsText: 'Igrači biraju ulog',
@@ -105,6 +116,7 @@ export default {
     start: 'Počni igru',
     hintToBoard: 'Razmak ili klik: na tablu',
     hintToBets: 'Razmak ili klik: na uloge',
+    hintToThemes: 'Razmak ili klik: na kategorije finala',
     skipRound: 'Preskoči rundu',
     showAnswer: 'Prikaži odgovor',
     leaveConfirm: {
@@ -117,5 +129,10 @@ export default {
       description: 'Preostala pitanja ove runde neće biti odigrana.',
       confirm: 'Preskoči',
     },
+  },
+  finalThemes: {
+    title: 'Kategorije finala',
+    turn: 'Kategoriju uklanja {name}',
+    remove: 'Ukloni „{theme}“',
   },
 } satisfies typeof ru

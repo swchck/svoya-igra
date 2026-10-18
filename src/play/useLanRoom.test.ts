@@ -23,7 +23,7 @@ const { useLanRoom } = await import('./useLanRoom')
 function game(): Game {
   const g = makeEmptyGame()
   g.rounds = [makeEmptyRound('R1', 1)]
-  g.finalRound = makeEmptyFinal()
+  g.finalThemes = [makeEmptyFinal()]
   return g
 }
 
@@ -180,6 +180,59 @@ describe('useLanRoom', () => {
     expect(session.state.finalBets[p1.id]).toBe(100)
     emit('lan://status', status({ bets: { [p1.id]: 400 } }))
     expect(session.state.finalBets[p1.id]).toBe(400)
+  })
+
+  it('marks phone answers to a question for everyone when the answer is revealed', async () => {
+    const { g, session, room } = setup()
+    const [q] = g.rounds[0].themes[0].questions
+    Object.assign(q, { kind: 'for-all', answer: 'Пётр I', accepted: ['Пётр Первый'] })
+    const [p1, p2] = session.players.value
+    session.addPlayer()
+    const p3 = session.players.value[2]
+    await room.start()
+    session.start()
+    session.advance()
+    session.pick(q.id)
+    await nextTick()
+    expect(synced().at(-1)?.ask).toMatchObject({ key: q.id, open: true })
+    emit('lan://status', status({ answers: { [p1.id]: 'петр первый', [p2.id]: 'Павел', [p3.id]: 'Пётр I!' } }))
+    session.advance()
+    await nextTick()
+    expect(session.state.groupVerdicts).toEqual({ [p1.id]: 1, [p3.id]: 1 })
+    expect(synced().at(-1)?.ask?.open).toBe(false)
+  })
+
+  it('scores choices from phones both ways', async () => {
+    const { g, session, room } = setup()
+    const [q] = g.rounds[0].themes[0].questions
+    Object.assign(q, { kind: 'for-all', options: ['Лион', 'Париж'], correctOption: 1 })
+    const [p1, p2] = session.players.value
+    await room.start()
+    session.start()
+    session.advance()
+    session.pick(q.id)
+    emit('lan://status', status({ answers: { [p1.id]: '1', [p2.id]: '0' } }))
+    session.advance()
+    await nextTick()
+    expect(session.state.groupVerdicts).toEqual({ [p1.id]: 1, [p2.id]: -1 })
+  })
+
+  it('strikes the final theme the picker chose on the phone, and ignores anyone else', async () => {
+    const { g, session, room } = setup()
+    g.finalThemes = [{ ...makeEmptyFinal(), theme: 'A' }, { ...makeEmptyFinal(), theme: 'B' }, { ...makeEmptyFinal(), theme: 'C' }]
+    await room.start()
+    session.start()
+    session.advance()
+    session.nextRound()
+    session.advance()
+    const picker = session.finalPicker.value!
+    const other = session.players.value.find((p) => p.id !== picker)!
+    await nextTick()
+    expect(synced().at(-1)?.chooser).toBe(picker)
+    emit('lan://pick', { playerId: other.id, questionId: g.finalThemes[0].id })
+    expect(session.state.finalRemoved).toEqual([])
+    emit('lan://pick', { playerId: picker, questionId: g.finalThemes[0].id })
+    expect(session.state.finalRemoved).toEqual([g.finalThemes[0].id])
   })
 
   it('stops cleanly and forgets the room', async () => {

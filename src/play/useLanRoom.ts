@@ -2,6 +2,7 @@ import { computed, onScopeDispose, ref, watch } from 'vue'
 import type { PlaySession } from '@/composables/usePlaySession'
 import { playSound } from './sounds'
 import { prefs } from '@/prefs'
+import { hasChoice, matchesAnswer } from '@/game/kinds'
 import {
   armBuzz,
   buzzWindow,
@@ -48,10 +49,19 @@ export function useLanRoom(session: PlaySession, title: () => string, pick: (que
   function sync() {
     if (!info.value) return
     const stage = stageInfo(
-      { phase: state.phase, players: players.value, teams: state.teams, played: state.played, chooserId: state.chooserId },
+      {
+        phase: state.phase,
+        players: players.value,
+        teams: state.teams,
+        played: state.played,
+        chooserId: state.chooserId,
+        activeQuestionId: state.activeQuestionId,
+        groupVerdicts: state.groupVerdicts,
+      },
       title(),
       round.value,
       prefs.phoneVibration,
+      { themes: session.finalLeft.value.map((f) => ({ id: f.id, theme: f.theme })), picker: session.finalPicker.value },
     )
     const key = JSON.stringify(stage)
     if (key === lastSync) return
@@ -91,6 +101,7 @@ export function useLanRoom(session: PlaySession, title: () => string, pick: (que
         await onLanPick((p) => {
           // the phone saw an older board if the turn has already moved on
           if (state.phase === 'board' && state.chooserId === p.playerId) pick(p.questionId)
+          else if (state.phase === 'final-themes' && session.finalPicker.value === p.playerId) session.removeFinalTheme(p.questionId)
         }),
       )
       info.value = await startLan(prefs.fixedRoomCode ? fixedRoomCode() : null)
@@ -128,9 +139,26 @@ export function useLanRoom(session: PlaySession, title: () => string, pick: (que
     quietly(reopenBuzz(wrong))
   }
 
-  watch([() => state.phase, players, title, () => state.teams, () => state.chooserId, () => state.played, round, () => prefs.phoneVibration], sync, {
-    deep: true,
-  })
+  /**
+   * A question for everyone: on reveal, choices are scored by the phones and typed answers
+   * that match the card exactly are marked right. Anything else waits for the host.
+   */
+  function markGroup() {
+    const q = session.activeQuestion.value
+    if (!info.value || !q || state.phase !== 'answer' || !state.groupVerdicts) return
+    for (const [id, raw] of Object.entries(status.value.answers)) {
+      if (state.groupVerdicts[id]) continue
+      if (hasChoice(q)) session.setGroupVerdict(id, Number(raw) === q.correctOption ? 1 : -1)
+      else if (matchesAnswer(q, raw)) session.setGroupVerdict(id, 1)
+    }
+  }
+
+  watch(
+    [() => state.phase, players, title, () => state.teams, () => state.chooserId, () => state.played, () => state.activeQuestionId, () => !!state.groupVerdicts, () => state.finalRemoved, round, () => prefs.phoneVibration],
+    sync,
+    { deep: true },
+  )
+  watch(() => state.phase, (phase) => phase === 'answer' && markGroup())
   watch(() => buzzWindow(state), syncBuzz)
   watch(() => state.phase, (phase) => phase === 'final-bets' && takeBets(status.value.bets))
   watch(winnerId, (id) => id && playSound('pick'))

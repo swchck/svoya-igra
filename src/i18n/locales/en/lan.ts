@@ -46,6 +46,8 @@ export default {
     excluded: 'Already answered: {names}',
   },
   final: {
+    title: 'Final',
+    strike: 'Strike a category',
     answers: 'Answers from phones',
     noAnswer: 'no answer',
   },

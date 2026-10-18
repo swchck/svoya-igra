@@ -1,6 +1,7 @@
-import { ACCENT_NAMES, type FinalQuestion, type Game, type GameSettings, type MediaItem, type MediaKind, type MediaMode, type Question } from '../types'
+import { ACCENT_NAMES, type FinalQuestion, type Game, type GameSettings, type HostInfo, type MediaItem, type MediaKind, type MediaMode, type Question } from '../types'
 import { t } from '../i18n'
 import { uid } from './model'
+import { MAX_OPTIONS } from './kinds'
 import { parseYoutubeUrl } from './youtube'
 
 /** Single-attachment fields that predate media lists; old saves and exports still carry them. */
@@ -48,6 +49,46 @@ function mergeMedia(
   return items.length ? items : undefined
 }
 
+function stringList(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined
+  const list = raw.filter((x): x is string => typeof x === 'string' && !!x.trim())
+  return list.length ? list : undefined
+}
+
+/** Keeps host info only where it has the expected shape; a bad field drops just that field. */
+function normalizeHostInfo<T extends HostInfo>(card: T): T {
+  const { accepted, rejected, notes, ...rest } = card
+  const out = rest as T
+  const a = stringList(accepted)
+  const r = stringList(rejected)
+  if (a) out.accepted = a
+  if (r) out.rejected = r
+  if (typeof notes === 'string' && notes.trim()) out.notes = notes
+  return out
+}
+
+/** Keeps choices that are a list of strings, and the right one only when it points into them. */
+function normalizeOptions(q: Question): Question {
+  const { options, correctOption, ...rest } = q
+  if (!Array.isArray(options)) return rest
+  const list = options.filter((o): o is string => typeof o === 'string').slice(0, MAX_OPTIONS)
+  if (!list.length) return rest
+  const right = Number.isInteger(correctOption) && correctOption! >= 0 && correctOption! < list.length
+  return { ...rest, options: list, ...(right && { correctOption }) }
+}
+
+function normalizeHints(q: Question): Question {
+  const { hints, ...rest } = q
+  if (!Array.isArray(hints)) return rest
+  const list = hints
+    .filter(isObject)
+    .map((h) => {
+      const media = mergeMedia(Array.isArray(h.media) ? (h.media as StoredMediaItem[]) : undefined, undefined, undefined, undefined, undefined)
+      return { id: typeof h.id === 'string' && h.id ? h.id : uid('h_'), text: typeof h.text === 'string' ? h.text : '', ...(media && { media }) }
+    })
+  return list.length ? { ...rest, hints: list } : rest
+}
+
 function normalizeQuestion(q: StoredQuestion): Question {
   const {
     mediaUrl, mediaKind, mediaMode, mediaDuration,
@@ -55,7 +96,7 @@ function normalizeQuestion(q: StoredQuestion): Question {
     ...question
   } = q
   return {
-    ...question,
+    ...normalizeHints(normalizeOptions(normalizeHostInfo(question))),
     media: mergeMedia(q.media, mediaUrl, mediaKind, mediaMode, mediaDuration),
     answerMedia: mergeMedia(q.answerMedia, answerMediaUrl, answerMediaKind, answerMediaMode, answerMediaDuration),
   }
@@ -63,7 +104,7 @@ function normalizeQuestion(q: StoredQuestion): Question {
 
 function normalizeFinal(f: StoredFinal): FinalQuestion {
   const { mediaUrl, mediaKind, mediaMode, mediaDuration, ...final } = f
-  return { ...final, media: mergeMedia(f.media, mediaUrl, mediaKind, mediaMode, mediaDuration) }
+  return { ...normalizeHostInfo(final), media: mergeMedia(f.media, mediaUrl, mediaKind, mediaMode, mediaDuration) }
 }
 
 export const MAX_ANSWER_SECONDS = 600
@@ -99,10 +140,17 @@ export function parseGame(data: unknown): Game {
     }
   }
   if (data.finalRound !== undefined && !isObject(data.finalRound)) throw invalid()
+  if (data.finalThemes !== undefined && (!Array.isArray(data.finalThemes) || !data.finalThemes.every(isObject))) throw invalid()
 
-  const game = data as unknown as Game & { rounds: { themes: { questions: StoredQuestion[] }[] }[]; finalRound?: StoredFinal }
-  const { settings: raw, ...rest } = game
+  const game = data as unknown as Game & {
+    rounds: { themes: { questions: StoredQuestion[] }[] }[]
+    finalThemes?: StoredFinal[]
+    /** The single final question games had before the final took several themes. */
+    finalRound?: StoredFinal
+  }
+  const { settings: raw, finalRound, ...rest } = game
   const settings = normalizeSettings(raw)
+  const finals = game.finalThemes ?? (finalRound ? [finalRound] : [])
   return {
     ...rest,
     ...(settings && { settings }),
@@ -110,6 +158,6 @@ export function parseGame(data: unknown): Game {
       ...r,
       themes: r.themes.map((t) => ({ ...t, questions: t.questions.map(normalizeQuestion) })),
     })),
-    finalRound: game.finalRound && normalizeFinal(game.finalRound),
+    finalThemes: finals.length ? finals.map(normalizeFinal) : undefined,
   }
 }

@@ -2,11 +2,11 @@
 import { ref } from 'vue'
 import { Plus, Trophy } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
-import type { FinalQuestion, Round } from '@/types'
+import type { Round } from '@/types'
 import { isQuestionReady } from '@/game/model'
 
 const { t } = useI18n()
-defineProps<{ rounds: Round[]; final?: FinalQuestion }>()
+defineProps<{ rounds: Round[]; hasFinal: boolean }>()
 /** Index of the open round, or 'final'. */
 const active = defineModel<number | 'final'>({ required: true })
 const emit = defineEmits<{
@@ -66,7 +66,7 @@ function progress(r: Round) {
     <span class="flex-1" />
     <button
       class="pill final"
-      :class="{ active: active === 'final', missing: !final }"
+      :class="{ active: active === 'final', missing: !hasFinal }"
       :aria-current="active === 'final' ? 'page' : undefined"
       @click="active = 'final'"
     >

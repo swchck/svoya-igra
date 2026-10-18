@@ -55,7 +55,7 @@ export default {
     title: 'Šta aplikacija ume',
     editor: {
       title: 'Uređivač u obliku table',
-      text: 'Igra se pravi na istoj tabli koju će videti igrači. Kliknite na polje i otvara se prozor pitanja: levo pitanje, desno odgovor, svako sa formatiranim tekstom, slikama, zvukom i videom. Runde, teme i pitanja se prevlače mišem, a izmene se odmah čuvaju i ranije verzije igre mogu da se vrate.',
+      text: 'Igra se pravi na istoj tabli koju će videti igrači. Kliknite na polje i otvara se prozor pitanja: levo pitanje, desno odgovor, svako sa formatiranim tekstom, slikama, zvukom i videom. Runde, teme i pitanja se prevlače mišem, teme se kopiraju između igara, a pitanja mogu da se upišu tekstom iz tabele. Izmene se odmah čuvaju, a ranije verzije igre mogu da se vrate.',
       alt: 'Uređivač sa tablom runde i otvorenim pitanjem',
     },
     board: {
@@ -76,8 +76,8 @@ export default {
   },
   facts: {
     special: {
-      title: 'Aukcija i mačka u džaku',
-      text: 'Na aukciji igrač može da uloži ceo svoj rezultat, a mačku u džaku voditelj daje drugom igraču. U finalu svako stavlja ulog.',
+      title: 'Šest vrsta pitanja',
+      text: 'Aukcija, mačka u džaku, va bank, pitanje bez rizika i pitanje za sve, na koje svi odgovaraju odjednom. Mogu se dati ponuđeni odgovori ili otvarati nagoveštaji jedan po jedan. U finalu igrači uklanjaju teme i stavljaju uloge.',
     },
     saved: {
       title: 'Partija se ne gubi',
@@ -118,7 +118,7 @@ export default {
     },
     siq: {
       q: 'Mogu li da igram gotov SIGame paket?',
-      a: 'Da. Kliknite „Uvoz“ na početnom ekranu i izaberite fajl .siq. Prenose se runde, teme, pitanja, slike i zvuk. Od finala ostaje prva tema, jer je naše finale jedno pitanje.',
+      a: 'Da. Kliknite „Uvoz“ na početnom ekranu i izaberite fajl .siq. Prenose se runde, teme, pitanja, slike i zvuk, zajedno sa posebnim pitanjima, drugim priznatim odgovorima, komentarima autora i svim temama finala.',
     },
     share: {
       q: 'Kako da pošaljem igru drugom voditelju?',

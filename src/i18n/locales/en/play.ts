@@ -61,12 +61,22 @@ export default {
   },
   auction: {
     winner: 'Who won the bidding',
+    allInWho: 'Who goes all in',
     stakeRange: 'Bet (from {min} to {max})',
     allIn: 'All in',
     play: 'Play for {amount}',
   },
   cat: {
     give: 'Who gets the question for {value}?',
+  },
+  noRisk: {
+    who: 'Who answers for {value}?',
+  },
+  forAll: {
+    done: 'Score answers',
+  },
+  hints: {
+    next: 'Hint {n} of {total}',
   },
   verdict: {
     nobody: 'Nobody answered',
@@ -88,11 +98,12 @@ export default {
     up: 'Time!',
   },
   stage: {
+    kinds: { auction: 'Auction', catInBag: 'Cat in the bag', noRisk: 'No risk', allIn: 'All in', forAll: 'Question for all' },
     undo: 'Undo',
     logo: 'Game logo',
-    auction: 'Auction',
-    catInBag: 'Cat in the bag',
     catText: 'The question goes to another player',
+    allInText: 'The player stakes everything they have',
+    noRiskText: 'A wrong answer costs nothing',
     final: 'Final',
     finalTopic: 'Final: {theme}',
     finalBetsText: 'Players place their bets',
@@ -105,6 +116,7 @@ export default {
     start: 'Start the game',
     hintToBoard: 'Space or click: to the board',
     hintToBets: 'Space or click: to the bets',
+    hintToThemes: 'Space or click: to the final categories',
     skipRound: 'Skip round',
     showAnswer: 'Show answer',
     leaveConfirm: {
@@ -117,5 +129,10 @@ export default {
       description: 'The remaining questions of this round will not be played.',
       confirm: 'Skip',
     },
+  },
+  finalThemes: {
+    title: 'Final categories',
+    turn: '{name} strikes a category',
+    remove: 'Strike “{theme}”',
   },
 } satisfies typeof ru

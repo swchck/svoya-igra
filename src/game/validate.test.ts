@@ -8,7 +8,7 @@ const item = (p: Partial<MediaItem>): MediaItem => ({ id: 'mi', url: 'https://ex
 /** One filled round with two themes, no final. */
 function filledGame(): Game {
   const game = makeEmptyGame('Игра')
-  game.finalRound = undefined
+  delete game.finalThemes
   game.rounds = [game.rounds[0]]
   game.rounds[0].themes = game.rounds[0].themes.slice(0, 2)
   for (const th of game.rounds[0].themes) {
@@ -26,6 +26,32 @@ const firstQuestion = (game: Game) => game.rounds[0].themes[0].questions[0]
 describe('validateGame', () => {
   it('finds nothing in a filled game', () => {
     expect(validateGame(filledGame())).toEqual([])
+  })
+
+  it('takes a marked choice for the answer and wants two choices with one right', () => {
+    const game = filledGame()
+    const q = firstQuestion(game)
+    q.answer = ''
+    q.options = ['Париж', 'Лион']
+    q.correctOption = 0
+    expect(codes(game)).toEqual([])
+    delete q.correctOption
+    expect(codes(game)).toEqual(['bad-options', 'no-answer'])
+    q.options = ['Париж', ' ']
+    q.correctOption = 0
+    expect(codes(game)).toEqual(['bad-options'])
+  })
+
+  it('warns about an empty hint and checks hint media', () => {
+    const game = filledGame()
+    firstQuestion(game).hints = [{ id: 'h', text: '' }, { id: 'h2', text: '', media: [item({ kind: 'youtube', url: 'https://example.com' })] }]
+    expect(codes(game)).toEqual(['empty-hint', 'bad-youtube'])
+  })
+
+  it('reminds about questions marked as drafts', () => {
+    const game = filledGame()
+    firstQuestion(game).draft = true
+    expect(codes(game)).toEqual(['draft'])
   })
 
   it('reports a wholly empty question once, not as two gaps', () => {
@@ -109,19 +135,20 @@ describe('validateGame', () => {
     expect(codes(game)).toEqual([])
   })
 
-  it('checks the final: question and answer', () => {
+  it('checks every final theme: name, question and answer', () => {
     const game = filledGame()
-    game.finalRound = { id: 'f', theme: 'Финал', text: '', answer: '' }
+    game.finalThemes = [{ id: 'f', theme: 'Финал', text: '', answer: '' }, { id: 'f2', theme: '', text: 'Т', answer: 'О' }]
 
     expect(validateGame(game)).toEqual([
       expect.objectContaining({ code: 'no-question', severity: 'error', final: true }),
       expect.objectContaining({ code: 'no-answer', severity: 'warning', final: true }),
+      expect.objectContaining({ code: 'empty-theme-name', final: true, themeId: 'f2' }),
     ])
   })
 
   it('checks media of the final', () => {
     const game = filledGame()
-    game.finalRound = { id: 'f', theme: 'Финал', text: 'Т', answer: 'О', media: [item({ kind: 'youtube', url: 'nope' })] }
+    game.finalThemes = [{ id: 'f', theme: 'Финал', text: 'Т', answer: 'О', media: [item({ kind: 'youtube', url: 'nope' })] }]
 
     expect(validateGame(game)).toEqual([expect.objectContaining({ code: 'bad-youtube', final: true })])
   })
@@ -134,7 +161,7 @@ describe('missing media', () => {
     const gone = item({ id: 'b', url: 'media://gone', kind: 'image' })
     firstQuestion(game).media = [present, gone]
     firstQuestion(game).answerMedia = [gone]
-    game.finalRound = { id: 'f', theme: 'Ф', text: 'Т', answer: 'О', media: [gone] }
+    game.finalThemes = [{ id: 'f', theme: 'Ф', text: 'Т', answer: 'О', media: [gone] }]
     const lookup = vi.fn(async (url: string) => (url === 'media://present' ? new Blob(['x']) : null))
 
     const missing = await findMissingMedia(game, lookup)
@@ -157,7 +184,7 @@ describe('missing media', () => {
     const gone = item({ url: 'media://gone', kind: 'image' })
     firstQuestion(game).media = [gone]
     firstQuestion(game).answerMedia = [gone]
-    game.finalRound = { id: 'f', theme: 'Ф', text: 'Т', answer: 'О', media: [gone] }
+    game.finalThemes = [{ id: 'f', theme: 'Ф', text: 'Т', answer: 'О', media: [gone] }]
 
     const found = validateGame(game, new Set(['media://gone']))
 

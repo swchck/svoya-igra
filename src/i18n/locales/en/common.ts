@@ -19,4 +19,7 @@ export default {
     orderedList: 'Numbered list',
     quote: 'Quote',
   },
+  chips: {
+    remove: 'Remove “{value}”',
+  },
 } satisfies typeof ru

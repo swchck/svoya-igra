@@ -99,7 +99,7 @@ onBeforeUnmount(stopHint)
       <div class="plate">
         <span class="theme">{{ themeOf(open) }}</span>
         <span class="value">{{ open.value }}</span>
-        <span v-if="open.kind !== 'normal'" class="kind" :class="open.kind">
+        <span v-if="open.kind === 'auction' || open.kind === 'cat-in-bag'" class="kind" :class="open.kind">
           <component :is="KIND[open.kind].icon" class="size-3.5" />{{ t(KIND[open.kind].label) }}
         </span>
       </div>

@@ -46,6 +46,8 @@ export default {
     excluded: 'Već odgovarali: {names}',
   },
   final: {
+    title: 'Finale',
+    strike: 'Uklonite kategoriju',
     answers: 'Odgovori sa telefona',
     noAnswer: 'nema odgovora',
   },

@@ -11,6 +11,9 @@ export default {
   kind: {
     auction: 'Aukcija',
     catInBag: 'Mačka u džaku, za {n}',
+    noRisk: 'Bez rizika',
+    allIn: 'Va bank',
+    forAll: 'Za sve',
   },
   media: {
     image: 'slika',
@@ -21,4 +24,6 @@ export default {
     from: '{label} od {start}',
     range: '{label} {start}–{end}',
   },
+  accepted: 'Takođe tačno',
+  rejected: 'Ne priznati',
 } satisfies typeof ru

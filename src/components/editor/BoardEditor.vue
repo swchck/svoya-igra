@@ -1,19 +1,56 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Cat, Gavel, GripVertical, Image as ImageIcon, Music, Plus, Trash2 } from '@lucide/vue'
+import { ArrowRightLeft, ClipboardPaste, Copy, CopyPlus, GripVertical, Image as ImageIcon, MoreHorizontal, Music, PencilLine, Plus, TextCursorInput, Trash2 } from '@lucide/vue'
+import { toast } from 'vue-sonner'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { copyTheme, nextValue } from '@/game/edit'
+import { useBoardClipboard } from '@/composables/useBoardClipboard'
 import type { Question, Round } from '@/types'
 import IconButton from '@/components/IconButton.vue'
 import { markdownToPlain } from '@/lib/markdown'
+import { isSpecial, kindInfo } from '@/game/kinds'
 import { isQuestionReady, makeEmptyQuestion, makeEmptyTheme, moveItemTo } from '@/game/model'
 
 const { t } = useI18n()
 const round = defineModel<Round>('round', { required: true })
 /** Id of the question open in the dialog. */
 const selected = defineModel<string | null>('selected', { required: true })
+defineProps<{
+  /** The game's other rounds, where a theme may move. */
+  otherRounds?: { index: number; name: string }[]
+}>()
 defineEmits<{
   (e: 'remove-theme', index: number): void
+  (e: 'move-theme', index: number, roundIndex: number): void
+  (e: 'type-in', index: number): void
 }>()
+
+const { clip, copy, pasteQuestion } = useBoardClipboard()
+
+function duplicateTheme(index: number) {
+  round.value.themes.splice(index + 1, 0, copyTheme(round.value.themes[index]))
+}
+
+function copyThemeToClipboard(index: number) {
+  copy({ kind: 'theme', theme: round.value.themes[index] })
+  toast.success(t('editor.clipboard.themeCopied'))
+}
+
+function pasteQuestionInto(index: number) {
+  const q = pasteQuestion()
+  if (!q) return
+  const questions = round.value.themes[index].questions
+  q.value = nextValue(questions)
+  questions.push(q)
+  selected.value = q.id
+}
 
 const columns = computed(() => Math.max(1, ...round.value.themes.map((t) => t.questions.length)))
 
@@ -26,8 +63,7 @@ function hasPicture(q: Question) {
 
 function addQuestion(themeIndex: number) {
   const questions = round.value.themes[themeIndex].questions
-  const last = questions.at(-1)
-  const q = makeEmptyQuestion(last ? last.value + 100 : 100)
+  const q = makeEmptyQuestion(nextValue(questions))
   questions.push(q)
   selected.value = q.id
 }
@@ -104,8 +140,26 @@ function dropOnTheme(index: number) {
           :aria-label="t('editor.board.themeName')"
           @keydown.enter.prevent="($event.target as HTMLTextAreaElement).blur()"
         />
-        <span class="theme-delete">
-          <IconButton :label="t('editor.board.removeTheme')" size="icon-xs" @click="$emit('remove-theme', ti)"><Trash2 /></IconButton>
+        <span class="theme-menu">
+          <DropdownMenu>
+            <DropdownMenuTrigger as-child>
+              <IconButton :label="t('editor.board.themeActions')" size="icon-xs"><MoreHorizontal /></IconButton>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" class="min-w-56">
+              <DropdownMenuItem @select="duplicateTheme(ti)"><CopyPlus />{{ t('editor.board.duplicateTheme') }}</DropdownMenuItem>
+              <DropdownMenuItem @select="copyThemeToClipboard(ti)"><Copy />{{ t('editor.board.copyTheme') }}</DropdownMenuItem>
+              <DropdownMenuItem :disabled="clip?.kind !== 'question'" @select="pasteQuestionInto(ti)"><ClipboardPaste />{{ t('editor.board.pasteQuestion') }}</DropdownMenuItem>
+              <DropdownMenuItem @select="$emit('type-in', ti)"><TextCursorInput />{{ t('editor.board.typeIn') }}</DropdownMenuItem>
+              <template v-if="otherRounds?.length">
+                <DropdownMenuSeparator />
+                <DropdownMenuItem v-for="r in otherRounds" :key="r.index" @select="$emit('move-theme', ti, r.index)">
+                  <ArrowRightLeft />{{ t('editor.board.moveTo', { name: r.name }) }}
+                </DropdownMenuItem>
+              </template>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" @select="$emit('remove-theme', ti)"><Trash2 />{{ t('editor.board.removeTheme') }}</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </span>
       </div>
       <button
@@ -115,8 +169,7 @@ function dropOnTheme(index: number) {
         :class="{
           selected: selected === q.id,
           draft: !isQuestionReady(q),
-          auction: q.kind === 'auction',
-          cat: q.kind === 'cat-in-bag',
+          [`kind-${q.kind}`]: isSpecial(q.kind),
           'drop-cell': over === q.id,
         }"
         :data-tour="ti === 0 && i === 0 ? 'board-cell' : undefined"
@@ -132,8 +185,8 @@ function dropOnTheme(index: number) {
       >
         <span class="value">{{ q.value }}</span>
         <span class="marks" aria-hidden="true">
-          <Gavel v-if="q.kind === 'auction'" />
-          <Cat v-else-if="q.kind === 'cat-in-bag'" />
+          <PencilLine v-if="q.draft" />
+          <component :is="kindInfo(q.kind).icon" v-if="isSpecial(q.kind)" />
           <Music v-if="hasSound(q)" />
           <ImageIcon v-if="hasPicture(q)" />
         </span>
@@ -220,15 +273,16 @@ function dropOnTheme(index: number) {
 .theme-input::placeholder {
   color: color-mix(in oklch, var(--gold) 45%, transparent);
 }
-.theme-delete {
+.theme-menu {
   position: absolute;
   top: 2px;
   right: 2px;
   opacity: 0;
   transition: opacity 0.15s ease;
 }
-.row:hover .theme-delete,
-.theme-delete:focus-within {
+.row:hover .theme-menu,
+.theme-menu:focus-within,
+.theme-menu:has([data-state='open']) {
   opacity: 1;
 }
 .tile {
@@ -249,15 +303,26 @@ function dropOnTheme(index: number) {
   transform: translateY(-2px);
   filter: brightness(1.12);
 }
-.tile.auction {
+.tile.kind-auction,
+.tile.kind-all-in {
   background:
     linear-gradient(180deg, oklch(1 0 0 / 0.14), transparent 45%),
     linear-gradient(180deg, oklch(0.52 0.15 70), oklch(0.33 0.12 60));
 }
-.tile.cat {
+.tile.kind-cat-in-bag {
   background:
     linear-gradient(180deg, oklch(1 0 0 / 0.14), transparent 45%),
     linear-gradient(180deg, color-mix(in oklch, var(--magenta) 80%, black), oklch(0.3 0.16 340));
+}
+.tile.kind-no-risk {
+  background:
+    linear-gradient(180deg, oklch(1 0 0 / 0.14), transparent 45%),
+    linear-gradient(180deg, oklch(0.5 0.12 160), oklch(0.3 0.1 170));
+}
+.tile.kind-for-all {
+  background:
+    linear-gradient(180deg, oklch(1 0 0 / 0.14), transparent 45%),
+    linear-gradient(180deg, color-mix(in oklch, var(--cyan) 60%, black), oklch(0.3 0.12 230));
 }
 .tile.draft {
   background: oklch(0.22 0.12 272 / 0.55);

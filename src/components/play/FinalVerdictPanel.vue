@@ -8,10 +8,14 @@ import { Button } from '@/components/ui/button'
 const { t } = useI18n()
 defineProps<{
   players: Player[]
-  bets: Record<string, number>
+  /** Final bets per player; a question for everyone has none and shows `value` instead. */
+  bets?: Record<string, number>
+  /** What a right answer to a question for everyone earns. */
+  value?: number
   verdicts: Record<string, Sign>
   /** Answers sent from phones, shown for judging; absent when phones are off. */
   answers?: Record<string, string>
+  doneLabel?: string
 }>()
 defineEmits<{ (e: 'verdict', playerId: string, sign: Sign): void; (e: 'done'): void }>()
 </script>
@@ -28,7 +32,7 @@ defineEmits<{ (e: 'verdict', playerId: string, sign: Sign): void; (e: 'done'): v
           <span class="font-medium">{{ p.name }}</span>
           <span v-if="answers" class="answer" :class="{ none: !answers[p.id] }">{{ answers[p.id] ?? t('lan.final.noAnswer') }}</span>
         </span>
-        <span class="text-sm text-muted-foreground">{{ t('play.finalVerdict.bet', { bet: bets[p.id] ?? 0 }) }}</span>
+        <span class="text-sm text-muted-foreground">{{ bets ? t('play.finalVerdict.bet', { bet: bets[p.id] ?? 0 }) : `+${value ?? 0}` }}</span>
         <Button
           size="sm"
           :variant="verdicts[p.id] === 1 ? 'default' : 'outline'"
@@ -43,7 +47,7 @@ defineEmits<{ (e: 'verdict', playerId: string, sign: Sign): void; (e: 'done'): v
         ><X />{{ t('play.finalVerdict.incorrect') }}</Button>
       </div>
     </div>
-    <Button size="lg" @click="$emit('done')">{{ t('play.finalVerdict.done') }}</Button>
+    <Button size="lg" @click="$emit('done')">{{ doneLabel ?? t('play.finalVerdict.done') }}</Button>
   </div>
 </template>
 

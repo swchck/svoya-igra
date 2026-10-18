@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { hintedValue, isSpecial, kindInfo, optionLetter } from '@/game/kinds'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -34,9 +35,8 @@ function notes(items?: MediaItem[]): string {
 }
 
 function kindLabel(q: Question): string {
-  if (q.kind === 'auction') return t('print.kind.auction')
-  if (q.kind === 'cat-in-bag') return t('print.kind.catInBag', { n: q.catValue ?? q.value })
-  return ''
+  if (!isSpecial(q.kind)) return ''
+  return t(`print.kind.${kindInfo(q.kind).key}`, { n: q.catValue ?? q.value })
 }
 </script>
 
@@ -67,33 +67,47 @@ function kindLabel(q: Question): string {
                 <MarkdownView v-if="q.text.trim()" class="md" :source="q.text" />
                 <p v-else-if="!q.media?.length" class="empty">{{ t('print.noText') }}</p>
                 <p v-if="q.media?.length" class="media">{{ t('print.mediaPrefix') }}: {{ notes(q.media) }}</p>
+                <ol v-if="q.options?.length" class="print-options">
+                  <li v-for="(o, i) in q.options" :key="i" :class="{ right: i === q.correctOption }">{{ optionLetter(i) }}. {{ o }}</li>
+                </ol>
+                <ol v-if="q.hints?.length" class="print-hints">
+                  <li v-for="(h, i) in q.hints" :key="h.id">
+                    <b>{{ hintedValue(q.value, q.hints.length, i + 1) }}</b> {{ h.text }}<span v-if="h.media?.length" class="media"> ({{ notes(h.media) }})</span>
+                  </li>
+                </ol>
               </div>
               <div class="a">
                 <MarkdownView v-if="q.answer.trim()" class="md" :source="q.answer" />
                 <p v-else-if="!q.answerMedia?.length" class="empty">{{ t('print.noAnswer') }}</p>
                 <p v-if="q.answerMedia?.length" class="media">{{ t('print.mediaPrefix') }}: {{ notes(q.answerMedia) }}</p>
+                <p v-if="q.accepted?.length" class="also">{{ t('print.accepted') }}: {{ q.accepted.join(', ') }}</p>
+                <p v-if="q.rejected?.length" class="also">{{ t('print.rejected') }}: {{ q.rejected.join(', ') }}</p>
+                <p v-if="q.notes" class="host-notes">{{ q.notes }}</p>
               </div>
             </li>
           </ol>
         </section>
       </section>
 
-      <section v-if="game.finalRound" class="round final">
+      <section v-if="game.finalThemes?.length" class="round final">
         <h2>{{ t('print.final') }}</h2>
-        <section class="theme">
-          <h3>{{ game.finalRound.theme }}</h3>
+        <section v-for="f in game.finalThemes" :key="f.id" class="theme">
+          <h3>{{ f.theme }}</h3>
           <ol class="rows">
             <li class="row">
               <span class="val" aria-hidden="true">★</span>
               <div class="q">
-                <MarkdownView v-if="game.finalRound.text.trim()" class="md" :source="game.finalRound.text" />
+                <MarkdownView v-if="f.text.trim()" class="md" :source="f.text" />
                 <p v-else class="empty">{{ t('print.noText') }}</p>
-                <p v-if="game.finalRound.media?.length" class="media">{{ t('print.mediaPrefix') }}: {{ notes(game.finalRound.media) }}</p>
+                <p v-if="f.media?.length" class="media">{{ t('print.mediaPrefix') }}: {{ notes(f.media) }}</p>
               </div>
               <div class="a">
-                <MarkdownView v-if="game.finalRound.answer.trim()" class="md" :source="game.finalRound.answer" />
+                <MarkdownView v-if="f.answer.trim()" class="md" :source="f.answer" />
                 <p v-else class="empty">{{ t('print.noAnswer') }}</p>
-                <p v-if="game.finalRound.answerMedia?.length" class="media">{{ t('print.mediaPrefix') }}: {{ notes(game.finalRound.answerMedia) }}</p>
+                <p v-if="f.answerMedia?.length" class="media">{{ t('print.mediaPrefix') }}: {{ notes(f.answerMedia) }}</p>
+                <p v-if="f.accepted?.length" class="also">{{ t('print.accepted') }}: {{ f.accepted.join(', ') }}</p>
+                <p v-if="f.rejected?.length" class="also">{{ t('print.rejected') }}: {{ f.rejected.join(', ') }}</p>
+                <p v-if="f.notes" class="host-notes">{{ f.notes }}</p>
               </div>
             </li>
           </ol>
@@ -248,6 +262,36 @@ function kindLabel(q: Question): string {
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+.print-options,
+.print-hints {
+  margin: 3px 0 0;
+  padding-left: 0;
+  list-style: none;
+  font-size: 11.5px;
+  font-weight: 400;
+}
+.print-options .right {
+  font-weight: 700;
+}
+.print-hints b {
+  display: inline-block;
+  min-width: 30px;
+}
+.also {
+  margin: 2px 0 0;
+  font-size: 11.5px;
+  font-weight: 400;
+  color: #3a3f55;
+}
+.host-notes {
+  margin: 3px 0 0;
+  padding-left: 6px;
+  border-left: 2px solid #c9cce0;
+  font-size: 11.5px;
+  font-weight: 400;
+  color: #555a70;
+  white-space: pre-line;
 }
 .media {
   margin: 2px 0 0;

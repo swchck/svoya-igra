@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Gavel } from '@lucide/vue'
+import { Flame, Gavel } from '@lucide/vue'
 import type { Player } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -10,7 +10,12 @@ import { useI18n } from 'vue-i18n'
 import { maxStake } from '@/composables/usePlaySession'
 
 const { t } = useI18n()
-const props = defineProps<{ players: Player[]; value: number }>()
+const props = defineProps<{
+  players: Player[]
+  value: number
+  /** The winner stakes everything they have, so there is no bid to enter. */
+  allIn?: boolean
+}>()
 const emit = defineEmits<{ (e: 'stake', playerId: string, amount: number): void }>()
 
 const winner = ref<string>(props.players[0]?.id ?? '')
@@ -24,21 +29,24 @@ watch(limit, (max) => {
 <template>
   <div class="flex w-full max-w-xl flex-col items-center gap-5">
     <div class="grid w-full gap-2">
-      <Label>{{ t('play.auction.winner') }}</Label>
+      <Label>{{ allIn ? t('play.auction.allInWho') : t('play.auction.winner') }}</Label>
       <ToggleGroup v-model="winner" type="single" variant="outline" class="flex-wrap justify-center">
         <ToggleGroupItem v-for="p in players" :key="p.id" :value="p.id" class="px-4">
           {{ p.name }} · {{ p.score }}
         </ToggleGroupItem>
       </ToggleGroup>
     </div>
-    <div class="flex flex-wrap items-end justify-center gap-3">
+    <div v-if="!allIn" class="flex flex-wrap items-end justify-center gap-3">
       <div class="grid gap-2">
         <Label>{{ t('play.auction.stakeRange', { min: value, max: limit }) }}</Label>
         <NumberInput v-model="bid" class="w-44" :min="value" :step="100" />
       </div>
       <Button variant="outline" @click="bid = limit">{{ t('play.auction.allIn') }}</Button>
     </div>
-    <Button size="lg" :disabled="!winner" @click="emit('stake', winner, bid ?? value)">
+    <Button v-if="allIn" size="lg" :disabled="!winner" @click="emit('stake', winner, limit)">
+      <Flame />{{ t('play.auction.play', { amount: limit }) }}
+    </Button>
+    <Button v-else size="lg" :disabled="!winner" @click="emit('stake', winner, bid ?? value)">
       <Gavel />{{ t('play.auction.play', { amount: Math.min(Math.max(bid ?? value, value), limit) }) }}
     </Button>
   </div>

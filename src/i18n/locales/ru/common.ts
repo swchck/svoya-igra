@@ -17,4 +17,7 @@ export default {
     orderedList: 'Нумерованный список',
     quote: 'Цитата',
   },
+  chips: {
+    remove: 'Убрать «{value}»',
+  },
 }

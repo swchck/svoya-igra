@@ -1,6 +1,7 @@
 import type { FinalQuestion, Game, MediaItem, Question } from '../types'
 import { isStoredMedia } from '../media/ref'
 import { getMedia } from '../media/store'
+import { hasChoice } from './kinds'
 import { mediaItems } from './model'
 import { parseYoutubeUrl } from './youtube'
 
@@ -15,6 +16,9 @@ type IssueCode =
   | 'bad-youtube'
   | 'bad-segment'
   | 'missing-media'
+  | 'draft'
+  | 'bad-options'
+  | 'empty-hint'
 
 /** A problem found before playing, with where it sits in the game. */
 export interface Issue {
@@ -43,6 +47,9 @@ const SEVERITY: Record<IssueCode, IssueSeverity> = {
   'bad-youtube': 'error',
   'bad-segment': 'warning',
   'missing-media': 'error',
+  draft: 'warning',
+  'bad-options': 'error',
+  'empty-hint': 'warning',
 }
 
 function issue(code: IssueCode, place: Place, side?: Issue['side']): Issue {
@@ -63,14 +70,25 @@ function mediaIssues(items: MediaItem[] | undefined, place: Place, side: 'questi
 
 function cardIssues(card: Question | FinalQuestion, place: Place, missing: ReadonlySet<string>): Issue[] {
   const hasQuestion = !!card.text.trim() || !!card.media?.length
-  const hasAnswer = !!card.answer.trim() || !!card.answerMedia?.length
+  const hasAnswer = !!card.answer.trim() || !!card.answerMedia?.length || ('options' in card && hasChoice(card))
   const out: Issue[] = []
+  // a choice nobody can see or none marked right can't be scored, by the phones or the host
+  if ('options' in card && card.options && (card.options.filter((o) => o.trim()).length < 2 || !hasChoice(card))) {
+    out.push(issue('bad-options', place))
+  }
   if (!hasQuestion && !hasAnswer && !place.final) out.push(issue('empty-question', place))
   else {
     if (!hasQuestion) out.push(issue('no-question', place))
     if (!hasAnswer) out.push(issue('no-answer', place))
   }
-  return [...out, ...mediaIssues(card.media, place, 'question', missing), ...mediaIssues(card.answerMedia, place, 'answer', missing)]
+  const hints = 'hints' in card ? (card.hints ?? []) : []
+  if (hints.some((h) => !h.text.trim() && !h.media?.length)) out.push(issue('empty-hint', place))
+  return [
+    ...out,
+    ...mediaIssues(card.media, place, 'question', missing),
+    ...hints.flatMap((h) => mediaIssues(h.media, place, 'question', missing)),
+    ...mediaIssues(card.answerMedia, place, 'answer', missing),
+  ]
 }
 
 /** Lists the game's issues in reading order; `missing` is what findMissingMedia returned. */
@@ -85,10 +103,18 @@ export function validateGame(game: Game, missing: ReadonlySet<string> = new Set(
     for (const theme of round.themes) {
       const themePlace = { ...roundPlace, themeId: theme.id, themeName: theme.name }
       if (!theme.name.trim()) out.push(issue('empty-theme-name', themePlace))
-      for (const q of theme.questions) out.push(...cardIssues(q, { ...themePlace, questionId: q.id, value: q.value }, missing))
+      for (const q of theme.questions) {
+        const place = { ...themePlace, questionId: q.id, value: q.value }
+        if (q.draft) out.push(issue('draft', place))
+        out.push(...cardIssues(q, place, missing))
+      }
     }
   }
-  if (game.finalRound) out.push(...cardIssues(game.finalRound, { final: true }, missing))
+  for (const f of game.finalThemes ?? []) {
+    const place = { final: true, themeId: f.id, themeName: f.theme }
+    if (!f.theme.trim()) out.push(issue('empty-theme-name', place))
+    out.push(...cardIssues(f, place, missing))
+  }
   return out
 }
 

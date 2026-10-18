@@ -42,7 +42,6 @@ export default {
     openFailed: 'Could not open the file',
     imported: 'Game imported',
     importFailed: 'Could not import',
-    siqFinalSkipped: 'Final: only the first category was taken, {n} more skipped',
   },
   footnote: 'Games are stored on this computer. To move a game, export it as .gamezip.',
   version: 'Version {version}',

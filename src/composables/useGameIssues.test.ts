@@ -9,7 +9,7 @@ vi.mock('../game/validate', async (orig) => ({ ...(await orig<typeof import('../
 
 function filled(): Game {
   const game = makeEmptyGame()
-  game.finalRound = undefined
+  delete game.finalThemes
   game.rounds = [game.rounds[0]]
   game.rounds[0].themes = [game.rounds[0].themes[0]]
   for (const q of game.rounds[0].themes[0].questions) Object.assign(q, { text: 'В', answer: 'О' })

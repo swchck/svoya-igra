@@ -16,7 +16,7 @@ import {
 import { useGamesStore } from '@/stores/games'
 import { confirmAction } from '@/composables/useConfirm'
 import { useBackup } from '@/composables/useBackup'
-import { makeEmptyGame, newGameSettings } from '@/game/model'
+import { hasFinal, makeEmptyGame, newGameSettings } from '@/game/model'
 import { prefs } from '@/prefs'
 import type { GameFileFormat } from '@/io/gameFile'
 import { GAME_FILE_ACCEPT, isBackupFileName } from '@/io/files'
@@ -130,10 +130,9 @@ async function importFile(file: File) {
   if (isBackupFileName(file.name)) return restoreBackup(file)
   busy.value = true
   try {
-    const { importGameFileWithNotes } = await gameFile()
-    const { game: imported, notes } = await importGameFileWithNotes(file)
-    const game = await store.save(imported)
-    toast.success(t('home.toast.imported'), { description: [game.title, ...notes].join(' · ') })
+    const { importGameFile } = await gameFile()
+    const game = await store.save(await importGameFile(file))
+    toast.success(t('home.toast.imported'), { description: game.title })
   } catch (err) {
     failed(t('home.toast.importFailed'), err)
   } finally {
@@ -149,7 +148,7 @@ function stats(g: Game) {
   const rounds = t('home.card.rounds', { n: g.rounds.length }, g.rounds.length)
   const count = questionCount(g)
   const questions = t('home.card.questions', { n: count }, count)
-  return t(g.finalRound ? 'home.card.statsWithFinal' : 'home.card.stats', { rounds, questions })
+  return t(hasFinal(g) ? 'home.card.statsWithFinal' : 'home.card.stats', { rounds, questions })
 }
 
 function fmtDate(ts: number) {

@@ -3,21 +3,22 @@ import SoundToggle from '@/components/SoundToggle.vue'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Eye, Keyboard, Minus, Plus, SkipForward, Smartphone, Undo2 } from '@lucide/vue'
+import { Eye, Keyboard, Lightbulb, Minus, Plus, SkipForward, Smartphone, Undo2 } from '@lucide/vue'
 import type { Game, MediaItem } from '@/types'
 import { Button } from '@/components/ui/button'
 import { getGame } from '@/storage'
 import { useHostDemo } from '@/composables/useHostDemo'
 import { offerTour, tour } from '@/tour/state'
 import TourHelpButton from '@/tour/TourHelpButton.vue'
-import { usePlaySession, type Phase, type SessionSnapshot, type Sign } from '@/composables/usePlaySession'
+import { QUESTION_PHASES, usePlaySession, type Phase, type SessionSnapshot, type Sign } from '@/composables/usePlaySession'
 import { accentStyle } from '@/play/accents'
 import { playerColor } from '@/play/palette'
 import { useRemaining } from '@/play/timer'
 import { HOST_PING_MS, openPlayChannel, type HostCommand, type PlayChannel } from '@/play/channel'
 import type { MediaAction, MediaStatus } from '@/play/mediaControl'
-import { buzzable, buzzWindow, buzzWinner, type LanStatus } from '@/play/lan'
+import { answerLabel, buzzable, buzzWindow, buzzWinner, type LanStatus } from '@/play/lan'
 import { prefs } from '@/prefs'
+import { hintedValue, isSpecial, kindInfo, optionLetter, revealedAnswer } from '@/game/kinds'
 import BoardGrid from '@/components/play/BoardGrid.vue'
 import AnimatedNumber from '@/components/play/AnimatedNumber.vue'
 import AuctionPanel from '@/components/play/AuctionPanel.vue'
@@ -30,6 +31,8 @@ import HostMediaControls from '@/components/play/HostMediaControls.vue'
 import HostTimer from '@/components/play/HostTimer.vue'
 import StatsTable from '@/components/play/StatsTable.vue'
 import BuzzPanel from '@/components/play/BuzzPanel.vue'
+import AnswerKey from '@/components/play/AnswerKey.vue'
+import FinalThemesSlide from '@/components/play/FinalThemesSlide.vue'
 
 const props = defineProps<{ id: string }>()
 const router = useRouter()
@@ -39,10 +42,15 @@ const game = ref<Game | null>(null)
 const connected = ref(false)
 // a mirror of the stage's session: snapshots overwrite it, commands go back to the stage
 const mirror = usePlaySession(game)
-const { state, players, round, activeQuestion, activeValue, canUndo } = mirror
+const { state, players, round, activeQuestion, activeValue, activeFinal, canUndo } = mirror
+const finalPickerName = computed(() => (mirror.finalPicker.value ? mirror.player(mirror.finalPicker.value)?.name : undefined))
 const mediaStatus = ref<Record<string, MediaStatus>>({})
 /** The stage's phone buzzers; null while they are off. */
 const lan = ref<LanStatus | null>(null)
+const groupAnswers = computed(() =>
+  Object.fromEntries(Object.entries(lan.value?.answers ?? {}).map(([id, raw]) => [id, answerLabel(activeQuestion.value, raw)])),
+)
+const hintsLeft = computed(() => (activeQuestion.value?.hints?.length ?? 0) - state.hintsShown)
 const showBuzz = computed(() => !!lan.value && buzzable(state))
 const buzzedId = computed(() => (lan.value && buzzWindow(state) !== null ? buzzWinner(lan.value) : undefined))
 
@@ -52,9 +60,11 @@ const phaseLabel = computed<Record<Phase, string>>(() => ({
   board: t('host.phase.board'),
   auction: t('host.phase.auction'),
   cat: t('host.phase.cat'),
+  'no-risk': t('host.phase.noRisk'),
   question: t('host.phase.question'),
   answer: t('host.phase.answer'),
   'final-intro': t('host.phase.finalIntro'),
+  'final-themes': t('host.phase.finalThemes'),
   'final-bets': t('host.phase.finalBets'),
   'final-question': t('host.phase.finalQuestion'),
   'final-answer': t('host.phase.finalAnswer'),
@@ -62,12 +72,12 @@ const phaseLabel = computed<Record<Phase, string>>(() => ({
 }))
 
 const theme = computed(() => round.value?.themes.find((t) => t.questions.some((q) => q.id === state.activeQuestionId)))
-const isQuestionPhase = computed(() => ['auction', 'cat', 'question', 'answer'].includes(state.phase))
+const isQuestionPhase = computed(() => QUESTION_PHASES.includes(state.phase))
 const isFinalPhase = computed(() => ['final-bets', 'final-question', 'final-answer'].includes(state.phase))
 
 function onScreen(): MediaItem[] {
   const q = activeQuestion.value
-  const f = game.value?.finalRound
+  const f = mirror.activeFinal.value
   switch (state.phase) {
     case 'question': return q?.media ?? []
     case 'answer': return q?.answerMedia ?? []
@@ -127,7 +137,6 @@ function verdictKey(sign: Sign) {
 }
 
 const ADVANCE_PHASES: Phase[] = ['round-intro', 'question', 'final-intro', 'final-bets', 'final-question']
-const CLOSABLE_PHASES: Phase[] = ['auction', 'cat', 'question', 'answer']
 
 function onKey(e: KeyboardEvent) {
   if (!connected.value || e.altKey) return
@@ -148,7 +157,7 @@ function onKey(e: KeyboardEvent) {
   else if (e.key === '?') hintOpen.value = !hintOpen.value
   else if (e.key === 'Escape') {
     if (hintOpen.value) hintOpen.value = false
-    else if (CLOSABLE_PHASES.includes(state.phase)) send('close')
+    else if (QUESTION_PHASES.includes(state.phase)) send('close')
   } else if (e.key === ' ' && !target?.closest('button, a, summary')) {
     // a focused button takes its own Space
     if (state.phase === 'title') send('start')
@@ -214,7 +223,7 @@ onUnmounted(() => {
 
         <div v-else-if="state.phase === 'round-intro' || state.phase === 'final-intro'" class="center">
           <p class="title-gold text-4xl">{{ state.phase === 'final-intro' ? t('host.final') : round?.name }}</p>
-          <Button size="lg" class="big" @click="send('advance')">{{ state.phase === 'final-intro' ? t('host.toBets') : t('host.toBoard') }}</Button>
+          <Button size="lg" class="big" @click="send('advance')">{{ state.phase === 'final-intro' ? (mirror.finalLeft.value.length > 1 ? t('host.toThemes') : t('host.toBets')) : t('host.toBoard') }}</Button>
         </div>
 
         <div v-else-if="state.phase === 'board' && round" class="board-wrap">
@@ -238,22 +247,35 @@ onUnmounted(() => {
         <div v-else-if="activeQuestion && isQuestionPhase" class="question" data-tour="host-question">
           <div class="plate">
             <span>{{ theme?.name }}</span>
-            <span v-if="activeQuestion.kind === 'auction'" class="kind">{{ t('host.auction') }}</span>
-            <span v-else-if="activeQuestion.kind === 'cat-in-bag'" class="kind">{{ t('host.catInBag') }}</span>
+            <span v-if="isSpecial(activeQuestion.kind)" class="kind">{{ t(`host.kinds.${kindInfo(activeQuestion.kind).key}`) }}</span>
             <span class="amount">{{ activeValue }}</span>
           </div>
           <MarkdownView class="q-text rich" :source="activeQuestion.text" />
+          <ol v-if="activeQuestion.hints?.length" class="host-hints" :aria-label="t('host.hints.title')">
+            <li v-for="(h, i) in activeQuestion.hints" :key="h.id" :class="{ shown: i < state.hintsShown }">
+              <span class="hint-value">{{ hintedValue(activeQuestion.value, activeQuestion.hints.length, i + 1) }}</span>
+              <span>{{ h.text || t('host.hints.mediaOnly') }}</span>
+            </li>
+          </ol>
           <div class="answer">
             <span class="answer-label"><Eye class="size-4" />{{ t('host.answer') }}</span>
-            <MarkdownView class="answer-text rich" :source="activeQuestion.answer" />
+            <MarkdownView class="answer-text rich" :source="revealedAnswer(activeQuestion)" />
+            <AnswerKey :card="activeQuestion" />
           </div>
           <HostMediaControls v-if="stageMedia.length" :items="stageMedia" :status="mediaStatus" @action="mediaAction" />
           <HostTimer v-if="showTimer" data-tour="host-timer" :remaining-ms="remaining" :total-ms="answerMs" :running="timerRunning" @start="send('timerStart')" @pause="send('timerPause')" @reset="send('timerReset')" />
+
+          <ol v-if="activeQuestion.options?.length" class="host-options">
+            <li v-for="(o, i) in activeQuestion.options" :key="i" :class="{ right: i === activeQuestion.correctOption }">
+              <b>{{ optionLetter(i) }}</b> {{ o }}
+            </li>
+          </ol>
 
           <AuctionPanel
             v-if="state.phase === 'auction'"
             :players="players"
             :value="activeQuestion.value"
+            :all-in="activeQuestion.kind === 'all-in'"
             @stake="(id, amount) => send('setAuctionStake', id, amount)"
           />
           <CatPanel
@@ -262,7 +284,33 @@ onUnmounted(() => {
             :value="activeQuestion.catValue ?? activeQuestion.value"
             @give="(id) => send('giveCat', id)"
           />
+          <CatPanel
+            v-else-if="state.phase === 'no-risk'"
+            :players="players"
+            :value="activeQuestion.value"
+            :prompt="t('play.noRisk.who', { value: activeQuestion.value })"
+            :suggested-id="state.chooserId"
+            @give="(id) => send('takeNoRisk', id)"
+          />
+          <FinalVerdictPanel
+            v-else-if="state.phase === 'answer' && state.groupVerdicts"
+            :players="players"
+            :value="activeValue"
+            :verdicts="state.groupVerdicts"
+            :answers="lan ? groupAnswers : undefined"
+            :done-label="t('play.forAll.done')"
+            @verdict="(id, sign) => send('setGroupVerdict', id, sign)"
+            @done="send('scoreGroup')"
+          />
           <template v-else-if="state.phase === 'question'">
+            <section v-if="lan && state.groupVerdicts" class="phone-answers" :aria-label="t('lan.final.answers')">
+              <h3 class="aside-title">{{ t('lan.final.answers') }}</h3>
+              <p v-for="p in players" :key="p.id">
+                <span class="who-name">{{ p.name }}</span>
+                <span v-if="lan.answers[p.id]" class="said">{{ answerLabel(activeQuestion, lan.answers[p.id]) }}</span>
+                <span v-else class="muted">{{ t('lan.final.noAnswer') }}</span>
+              </p>
+            </section>
             <BuzzPanel
               v-if="showBuzz && lan"
               data-tour="host-buzz"
@@ -274,27 +322,44 @@ onUnmounted(() => {
               @reopen="(wrong) => send('buzzReopen', wrong)"
               @open="send('openBuzz')"
             />
-            <Button size="lg" class="big self-center" @click="send('advance')">
-              {{ t('host.showAnswer') }}
-            </Button>
+            <div class="flex flex-wrap justify-center gap-3">
+              <Button v-if="hintsLeft" size="lg" variant="secondary" class="big" @click="send('revealHint')">
+                <Lightbulb />{{ t('play.hints.next', { n: state.hintsShown + 1, total: activeQuestion.hints!.length }) }}
+              </Button>
+              <Button size="lg" class="big" @click="send('advance')">
+                {{ t('host.showAnswer') }}
+              </Button>
+            </div>
           </template>
           <VerdictPanel
             v-else
             data-tour="host-verdict"
             :players="players"
             :value="activeValue"
+            :loss="mirror.activePenalty.value"
             :only-player-id="state.stake?.playerId"
             @verdict="(playerId, sign) => send('close', { playerId, sign })"
             @nobody="send('close')"
           />
         </div>
 
-        <div v-else-if="game.finalRound && isFinalPhase" class="question">
-          <div class="plate"><span>{{ t('host.final') }}</span><span class="kind">{{ game.finalRound.theme }}</span></div>
-          <MarkdownView class="q-text rich" :source="game.finalRound.text" />
+        <div v-else-if="state.phase === 'final-themes'" class="center">
+          <FinalThemesSlide
+            :themes="game.finalThemes ?? []"
+            :removed="state.finalRemoved"
+            :picker="finalPickerName"
+            interactive
+            @remove="(id) => send('removeFinalTheme', id)"
+          />
+        </div>
+
+        <div v-else-if="activeFinal && isFinalPhase" class="question">
+          <div class="plate"><span>{{ t('host.final') }}</span><span class="kind">{{ activeFinal.theme }}</span></div>
+          <MarkdownView class="q-text rich" :source="activeFinal.text" />
           <div class="answer">
             <span class="answer-label"><Eye class="size-4" />{{ t('host.answer') }}</span>
-            <MarkdownView class="answer-text rich" :source="game.finalRound.answer" />
+            <MarkdownView class="answer-text rich" :source="activeFinal.answer" />
+            <AnswerKey :card="activeFinal" />
           </div>
           <HostMediaControls v-if="stageMedia.length" :items="stageMedia" :status="mediaStatus" @action="mediaAction" />
           <HostTimer v-if="showTimer" :remaining-ms="remaining" :total-ms="answerMs" :running="timerRunning" @start="send('timerStart')" @pause="send('timerPause')" @reset="send('timerReset')" />
@@ -554,6 +619,45 @@ onUnmounted(() => {
 }
 .rich :deep(code) {
   font-size: 0.85em;
+}
+.host-hints {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 15px;
+}
+.host-hints li {
+  display: flex;
+  gap: 10px;
+  color: var(--muted-foreground);
+}
+.host-hints li.shown {
+  color: var(--foreground);
+}
+.hint-value {
+  flex: none;
+  min-width: 44px;
+  font-family: var(--font-display);
+  color: var(--gold);
+}
+.host-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.host-options li {
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: oklch(1 0 0 / 0.06);
+}
+.host-options li.right {
+  background: color-mix(in oklch, var(--gold) 22%, transparent);
+  box-shadow: inset 0 0 0 1px var(--gold);
 }
 .phone-answers {
   display: grid;

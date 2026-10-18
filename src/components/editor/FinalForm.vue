@@ -7,9 +7,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import MediaList from '@/components/MediaList.vue'
 import MarkdownEditor from '@/components/MarkdownEditor.vue'
+import HostFields from './HostFields.vue'
 
 const { t } = useI18n()
 const final = defineModel<FinalQuestion>({ required: true })
+/** This is the only theme, so removing it removes the final. */
+defineProps<{ removesFinal?: boolean }>()
 defineEmits<{ (e: 'remove'): void; (e: 'preview'): void }>()
 </script>
 
@@ -29,10 +32,11 @@ defineEmits<{ (e: 'remove'): void; (e: 'preview'): void }>()
       <MarkdownEditor v-model="final.answer" display :label="t('editor.final.answer')" :placeholder="t('editor.final.answerPlaceholder')" />
     </div>
     <MediaList v-model="final.answerMedia" :label="t('editor.final.answerMedia')" />
+    <HostFields v-model="final" />
     <div class="flex flex-wrap gap-2">
       <Button variant="secondary" @click="$emit('preview')"><MonitorPlay />{{ t('editor.final.preview') }}</Button>
       <span class="flex-1" />
-      <Button variant="ghost" class="text-destructive" @click="$emit('remove')"><Trash2 />{{ t('editor.final.remove') }}</Button>
+      <Button variant="ghost" class="text-destructive" @click="$emit('remove')"><Trash2 />{{ removesFinal ? t('editor.final.remove') : t('editor.final.removeTheme') }}</Button>
     </div>
   </div>
 </template>

@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import {
-  ArrowLeft, ArrowRight, CircleAlert, CircleCheck, Download, FileJson, History, Loader2, MoreHorizontal, Package, Play, Plus, Printer,
-  Trash2, TriangleAlert, Trophy, Wifi,
+  ArrowLeft, ArrowRight, CircleAlert, CircleCheck, ClipboardPaste, Coins, Download, FileJson, History, Loader2, MoreHorizontal, Package, Play, Plus, Printer,
+  Search, Trash2, TriangleAlert, Trophy, Wifi,
 } from '@lucide/vue'
 import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -19,7 +19,7 @@ import {
 import { confirmAction } from '@/composables/useConfirm'
 import { useGamesStore } from '@/stores/games'
 import { getGame } from '@/storage'
-import { makeEmptyFinal, makeEmptyRound, moveItem, moveItemTo } from '@/game/model'
+import { hasFinal, makeEmptyFinal, makeEmptyRound, moveItem, moveItemTo } from '@/game/model'
 import type { Issue } from '@/game/validate'
 import type { Snapshot } from '@/history'
 import { plainCopy } from '@/lib/plain'
@@ -37,6 +37,11 @@ import StagePreview from '@/components/editor/StagePreview.vue'
 import HistoryDialog from '@/components/editor/HistoryDialog.vue'
 import IssuesDialog from '@/components/editor/IssuesDialog.vue'
 import GameSettingsDialog from '@/components/editor/GameSettingsDialog.vue'
+import ValuesDialog from '@/components/editor/ValuesDialog.vue'
+import TypeInDialog from '@/components/editor/TypeInDialog.vue'
+import SearchDialog from '@/components/editor/SearchDialog.vue'
+import { copyQuestion, type SearchHit } from '@/game/edit'
+import { useBoardClipboard } from '@/composables/useBoardClipboard'
 import { offerTour } from '@/tour/state'
 import TourHelpButton from '@/tour/TourHelpButton.vue'
 
@@ -51,6 +56,17 @@ const selectedId = ref<string | null>(null)
 const previewOpen = ref(false)
 const historyOpen = ref(false)
 const issuesOpen = ref(false)
+const valuesOpen = ref(false)
+const searchOpen = ref(false)
+/** Index of the theme getting questions typed in, while that dialog is open. */
+const typeInTheme = ref<number | null>(null)
+const typeInOpen = computed({
+  get: () => typeInTheme.value !== null,
+  set: (open) => {
+    if (!open) typeInTheme.value = null
+  },
+})
+const { clip, pasteTheme } = useBoardClipboard()
 
 getGame(props.id).then((g) => {
   if (!g) return router.replace({ name: 'home' })
@@ -148,6 +164,55 @@ async function removeTheme(index: number) {
   round.value?.themes.splice(index, 1)
 }
 
+const otherRounds = computed(() =>
+  (game.value?.rounds ?? [])
+    .map((r, index) => ({ index, name: r.name || t('editor.strip.defaultRound', { n: index + 1 }) }))
+    .filter((r) => r.index !== tab.value),
+)
+
+function moveTheme(index: number, roundIndex: number) {
+  const target = game.value?.rounds[roundIndex]
+  const theme = round.value?.themes[index]
+  if (!target || !theme) return
+  if (theme.questions.some((q) => q.id === selectedId.value)) selectedId.value = null
+  round.value!.themes.splice(index, 1)
+  target.themes.push(theme)
+  toast.success(t('editor.board.moved', { name: target.name || t('editor.strip.defaultRound', { n: roundIndex + 1 }) }))
+}
+
+function pasteThemeHere() {
+  const theme = pasteTheme()
+  if (theme) round.value?.themes.push(theme)
+}
+
+function duplicateQuestion() {
+  const c = current.value
+  if (!c) return
+  const copy = copyQuestion(c.q)
+  c.t.questions.splice(c.qi + 1, 0, copy)
+  selectedId.value = copy.id
+}
+
+async function goToHit(hit: SearchHit) {
+  if (hit.roundIndex === undefined) {
+    tab.value = 'final'
+    return
+  }
+  tab.value = hit.roundIndex
+  await nextTick()
+  selectedId.value = hit.questionId ?? null
+}
+
+function onEditorKey(e: KeyboardEvent) {
+  // the layout-independent code, so Cyrillic keyboards search as well
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.code === 'KeyF') {
+    e.preventDefault()
+    searchOpen.value = true
+  }
+}
+onMounted(() => window.addEventListener('keydown', onEditorKey))
+onUnmounted(() => window.removeEventListener('keydown', onEditorKey))
+
 function moveQuestion(offset: -1 | 1) {
   const c = current.value
   if (c) moveItem(c.t.questions, c.qi, offset)
@@ -163,12 +228,35 @@ async function removeQuestion() {
   selectedId.value = neighbour && neighbour.q !== c.q ? neighbour.q.id : null
 }
 
-async function removeFinal() {
+/** Index of the final theme the preview shows. */
+const finalPreview = ref(0)
+const previewedFinal = computed(() => game.value?.finalThemes?.[finalPreview.value])
+
+function addFinalTheme() {
   if (!game.value) return
-  if (await confirmAction({ title: t('editor.page.removeFinalTitle'), confirmLabel: t('editor.page.delete'), destructive: true })) {
-    await snapshot('before-delete')
-    game.value.finalRound = undefined
-  }
+  const themes = (game.value.finalThemes ??= [])
+  themes.push(makeEmptyFinal())
+  if (themes.length > 1) themes[themes.length - 1].theme = t('editor.final.defaultTheme', { n: themes.length })
+}
+
+async function removeFinalTheme(index: number) {
+  const themes = game.value?.finalThemes
+  if (!themes) return
+  const last = themes.length === 1
+  const ok = await confirmAction({
+    title: last ? t('editor.page.removeFinalTitle') : t('editor.final.removeThemeTitle', { name: themes[index].theme }),
+    confirmLabel: t('editor.page.delete'),
+    destructive: true,
+  })
+  if (!ok) return
+  await snapshot('before-delete')
+  themes.splice(index, 1)
+  if (!themes.length) delete game.value!.finalThemes
+}
+
+function previewFinal(index: number) {
+  finalPreview.value = index
+  previewOpen.value = true
 }
 
 // the dispose-time flush can't report a failure, so settle the save while the page can still say so
@@ -280,6 +368,7 @@ async function exportAs(format: GameFileFormat) {
         <CircleAlert v-if="errors" class="size-4" /><TriangleAlert v-else-if="warnings" class="size-4" /><CircleCheck v-else class="size-4" />
         <span v-if="issues.length" class="tabular-nums">{{ issues.length }}</span>
       </button>
+      <Button variant="ghost" :aria-label="t('editor.search.title')" :title="t('editor.search.hint')" aria-keyshortcuts="Control+F Meta+F" @click="searchOpen = true"><Search /></Button>
       <Button variant="ghost" data-tour="history" :aria-label="t('editor.page.history')" :title="t('editor.page.history')" @click="historyOpen = true"><History /><span class="lbl">{{ t('editor.page.history') }}</span></Button>
       <TourHelpButton id="editor" />
       <GameSettingsDialog v-model="game.settings" />
@@ -301,7 +390,7 @@ async function exportAs(format: GameFileFormat) {
     </header>
 
     <div class="body">
-      <RoundStrip v-model="tab" data-tour="rounds" :rounds="game.rounds" :final="game.finalRound" @add="addRound" @reorder="reorderRound" />
+      <RoundStrip v-model="tab" data-tour="rounds" :rounds="game.rounds" :has-final="hasFinal(game)" @add="addRound" @reorder="reorderRound" />
 
       <template v-if="round">
         <section class="board-pane">
@@ -312,6 +401,9 @@ async function exportAs(format: GameFileFormat) {
                 <Button variant="ghost" size="icon" :aria-label="t('editor.page.roundActions')"><MoreHorizontal /></Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" class="min-w-56">
+                <DropdownMenuItem @select="valuesOpen = true"><Coins />{{ t('editor.values.menu') }}</DropdownMenuItem>
+                <DropdownMenuItem :disabled="clip?.kind !== 'theme'" @select="pasteThemeHere"><ClipboardPaste />{{ t('editor.board.pasteTheme') }}</DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem :disabled="tab === 0" @select="moveRound(-1)"><ArrowLeft />{{ t('editor.page.moveEarlier') }}</DropdownMenuItem>
                 <DropdownMenuItem :disabled="tab === game.rounds.length - 1" @select="moveRound(1)"><ArrowRight />{{ t('editor.page.moveLater') }}</DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -319,7 +411,16 @@ async function exportAs(format: GameFileFormat) {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-          <BoardEditor v-model:round="round" v-model:selected="selectedId" @remove-theme="removeTheme" />
+          <BoardEditor
+            v-model:round="round"
+            v-model:selected="selectedId"
+            :other-rounds="otherRounds"
+            @remove-theme="removeTheme"
+            @move-theme="moveTheme"
+            @type-in="(i) => (typeInTheme = i)"
+          />
+          <ValuesDialog v-model:open="valuesOpen" :round="round" />
+          <TypeInDialog v-model:open="typeInOpen" :theme="typeInTheme === null ? undefined : round.themes[typeInTheme]" />
           <p class="tip">{{ t('editor.page.tip') }}</p>
         </section>
 
@@ -337,24 +438,31 @@ async function exportAs(format: GameFileFormat) {
           @move="moveQuestion"
           @remove="removeQuestion"
           @preview="previewOpen = true"
+          @duplicate="duplicateQuestion"
         />
       </template>
 
       <section v-else-if="tab === 'final'" class="final-pane glass">
-        <template v-if="game.finalRound">
+        <template v-if="game.finalThemes?.length">
           <h2 class="final-title"><Trophy class="size-6" />{{ t('editor.page.finalTitle') }}</h2>
-          <FinalForm v-model="game.finalRound" @remove="removeFinal" @preview="previewOpen = true" />
+          <p class="final-hint">{{ t('editor.final.themesHint') }}</p>
+          <article v-for="(f, i) in game.finalThemes" :key="f.id" class="final-card">
+            <h3 v-if="game.finalThemes.length > 1" class="final-n">{{ t('editor.final.themeN', { n: i + 1 }) }}</h3>
+            <FinalForm v-model="game.finalThemes[i]" :removes-final="game.finalThemes.length === 1" @remove="removeFinalTheme(i)" @preview="previewFinal(i)" />
+          </article>
+          <Button variant="secondary" class="self-start" @click="addFinalTheme"><Plus />{{ t('editor.final.addTheme') }}</Button>
         </template>
         <div v-else class="empty">
           <Trophy class="size-12 text-gold" />
           <p class="text-lg">{{ t('editor.page.finalIntro') }}</p>
-          <Button size="lg" @click="game.finalRound = makeEmptyFinal()"><Plus />{{ t('editor.page.addFinal') }}</Button>
+          <Button size="lg" @click="addFinalTheme"><Plus />{{ t('editor.page.addFinal') }}</Button>
         </div>
       </section>
     </div>
 
     <HistoryDialog v-model:open="historyOpen" :game-id="game.id" @restore="restore" />
     <IssuesDialog v-model:open="issuesOpen" :issues="issues" @goto="goToIssue" />
+    <SearchDialog v-model:open="searchOpen" :game="game" @goto="goToHit" />
     <ShareGameDialog v-if="isDesktop" v-model:open="shareOpen" :game="game" />
 
     <StagePreview
@@ -368,13 +476,13 @@ async function exportAs(format: GameFileFormat) {
       :answer-media="current.q.answerMedia"
     />
     <StagePreview
-      v-else-if="tab === 'final' && game.finalRound"
+      v-else-if="tab === 'final' && previewedFinal"
       v-model:open="previewOpen"
-      :topic="t('editor.page.previewFinalTopic', { theme: game.finalRound.theme })"
-      :text="game.finalRound.text"
-      :media="game.finalRound.media"
-      :answer="game.finalRound.answer"
-      :answer-media="game.finalRound.answerMedia"
+      :topic="t('editor.page.previewFinalTopic', { theme: previewedFinal.theme })"
+      :text="previewedFinal.text"
+      :media="previewedFinal.media"
+      :answer="previewedFinal.answer"
+      :answer-media="previewedFinal.answerMedia"
     />
   </div>
 </template>
@@ -536,11 +644,34 @@ async function exportAs(format: GameFileFormat) {
   padding: 24px;
   border-radius: 20px;
 }
+.final-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.final-hint {
+  margin: -8px 0 0;
+  color: var(--muted-foreground);
+}
+.final-card {
+  display: grid;
+  gap: 10px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid oklch(1 0 0 / 0.08);
+}
+.final-n {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
 .final-title {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 0 0 18px;
+  margin: 0;
   font-family: var(--font-display);
   font-size: 30px;
   letter-spacing: 0.04em;

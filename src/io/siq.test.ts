@@ -38,6 +38,8 @@ const V4 = `<?xml version="1.0" encoding="utf-8"?>
                 <atom type="voice">@ответ.mp3</atom>
               </scenario>
               <right><answer>Первый</answer><answer>Второй</answer></right>
+              <wrong><answer>Третий</answer></wrong>
+              <info><comments>Спорно</comments><sources><source>Книга</source></sources></info>
             </question>
             <question price="200">
               <type name="auction"/>
@@ -122,7 +124,7 @@ describe('importSiq v4', () => {
   }
 
   it('maps package info, rounds, themes and prices', async () => {
-    const { game } = await importSiq(siq(V4, files), '', fakeStore().store)
+    const game = await importSiq(siq(V4, files), '', fakeStore().store)
     expect(game.title).toBe('Пакет v4')
     expect(game.subtitle).toBe('Иван, Пётр')
     expect(game.rounds).toHaveLength(1)
@@ -131,11 +133,11 @@ describe('importSiq v4', () => {
     expect(game.rounds[0].themes[0].questions.map((q) => q.value)).toEqual([100, 200, 300])
   })
 
-  it('escapes markdown, joins answers and splits question from answer at the marker', async () => {
-    const { game } = await importSiq(siq(V4, files), '', fakeStore().store)
+  it('escapes markdown, keeps other answers for the host and splits question from answer at the marker', async () => {
+    const game = await importSiq(siq(V4, files), '', fakeStore().store)
     const q = game.rounds[0].themes[0].questions[0]
     expect(q.text).toBe('Что \\<b-like\\> \\*важно\\* 1. тест?')
-    expect(q.answer).toBe('Первый / Второй')
+    expect(q).toMatchObject({ answer: 'Первый', accepted: ['Второй'], rejected: ['Третий'], notes: 'Спорно\nКнига' })
     expect(q.media).toMatchObject([{ kind: 'image', url: 'media://m1' }])
     expect(q.answerMedia).toMatchObject([{ kind: 'audio', url: 'media://m2' }])
   })
@@ -147,17 +149,17 @@ describe('importSiq v4', () => {
     expect(new Uint8Array(await store.blobs[0].arrayBuffer())).toEqual(PNG)
   })
 
-  it('maps auction, sponsored and cat-in-bag with cost and theme', async () => {
-    const { game } = await importSiq(siq(V4, files), '', fakeStore().store)
+  it('maps auction, no-risk and cat-in-bag with cost and theme', async () => {
+    const game = await importSiq(siq(V4, files), '', fakeStore().store)
     const [, auction, sponsored] = game.rounds[0].themes[0].questions
     expect(auction.kind).toBe('auction')
-    expect(sponsored.kind).toBe('normal')
+    expect(sponsored.kind).toBe('no-risk')
     const cat = game.rounds[0].themes[1].questions[0]
     expect(cat).toMatchObject({ kind: 'cat-in-bag', catValue: 250, text: '**Тема: Животные**' })
   })
 
   it('keeps external links, drops missing files', async () => {
-    const { game } = await importSiq(siq(V4, files), '', fakeStore().store)
+    const game = await importSiq(siq(V4, files), '', fakeStore().store)
     const media = game.rounds[0].themes[1].questions[0].media
     expect(media).toMatchObject([
       { kind: 'video', url: 'media://m3' },
@@ -165,10 +167,12 @@ describe('importSiq v4', () => {
     ])
   })
 
-  it('takes the first final theme and counts the rest', async () => {
-    const { game, droppedFinalThemes } = await importSiq(siq(V4, files), '', fakeStore().store)
-    expect(game.finalRound).toMatchObject({ theme: 'Первая', text: 'Финальный', answer: 'Да' })
-    expect(droppedFinalThemes).toBe(1)
+  it('takes every final theme', async () => {
+    const game = await importSiq(siq(V4, files), '', fakeStore().store)
+    expect(game.finalThemes).toMatchObject([
+      { theme: 'Первая', text: 'Финальный', answer: 'Да' },
+      { theme: 'Вторая', text: 'Лишний', answer: 'Нет' },
+    ])
   })
 })
 
@@ -177,18 +181,17 @@ describe('importSiq v5', () => {
 
   it('reads content parameters, matching plain and encoded file names', async () => {
     const store = fakeStore()
-    const { game, droppedFinalThemes } = await importSiq(siq(V5, files), '', store.store)
+    const game = await importSiq(siq(V5, files), '', store.store)
     const q = game.rounds[0].themes[0].questions[0]
     expect(q).toMatchObject({ value: 500, text: 'Вопрос', answer: 'Ответ' })
     expect(q.media?.map((m) => m.kind)).toEqual(['image', 'audio'])
     expect(q.answerMedia).toMatchObject([{ kind: 'image', url: 'media://m1' }])
     expect(store.blobs).toHaveLength(2)
-    expect(droppedFinalThemes).toBe(0)
-    expect(game.finalRound).toMatchObject({ theme: 'Одна', text: 'Ф', answer: 'О' })
+    expect(game.finalThemes).toMatchObject([{ theme: 'Одна', text: 'Ф', answer: 'О' }])
   })
 
   it('maps stake and secret types, using the lowest price of a number set', async () => {
-    const { game } = await importSiq(siq(V5, files), '', fakeStore().store)
+    const game = await importSiq(siq(V5, files), '', fakeStore().store)
     const [, stake, secret, noQuestion] = game.rounds[0].themes[0].questions
     expect(stake.kind).toBe('auction')
     expect(secret).toMatchObject({ kind: 'cat-in-bag', catValue: 300, text: '**Тема: Космос**\n\nСекрет' })
@@ -218,7 +221,7 @@ describe('importSiq errors and fallbacks', () => {
   it('falls back to the file name for an unnamed package and skips a long author list', async () => {
     const authors = `<info><authors><author>${'А'.repeat(90)}</author></authors></info>`
     const xml = `<package>${authors}<rounds><round><themes><theme name="т"><questions><question price="1"><right><answer>о</answer></right></question></questions></theme></themes></round></rounds></package>`
-    const { game } = await importSiq(siq(xml), 'мой файл')
+    const game = await importSiq(siq(xml), 'мой файл')
     expect(game.title).toBe('мой файл')
     expect(game.subtitle).toBeUndefined()
     expect(game.rounds[0].name).toBe('Раунд 1')

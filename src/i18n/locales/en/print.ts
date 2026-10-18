@@ -11,6 +11,9 @@ export default {
   kind: {
     auction: 'Auction',
     catInBag: 'Cat in the bag, for {n}',
+    noRisk: 'No risk',
+    allIn: 'All in',
+    forAll: 'For all',
   },
   media: {
     image: 'picture',
@@ -21,4 +24,6 @@ export default {
     from: '{label} from {start}',
     range: '{label} {start}–{end}',
   },
+  accepted: 'Also right',
+  rejected: 'Do not accept',
 } satisfies typeof ru

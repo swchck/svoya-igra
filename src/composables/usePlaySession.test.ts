@@ -8,7 +8,7 @@ function tinyGame(withFinal = true): Game {
   const game = makeEmptyGame()
   game.rounds = [makeEmptyRound('R1', 1), makeEmptyRound('R2', 1)]
   for (const r of game.rounds) r.themes[0].questions.splice(2)
-  game.finalRound = withFinal ? makeEmptyFinal() : undefined
+  game.finalThemes = withFinal ? [makeEmptyFinal()] : undefined
   return game
 }
 
@@ -93,6 +93,51 @@ describe('usePlaySession', () => {
     expect(p1.score).toBe(0)
   })
 
+  it('has players strike final themes in turn, lowest score first, and plays the one left', () => {
+    const game = tinyGame()
+    game.finalThemes = ['A', 'B', 'C', 'D'].map((theme) => ({ ...makeEmptyFinal(), theme }))
+    const s = usePlaySession(ref(game))
+    s.addPlayer()
+    const [p1, p2, p3] = s.players.value
+    s.start()
+    s.advance()
+    s.nextRound()
+    s.advance()
+    s.nextRound()
+    p1.score = 500
+    p2.score = 200
+    p3.score = -100
+    expect(s.state.phase).toBe('final-intro')
+    s.advance()
+    expect(s.state.phase).toBe('final-themes')
+    expect(s.finalPicker.value).toBe(p2.id)
+    expect(s.advance()).toBe(false)
+    const [a, b, c, d] = game.finalThemes
+    s.removeFinalTheme(c.id)
+    s.removeFinalTheme(c.id)
+    expect(s.finalPicker.value).toBe(p1.id)
+    s.removeFinalTheme(a.id)
+    expect(s.finalPicker.value).toBe(p2.id)
+    s.undo()
+    expect(s.state.finalRemoved).toEqual([c.id])
+    s.removeFinalTheme(d.id)
+    s.removeFinalTheme(a.id)
+    expect(s.state.phase).toBe('final-bets')
+    expect(s.activeFinal.value?.id).toBe(b.id)
+    expect(s.finalPicker.value).toBeNull()
+  })
+
+  it('goes straight to bets with a single final theme', () => {
+    const s = usePlaySession(ref(tinyGame()))
+    s.start()
+    s.advance()
+    s.nextRound()
+    s.advance()
+    s.nextRound()
+    s.advance()
+    expect(s.state.phase).toBe('final-bets')
+  })
+
   it('skips the final when there is none', () => {
     const s = usePlaySession(ref(tinyGame(false)))
     s.start()
@@ -139,6 +184,98 @@ describe('usePlaySession', () => {
     s.close({ playerId: p2.id, sign: 1 })
 
     expect(p2.score).toBe(750)
+  })
+
+  it('makes the all-in player stake their whole score, never below the value', () => {
+    const { s, q, p1 } = onBoard('all-in')
+    p1.score = 1500
+
+    s.pick(q.id)
+    expect(s.state.phase).toBe('auction')
+    s.setAuctionStake(p1.id, 300)
+    expect(s.state.stake).toEqual({ playerId: p1.id, amount: 1500 })
+    s.advance()
+    s.close({ playerId: p1.id, sign: 1 })
+    expect(p1.score).toBe(3000)
+  })
+
+  it('lets a broke player go all in for the question value', () => {
+    const { s, q, p2 } = onBoard('all-in')
+    s.pick(q.id)
+    s.setAuctionStake(p2.id, 0)
+    expect(s.activeValue.value).toBe(200)
+  })
+
+  it('spares a wrong no-risk answer, but still counts it', () => {
+    const { s, q, p1, p2 } = onBoard('no-risk')
+    s.setChooser(p2.id)
+
+    s.pick(q.id)
+    expect(s.state.phase).toBe('no-risk')
+    s.takeNoRisk(p2.id)
+    expect(s.state.phase).toBe('question')
+    expect(s.activePenalty.value).toBe(0)
+    s.answerWrong(p2.id)
+    s.advance()
+    s.close({ playerId: p2.id, sign: -1 })
+    s.close({ playerId: p1.id, sign: 1 })
+
+    expect(p2.score).toBe(0)
+    expect(p1.score).toBe(0)
+    expect(s.state.stats[p2.id]).toMatchObject({ wrong: 2, lost: 0 })
+  })
+
+  it('scores a question for everyone player by player, and undoes it all at once', () => {
+    const { s, q, p1, p2 } = onBoard('for-all')
+    s.setChooser(p2.id)
+    s.pick(q.id)
+    expect(s.state.phase).toBe('question')
+    expect(s.state.groupVerdicts).toEqual({})
+    s.setGroupVerdict(p1.id, 1)
+    expect(s.state.groupVerdicts).toEqual({}, 'verdicts wait for the answer')
+    s.advance()
+    s.setGroupVerdict(p1.id, 1)
+    s.setGroupVerdict(p2.id, 1)
+    s.setGroupVerdict(p2.id, -1)
+    s.scoreGroup()
+    expect([p1.score, p2.score]).toEqual([200, -200])
+    expect(s.state.chooserId).toBe(p2.id)
+    expect(s.state.groupVerdicts).toBeNull()
+    expect(s.state.played[q.id]).toBe(true)
+
+    s.undo()
+    expect([p1.score, p2.score]).toEqual([0, 0])
+    expect(s.state.phase).toBe('answer')
+    expect(s.state.groupVerdicts).toEqual({ [p1.id]: 1, [p2.id]: -1 })
+  })
+
+  it('opens hints one at a time, each lowering the value, and forgets them with the question', () => {
+    const { s, q, p1 } = onBoard('normal')
+    q.value = 300
+    q.hints = [{ id: 'h1', text: 'a' }, { id: 'h2', text: 'b' }]
+    s.revealHint()
+    s.pick(q.id)
+    expect(s.activeValue.value).toBe(300)
+    s.revealHint()
+    s.revealHint()
+    s.revealHint()
+    expect(s.state.hintsShown).toBe(2)
+    expect(s.activeValue.value).toBe(100)
+    s.advance()
+    s.revealHint()
+    expect(s.state.hintsShown).toBe(2)
+    s.close({ playerId: p1.id, sign: 1 })
+    expect(p1.score).toBe(100)
+    expect(s.state.hintsShown).toBe(0)
+  })
+
+  it('keeps a stake whatever hints open', () => {
+    const { s, q, p1 } = onBoard('cat-in-bag', { catValue: 500 })
+    q.hints = [{ id: 'h1', text: 'a' }]
+    s.pick(q.id)
+    s.giveCat(p1.id)
+    s.revealHint()
+    expect(s.activeValue.value).toBe(500)
   })
 
   it('ignores played questions and keeps at least one player', () => {

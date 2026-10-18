@@ -2,7 +2,7 @@
 import { computed, onMounted, onUnmounted, provide, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ArrowLeft, Cat, Gavel, Maximize, Minimize, MonitorSmartphone, SkipForward, Smartphone, Undo2, Unlock, X } from '@lucide/vue'
+import { ArrowLeft, Cat, Maximize, Minimize, Lightbulb, MonitorSmartphone, ShieldCheck, SkipForward, Smartphone, Undo2, Unlock, X } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 import type { Game } from '@/types'
 import { Button } from '@/components/ui/button'
@@ -16,7 +16,8 @@ import { plainCopy } from '@/lib/plain'
 import { prefersReducedMotion } from '@/lib/motion'
 import { useStageSounds, useTimerSounds } from '@/play/sounds'
 import { accentStyle } from '@/play/accents'
-import { buzzable, lanAvailable, phonesPreferred, setPhonesPreferred } from '@/play/lan'
+import { isSpecial, kindInfo, withHints } from '@/game/kinds'
+import { answerLabel, buzzable, lanAvailable, phonesPreferred, setPhonesPreferred } from '@/play/lan'
 import { prefs } from '@/prefs'
 import { useLanRoom } from '@/play/useLanRoom'
 import { useRemaining } from '@/play/timer'
@@ -33,6 +34,7 @@ import BoardGrid from './BoardGrid.vue'
 import CardSlide from './CardSlide.vue'
 import SpecialSlide from './SpecialSlide.vue'
 import ResultsSlide from './ResultsSlide.vue'
+import FinalThemesSlide from './FinalThemesSlide.vue'
 import AuctionPanel from './AuctionPanel.vue'
 import CatPanel from './CatPanel.vue'
 import VerdictPanel from './VerdictPanel.vue'
@@ -49,7 +51,8 @@ const session = usePlaySession(
   computed(() => props.game),
   props.restored,
 )
-const { state, players, round, activeQuestion, activeValue, ranking, inProgress } = session
+const { state, players, round, activeQuestion, activeValue, activeFinal, ranking, inProgress } = session
+const finalPickerName = computed(() => (session.finalPicker.value ? session.player(session.finalPicker.value)?.name : undefined))
 
 useStageSounds(() => state.phase, players)
 
@@ -98,12 +101,19 @@ const media = createMediaRegistry()
 provide(MEDIA_REGISTRY, media)
 
 const theme = computed(() => round.value?.themes.find((t) => t.questions.some((q) => q.id === state.activeQuestionId)))
+const shownQuestion = computed(() => withHints(activeQuestion.value ?? {}, state.hintsShown))
+const hintsLeft = computed(() => (activeQuestion.value?.hints?.length ?? 0) - state.hintsShown)
+
+/** Phone answers to a question for everyone, readable for judging; unset while phones are off. */
+const groupAnswers = computed(() =>
+  lanInfo.value
+    ? Object.fromEntries(Object.entries(lanStatus.value.answers).map(([id, raw]) => [id, answerLabel(activeQuestion.value, raw)]))
+    : undefined,
+)
 const stakeHolder = computed(() => (state.stake ? session.player(state.stake.playerId) : undefined))
 const topic = computed(() => {
   const kind = activeQuestion.value?.kind
-  if (kind === 'auction') return t('play.stage.auction')
-  if (kind === 'cat-in-bag') return t('play.stage.catInBag')
-  return theme.value?.name
+  return kind && isSpecial(kind) ? t(`play.stage.kinds.${kindInfo(kind).key}`) : theme.value?.name
 })
 
 /** A key that changes whenever the stage should play a scene transition. */
@@ -251,6 +261,7 @@ function onKey(e: KeyboardEvent) {
     if (session.undo()) e.preventDefault()
   } else if ((e.key === ' ' || e.key === 'Enter') && session.advance()) e.preventDefault()
   else if (e.code === 'KeyB' && !e.ctrlKey && !e.metaKey && !e.altKey) session.openBuzz()
+  else if (e.code === 'KeyH' && !e.ctrlKey && !e.metaKey && !e.altKey) session.revealHint()
   else if (e.key === 'Escape' && state.phase === 'answer') session.close()
 }
 
@@ -370,13 +381,34 @@ onUnmounted(() => {
         <SpecialSlide
           v-else-if="state.phase === 'auction' && activeQuestion"
           :key="sceneKey"
-          :icon="Gavel"
+          :icon="kindInfo(activeQuestion.kind).icon"
           motion="swing"
-          :title="t('play.stage.auction')"
+          :title="topic ?? ''"
           :topic="theme?.name"
+          :text="activeQuestion.kind === 'all-in' ? t('play.stage.allInText') : undefined"
         >
           <div v-if="!hostConnected" class="glass dock">
-            <AuctionPanel :players="players" :value="activeQuestion.value" @stake="session.setAuctionStake" />
+            <AuctionPanel :players="players" :value="activeQuestion.value" :all-in="activeQuestion.kind === 'all-in'" @stake="session.setAuctionStake" />
+          </div>
+        </SpecialSlide>
+
+        <SpecialSlide
+          v-else-if="state.phase === 'no-risk' && activeQuestion"
+          :key="sceneKey"
+          :icon="ShieldCheck"
+          motion="wobble"
+          :title="topic ?? ''"
+          :topic="theme?.name"
+          :text="t('play.stage.noRiskText')"
+        >
+          <div v-if="!hostConnected" class="glass dock">
+            <CatPanel
+              :players="players"
+              :value="activeQuestion.value"
+              :prompt="t('play.noRisk.who', { value: activeQuestion.value })"
+              :suggested-id="state.chooserId"
+              @give="session.takeNoRisk"
+            />
           </div>
         </SpecialSlide>
 
@@ -385,7 +417,7 @@ onUnmounted(() => {
           :key="sceneKey"
           :icon="Cat"
           motion="wobble"
-          :title="t('play.stage.catInBag')"
+          :title="topic ?? ''"
           :text="t('play.stage.catText')"
         >
           <div v-if="!hostConnected" class="glass dock">
@@ -401,14 +433,22 @@ onUnmounted(() => {
           :holder="stakeHolder?.name"
           :amount="activeValue"
           :text="activeQuestion.text"
-          :media="activeQuestion.media"
+          :hints="shownQuestion.hints"
+          :media="shownQuestion.media"
+          :options="activeQuestion.options"
         >
+          <ul v-if="state.groupVerdicts && lanInfo" class="bets-status">
+            <li v-for="p in players" :key="p.id" :class="{ done: lanStatus.answers[p.id] !== undefined }">{{ p.name }}</li>
+          </ul>
           <div v-if="!hostConnected" class="flex flex-wrap justify-center gap-3">
             <Button v-if="buzzHeld" size="lg" variant="secondary" class="h-12 px-6 text-lg" :title="t('lan.buzz.openHint')" @click="session.openBuzz">
               <Unlock />{{ t('lan.buzz.openNow') }}
             </Button>
             <Button v-if="buzzedId" size="lg" variant="destructive" class="h-12 px-6 text-lg" @click="lan.reopen(true)">
               <X />{{ wrongLabel }}
+            </Button>
+            <Button v-if="hintsLeft" size="lg" variant="secondary" class="h-12 px-6 text-lg" @click="session.revealHint">
+              <Lightbulb />{{ t('play.hints.next', { n: state.hintsShown + 1, total: activeQuestion.hints!.length }) }}
             </Button>
             <Button size="lg" class="h-12 px-8 text-lg" @click="session.advance">{{ t('play.stage.showAnswer') }}</Button>
           </div>
@@ -420,11 +460,25 @@ onUnmounted(() => {
           variant="answer"
           :text="activeQuestion.answer"
           :media="activeQuestion.answerMedia"
+          :options="activeQuestion.options"
+          :correct="activeQuestion.correctOption"
         >
-          <div v-if="!hostConnected" class="glass dock">
+          <div v-if="!hostConnected && state.groupVerdicts" class="glass dock">
+            <FinalVerdictPanel
+              :players="players"
+              :value="activeValue"
+              :verdicts="state.groupVerdicts"
+              :answers="groupAnswers"
+              :done-label="t('play.forAll.done')"
+              @verdict="session.setGroupVerdict"
+              @done="session.scoreGroup"
+            />
+          </div>
+          <div v-else-if="!hostConnected" class="glass dock">
             <VerdictPanel
               :players="players"
               :value="activeValue"
+              :loss="session.activePenalty.value"
               :only-player-id="state.stake?.playerId"
               @verdict="(playerId, sign) => session.close({ playerId, sign })"
               @nobody="session.close()"
@@ -436,16 +490,26 @@ onUnmounted(() => {
           v-else-if="state.phase === 'final-intro'"
           :key="sceneKey"
           :title="t('play.stage.final')"
-          :subtitle="game.finalRound?.theme"
-          :hint="t('play.stage.hintToBets')"
+          :subtitle="session.finalLeft.value.length === 1 ? activeFinal?.theme : undefined"
+          :hint="session.finalLeft.value.length > 1 ? t('play.stage.hintToThemes') : t('play.stage.hintToBets')"
           @next="session.advance"
         />
 
+        <FinalThemesSlide
+          v-else-if="state.phase === 'final-themes'"
+          :key="sceneKey"
+          :themes="game.finalThemes ?? []"
+          :removed="state.finalRemoved"
+          :picker="finalPickerName"
+          :interactive="!hostConnected"
+          @remove="session.removeFinalTheme"
+        />
+
         <CardSlide
-          v-else-if="state.phase === 'final-bets' && game.finalRound"
+          v-else-if="state.phase === 'final-bets' && activeFinal"
           :key="sceneKey"
           variant="question"
-          :topic="t('play.stage.finalTopic', { theme: game.finalRound.theme })"
+          :topic="t('play.stage.finalTopic', { theme: activeFinal.theme })"
           :text="t('play.stage.finalBetsText')"
         >
           <div v-if="!hostConnected" class="glass dock">
@@ -457,22 +521,22 @@ onUnmounted(() => {
         </CardSlide>
 
         <CardSlide
-          v-else-if="state.phase === 'final-question' && game.finalRound"
+          v-else-if="state.phase === 'final-question' && activeFinal"
           :key="sceneKey"
           variant="question"
-          :topic="t('play.stage.finalTopic', { theme: game.finalRound.theme })"
-          :text="game.finalRound.text"
-          :media="game.finalRound.media"
+          :topic="t('play.stage.finalTopic', { theme: activeFinal.theme })"
+          :text="activeFinal.text"
+          :media="activeFinal.media"
         >
           <Button v-if="!hostConnected" size="lg" class="h-12 px-8 text-lg" @click="session.advance">{{ t('play.stage.showAnswer') }}</Button>
         </CardSlide>
 
         <CardSlide
-          v-else-if="state.phase === 'final-answer' && game.finalRound"
+          v-else-if="state.phase === 'final-answer' && activeFinal"
           :key="sceneKey"
           variant="answer"
-          :text="game.finalRound.answer"
-          :media="game.finalRound.answerMedia"
+          :text="activeFinal.answer"
+          :media="activeFinal.answerMedia"
         >
           <div v-if="!hostConnected" class="glass dock">
             <FinalVerdictPanel

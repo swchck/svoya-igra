@@ -9,6 +9,9 @@ export default {
   kind: {
     auction: 'Аукцион',
     catInBag: 'Кот в мешке, за {n}',
+    noRisk: 'Без риска',
+    allIn: 'Ва-банк',
+    forAll: 'Для всех',
   },
   media: {
     image: 'картинка',
@@ -19,4 +22,6 @@ export default {
     from: '{label} с {start}',
     range: '{label} {start}–{end}',
   },
+  accepted: 'Тоже верно',
+  rejected: 'Не засчитывать',
 }

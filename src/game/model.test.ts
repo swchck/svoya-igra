@@ -17,17 +17,18 @@ describe('moveItem', () => {
 })
 
 describe('mediaItems', () => {
-  it('collects question, answer and final media by reference', () => {
+  it('collects question, answer, hint and final media by reference', () => {
     const game = makeEmptyGame()
     const q = game.rounds[1].themes[2].questions[3]
     q.media = [{ id: '1', url: 'a', kind: 'image' }]
     q.answerMedia = [{ id: '2', url: 'b', kind: 'image' }]
-    game.finalRound!.answerMedia = [{ id: '3', url: 'c', kind: 'image' }]
+    q.hints = [{ id: 'h', text: '', media: [{ id: 'h1', url: 'd', kind: 'audio' }] }]
+    game.finalThemes![0].answerMedia = [{ id: '3', url: 'c', kind: 'image' }]
 
     const items = mediaItems(game)
     items[0].url = 'changed'
 
-    expect(items.map((m) => m.id)).toEqual(['1', '2', '3'])
+    expect(items.map((m) => m.id)).toEqual(['1', '2', 'h1', '3'])
     expect(q.media[0].url).toBe('changed')
   })
 
@@ -42,7 +43,7 @@ describe('withFreshIds', () => {
   it('re-ids every level and keeps content', () => {
     const game = makeEmptyGame('Копия')
     const copy = withFreshIds(game)
-    const ids = (g: typeof game) => [g.id, g.rounds[0].id, g.rounds[0].themes[0].id, g.rounds[0].themes[0].questions[0].id, g.finalRound!.id]
+    const ids = (g: typeof game) => [g.id, g.rounds[0].id, g.rounds[0].themes[0].id, g.rounds[0].themes[0].questions[0].id, g.finalThemes![0].id]
     expect(ids(copy).every((id, i) => id !== ids(game)[i])).toBe(true)
     expect(copy.title).toBe('Копия')
   })

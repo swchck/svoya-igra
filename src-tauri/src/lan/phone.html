@@ -413,6 +413,14 @@ input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-app
   box-shadow: inset 0 0 40px rgba(80, 120, 255, 0.25), 0 24px 50px -26px rgba(0, 0, 0, 0.95);
   text-align: center;
 }
+.choices { display: grid; gap: 10px; }
+.choice { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 10px 14px; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.22); background: linear-gradient(180deg, #2a2aa8, #15127a); text-align: left; font-size: 18px; transition: transform 0.12s, background 0.2s, border-color 0.2s; }
+.choice:active { transform: scale(0.97); }
+.choice b { flex: none; font-family: var(--display); font-size: 22px; color: var(--gold); }
+.choice.on { border-color: var(--gold); background: var(--gold); color: var(--night); }
+.choice.on b { color: var(--night); }
+.choice:disabled { opacity: 0.55; }
+.choice.on:disabled { opacity: 1; }
 .qcard textarea { background: rgba(3, 0, 34, 0.5); font-size: 20px; text-align: center; }
 .out { display: grid; justify-items: center; gap: 14px; padding: 28px 18px; text-align: center; }
 .out .big { font-size: 48px; }
@@ -623,6 +631,17 @@ input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-app
       <p id="answer-status" class="ok" aria-live="polite" hidden></p>
     </form>
 
+    <form class="panel" id="p-ask" hidden>
+      <div class="stage-plate"><span class="topic" id="ask-topic"></span></div>
+      <div class="qcard">
+        <h1 class="shine" id="ask-title"></h1>
+        <textarea id="ask-text" aria-labelledby="ask-title" maxlength="200" autocomplete="off" autocapitalize="sentences"></textarea>
+        <div class="choices" id="ask-choices" role="group" aria-labelledby="ask-title"></div>
+      </div>
+      <button class="btn gold" type="submit" id="ask-send" data-t="answerSend"></button>
+      <p id="ask-status" class="ok" aria-live="polite" hidden></p>
+    </form>
+
     <div class="panel center" id="p-out" hidden>
       <div class="out glass">
         <span class="shine big" data-t="finalTitle"></span>
@@ -653,8 +672,9 @@ var STRINGS = {
     finalTitle: 'Финал', betTitle: 'Ставка в финале', betLabel: 'От 0 до {max}', allIn: 'Ва-банк', less: 'Меньше', more: 'Больше',
     betSend: 'Поставить', betDone: 'Ставка принята: {bet}', betShort: 'Ставка {bet}',
     answerTitle: 'Ваш ответ', answerSend: 'Отправить', answerDone: 'Ответ отправлен. Можно исправить, пока идёт время.',
+    askTitle: 'Вопрос для всех', askPick: 'Выберите ответ', askClosed: 'Ответы приняты. Смотрите на экран!', askMissed: 'Время на ответ вышло.',
     finalOut: 'В финале вы не играете. Болейте за остальных!', offline: 'Нет связи с игрой. Переподключаемся…',
-    full: 'В комнате нет мест.', badName: 'Введите имя.', notOpen: 'Сейчас нельзя.', notEligible: 'Вы не играете в финале.', error: 'Что-то пошло не так.'
+    full: 'В комнате нет мест.', badName: 'Введите имя.', badChoice: 'Такого варианта нет.', notOpen: 'Сейчас нельзя.', notEligible: 'Вы не играете в финале.', error: 'Что-то пошло не так.'
   },
   en: {
     personLabel: 'Your name, so the team knows who buzzed', needPerson: 'Enter your name first.',
@@ -669,8 +689,9 @@ var STRINGS = {
     finalTitle: 'Final', betTitle: 'Final wager', betLabel: 'From 0 to {max}', allIn: 'All in', less: 'Less', more: 'More',
     betSend: 'Place wager', betDone: 'Wager accepted: {bet}', betShort: 'Wager {bet}',
     answerTitle: 'Your answer', answerSend: 'Send', answerDone: 'Answer sent. You can change it while time runs.',
+    askTitle: 'Question for all', askPick: 'Pick an answer', askClosed: 'Answers are in. Watch the big screen!', askMissed: 'Time to answer is over.',
     finalOut: 'You sit out the final. Cheer for the others!', offline: 'Lost connection to the game. Reconnecting…',
-    full: 'The room is full.', badName: 'Enter a name.', notOpen: 'Not right now.', notEligible: 'You are not in the final.', error: 'Something went wrong.'
+    full: 'The room is full.', badName: 'Enter a name.', badChoice: 'No such choice.', notOpen: 'Not right now.', notEligible: 'You are not in the final.', error: 'Something went wrong.'
   },
   sr: {
     personLabel: 'Vaše ime, da tim zna ko je pritisnuo', needPerson: 'Prvo unesite svoje ime.',
@@ -685,8 +706,9 @@ var STRINGS = {
     finalTitle: 'Finale', betTitle: 'Ulog u finalu', betLabel: 'Od 0 do {max}', allIn: 'Va-bank', less: 'Manje', more: 'Više',
     betSend: 'Uloži', betDone: 'Ulog prihvaćen: {bet}', betShort: 'Ulog {bet}',
     answerTitle: 'Vaš odgovor', answerSend: 'Pošalji', answerDone: 'Odgovor poslat. Možete ga ispraviti dok vreme teče.',
+    askTitle: 'Pitanje za sve', askPick: 'Izaberite odgovor', askClosed: 'Odgovori su primljeni. Pratite glavni ekran!', askMissed: 'Vreme za odgovor je isteklo.',
     finalOut: 'Ne igrate u finalu. Navijajte za ostale!', offline: 'Nema veze sa igrom. Ponovo se povezujemo…',
-    full: 'Soba je puna.', badName: 'Unesite ime.', notOpen: 'Ne sada.', notEligible: 'Ne igrate u finalu.', error: 'Nešto nije u redu.'
+    full: 'Soba je puna.', badName: 'Unesite ime.', badChoice: 'Nema takvog odgovora.', notOpen: 'Ne sada.', notEligible: 'Ne igrate u finalu.', error: 'Nešto nije u redu.'
   }
 };
 
@@ -795,7 +817,7 @@ function screen(name) {
 function errorText(code) {
   return {
     'bad-code': t('badCode'), 'too-many-codes': t('tooMany'), disabled: t('disabled'), full: t('full'),
-    'bad-name': t('badName'), 'join-closed': t('joinClosed'), 'not-open': t('notOpen'), 'not-eligible': t('notEligible'), 'not-your-turn': t('notYourTurn'), 'need-person': t('needPerson')
+    'bad-name': t('badName'), 'join-closed': t('joinClosed'), 'not-open': t('notOpen'), 'not-eligible': t('notEligible'), 'not-your-turn': t('notYourTurn'), 'need-person': t('needPerson'), 'bad-choice': t('badChoice')
   }[code] || t('error');
 }
 
@@ -895,12 +917,15 @@ function render() {
   renderMe(v);
   var mode = v.finalMode;
   var playing = v.cap !== null;
-  reveal('p-board', !mode && !!v.board);
-  reveal('p-buzz', !mode && !v.board);
+  var ask = !mode && v.ask;
+  reveal('p-ask', !!ask);
+  reveal('p-board', !mode && !ask && !!v.board);
+  reveal('p-buzz', !mode && !ask && !v.board);
   reveal('p-bet', mode === 'bet' && playing);
   reveal('p-answer', mode === 'answer' && playing);
   reveal('p-out', !!mode && !playing);
-  if (!mode && v.board) renderBoard(v);
+  if (ask) renderAsk(v);
+  else if (!mode && v.board) renderBoard(v);
   else if (!mode) renderBuzz(v);
   else if (mode === 'bet' && playing) renderBet(v);
   else if (mode === 'answer' && playing) renderAnswer(v);
@@ -1092,6 +1117,7 @@ function renderBoard(v) {
   }
   var key = JSON.stringify(v.board);
   if (key === boardKey) return;
+  $('my-pick').querySelector('.pick-title').textContent = v.board.title || t('yourPick');
   boardKey = key;
   picking = false;
   var board = $('board');
@@ -1113,7 +1139,7 @@ function renderBoard(v) {
       var b = document.createElement('button');
       b.type = 'button';
       b.className = 'tile';
-      b.textContent = String(q.value);
+      b.textContent = q.label || String(q.value);
       b.disabled = q.played;
       b.style.setProperty('--i', String(n++));
       b.addEventListener('click', function () { pick(b, q.id); });
@@ -1168,6 +1194,55 @@ function renderAnswer(v) {
   $('answer-bet').textContent = v.bet !== null ? t('betShort', { bet: v.bet }) : '';
   show('answer-status', !!v.answer);
   swapText($('answer-status'), v.answer ? t('answerDone') : '');
+}
+
+// the choice buttons are rebuilt only when the question changes, so a tap is never lost mid-redraw
+var askKey = null;
+function renderAsk(v) {
+  var ask = v.ask;
+  var choosing = ask.options.length > 0;
+  var area = $('ask-text');
+  if (askKey !== ask.key) {
+    askKey = ask.key;
+    area.value = '';
+    var box = $('ask-choices');
+    box.textContent = '';
+    ask.options.forEach(function (option, i) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'choice';
+      b.setAttribute('data-choice', String(i));
+      var letter = document.createElement('b');
+      letter.textContent = String.fromCharCode(65 + i);
+      var text = document.createElement('span');
+      text.textContent = option;
+      b.appendChild(letter);
+      b.appendChild(text);
+      b.addEventListener('click', function () { choose(i); });
+      box.appendChild(b);
+    });
+    if (choosing) vibrate([20, 40, 20]);
+  }
+  $('ask-topic').textContent = ask.topic || t('askTitle');
+  $('ask-title').textContent = choosing ? t('askPick') : t('answerTitle');
+  show('ask-text', !choosing);
+  show('ask-choices', choosing);
+  show('ask-send', !choosing && ask.open);
+  area.disabled = !ask.open;
+  if (!choosing && document.activeElement !== area && area.value === '' && v.answer) area.value = v.answer;
+  Array.prototype.forEach.call($('ask-choices').children, function (b) {
+    b.classList.toggle('on', v.answer === b.getAttribute('data-choice'));
+    b.disabled = !ask.open;
+  });
+  var status = ask.open ? (v.answer ? t('answerDone') : '') : (v.answer ? t('askClosed') : t('askMissed'));
+  show('ask-status', !!status);
+  $('ask-status').classList.toggle('ok', !!v.answer);
+  swapText($('ask-status'), status);
+}
+
+function choose(i) {
+  vibrate(15);
+  api('/api/answer', { token: token, text: String(i) }).catch(function (err) { fail('play-error', err); });
 }
 
 function fail(id, err) {
@@ -1252,6 +1327,13 @@ $('p-answer').addEventListener('submit', function (e) {
   e.preventDefault();
   api('/api/answer', { token: token, text: $('answer').value })
     .then(function () { $('answer').blur(); })
+    .catch(function (err) { fail('play-error', err); });
+});
+
+$('p-ask').addEventListener('submit', function (e) {
+  e.preventDefault();
+  api('/api/answer', { token: token, text: $('ask-text').value })
+    .then(function () { $('ask-text').blur(); })
     .catch(function (err) { fail('play-error', err); });
 });
 

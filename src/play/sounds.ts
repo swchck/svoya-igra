@@ -126,6 +126,7 @@ const ENTER_SOUND: Partial<Record<Phase, SoundName>> = {
   question: 'pick',
   auction: 'special',
   cat: 'special',
+  'no-risk': 'special',
   answer: 'reveal',
   'final-intro': 'final',
   'final-answer': 'reveal',
@@ -135,8 +136,8 @@ const ENTER_SOUND: Partial<Record<Phase, SoundName>> = {
 /** Scores the stage with sound: phase changes and points won or lost. */
 export function useStageSounds(phase: () => Phase, players: Ref<Player[]>): void {
   watch(phase, (now, before) => {
-    // the auction and the cat already rang when they were picked
-    if (now === 'question' && (before === 'auction' || before === 'cat')) return
+    // the auction, the cat and the no-risk question already rang when they were picked
+    if (now === 'question' && (before === 'auction' || before === 'cat' || before === 'no-risk')) return
     const name = ENTER_SOUND[now]
     if (name) playSound(name)
   })

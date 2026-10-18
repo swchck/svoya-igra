@@ -11,6 +11,8 @@ const { t } = useI18n()
 const props = defineProps<{
   players: Player[]
   value: number
+  /** What a wrong answer costs; the full value unless the rules or the question spare it. */
+  loss?: number
   /** With a stake on the table only this player answers. */
   onlyPlayerId?: string
 }>()
@@ -37,7 +39,7 @@ defineEmits<{ (e: 'verdict', playerId: string, sign: Sign): void; (e: 'nobody'):
         <div class="font-medium">{{ p.avatar }} {{ p.name }}</div>
         <div class="flex gap-2">
           <Button class="flex-1 bg-(--pc) text-night hover:bg-(--pc) hover:brightness-110" @click="$emit('verdict', p.id, 1)"><Check />+{{ value }}</Button>
-          <Button class="flex-1" variant="destructive" @click="$emit('verdict', p.id, -1)"><X />−{{ value }}</Button>
+          <Button class="flex-1" variant="destructive" @click="$emit('verdict', p.id, -1)"><X />−{{ loss ?? value }}</Button>
         </div>
       </div>
     </div>

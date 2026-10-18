@@ -1,5 +1,6 @@
-import type { AccentName, FinalQuestion, Game, GameSettings, MediaItem, Question, Round, Theme } from '../types'
+import type { AccentName, FinalQuestion, Game, GameSettings, Hint, MediaItem, Question, Round, Theme } from '../types'
 import { t } from '../i18n'
+import { hasChoice } from './kinds'
 
 /** Returns a short random id with an optional prefix. */
 export function uid(prefix = ''): string {
@@ -24,6 +25,15 @@ export function makeEmptyRound(name = t('system.defaults.round', { n: 1 }), them
   }
 }
 
+export function makeEmptyHint(): Hint {
+  return { id: uid('h_'), text: '' }
+}
+
+/** Reports whether the game ends with a final. */
+export function hasFinal(game: Game): boolean {
+  return !!game.finalThemes?.length
+}
+
 export function makeEmptyFinal(): FinalQuestion {
   return { id: uid('f_'), theme: t('system.defaults.final'), text: '', answer: '' }
 }
@@ -35,7 +45,7 @@ export function makeEmptyGame(title = t('system.defaults.game')): Game {
     title,
     subtitle: '',
     rounds: [makeEmptyRound(t('system.defaults.round', { n: 1 })), makeEmptyRound(t('system.defaults.round', { n: 2 }))],
-    finalRound: makeEmptyFinal(),
+    finalThemes: [makeEmptyFinal()],
     createdAt: now,
     updatedAt: now,
   }
@@ -68,10 +78,13 @@ export function mediaItems(game: Game): MediaItem[] {
   const items: MediaItem[] = []
   for (const round of game.rounds) {
     for (const theme of round.themes) {
-      for (const q of theme.questions) items.push(...(q.media ?? []), ...(q.answerMedia ?? []))
+      for (const q of theme.questions) {
+        items.push(...(q.media ?? []), ...(q.answerMedia ?? []))
+        for (const h of q.hints ?? []) items.push(...(h.media ?? []))
+      }
     }
   }
-  if (game.finalRound) items.push(...(game.finalRound.media ?? []), ...(game.finalRound.answerMedia ?? []))
+  for (const f of game.finalThemes ?? []) items.push(...(f.media ?? []), ...(f.answerMedia ?? []))
   if (game.settings?.logo) items.push(game.settings.logo)
   return items
 }
@@ -88,10 +101,10 @@ export function withFreshIds(game: Game): Game {
       themes: r.themes.map((t) => ({
         ...t,
         id: uid('t_'),
-        questions: t.questions.map((q) => ({ ...q, id: uid('q_') })),
+        questions: t.questions.map((q) => ({ ...q, id: uid('q_'), ...(q.hints && { hints: q.hints.map((h) => ({ ...h, id: uid('h_') })) }) })),
       })),
     })),
-    finalRound: game.finalRound && { ...game.finalRound, id: uid('f_') },
+    finalThemes: game.finalThemes?.map((f) => ({ ...f, id: uid('f_') })),
     createdAt: game.createdAt || now,
     updatedAt: now,
   }
@@ -113,7 +126,7 @@ export function moveItemTo<T>(list: T[], from: number, to: number): number {
   return to
 }
 
-/** True when the question has something to ask and something to reveal. */
+/** True when the question has something to ask and something to reveal, and isn't marked a draft. */
 export function isQuestionReady(q: Question): boolean {
-  return (!!q.text.trim() || !!q.media?.length) && (!!q.answer.trim() || !!q.answerMedia?.length)
+  return !q.draft && (!!q.text.trim() || !!q.media?.length) && (!!q.answer.trim() || !!q.answerMedia?.length || hasChoice(q))
 }

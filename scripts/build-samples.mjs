@@ -23,6 +23,12 @@ function build(locale) {
     return { id: id('mi_'), url: `media://${file}`, ...item }
   })
 
+  const hostInfo = (card) => ({
+    ...(card.accepted ? { accepted: text(card.accepted) } : {}),
+    ...(card.rejected ? { rejected: text(card.rejected) } : {}),
+    ...(card.notes ? { notes: text(card.notes) } : {}),
+  })
+
   const game = {
     id: `g_sample_${locale}`,
     title: text(sample.title),
@@ -42,19 +48,23 @@ function build(locale) {
           ...(q.catValue ? { catValue: q.catValue } : {}),
           text: text(q.text),
           media: media(q.media),
+          ...(q.options ? { options: q.options.map(text), correctOption: q.correctOption } : {}),
+          ...(q.hints ? { hints: q.hints.map((h) => ({ id: id('h_'), text: text(h) })) } : {}),
           answer: text(q.answer),
           answerMedia: media(q.answerMedia),
+          ...hostInfo(q),
         })),
       })),
     })),
-    finalRound: {
+    finalThemes: sample.finalThemes.map((f) => ({
       id: id('f_'),
-      theme: text(sample.finalRound.theme),
-      text: text(sample.finalRound.text),
-      media: media(sample.finalRound.media),
-      answer: text(sample.finalRound.answer),
-      answerMedia: media(sample.finalRound.answerMedia),
-    },
+      theme: text(f.theme),
+      text: text(f.text),
+      media: media(f.media),
+      answer: text(f.answer),
+      answerMedia: media(f.answerMedia),
+      ...hostInfo(f),
+    })),
   }
 
   files['game.json'] = strToU8(JSON.stringify(game, null, 2))

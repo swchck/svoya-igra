@@ -24,6 +24,35 @@ const legacy = {
 }
 
 describe('parseGame', () => {
+  it('keeps choices and hints in shape', () => {
+    const game = structuredClone(legacy) as never as { rounds: { themes: { questions: Record<string, unknown>[] }[] }[] }
+    Object.assign(game.rounds[0].themes[0].questions[0], {
+      options: ['A', 2, 'B', 'C', 'D', 'E', 'F', 'G'],
+      correctOption: 9,
+      hints: [{ text: 'один' }, 'мусор', { id: 'h_2', text: 5, media: [{ url: 'x.png', kind: 'image' }] }],
+    })
+    const q = parseGame(game).rounds[0].themes[0].questions[0]
+    expect(q.options).toEqual(['A', 'B', 'C', 'D', 'E', 'F'])
+    expect(q).not.toHaveProperty('correctOption')
+    expect(q.hints).toHaveLength(2)
+    expect(q.hints![0]).toMatchObject({ text: 'один' })
+    expect(q.hints![0].id).toMatch(/^h_/)
+    expect(q.hints![1]).toMatchObject({ id: 'h_2', text: '', media: [{ url: 'x.png', kind: 'image' }] })
+  })
+
+  it('keeps well-formed host info and drops the rest', () => {
+    const game = structuredClone(legacy) as never as { rounds: { themes: { questions: Record<string, unknown>[] }[] }[]; finalRound: Record<string, unknown> }
+    Object.assign(game.rounds[0].themes[0].questions[0], { accepted: ['Пётр I', 7, ' '], rejected: 'Павел', notes: 'Источник: БСЭ' })
+    Object.assign(game.finalRound, { accepted: [], notes: '  ' })
+    const parsed = parseGame(game)
+    const q = parsed.rounds[0].themes[0].questions[0]
+    expect(q.accepted).toEqual(['Пётр I'])
+    expect(q).not.toHaveProperty('rejected')
+    expect(q.notes).toBe('Источник: БСЭ')
+    expect(parsed.finalThemes![0]).not.toHaveProperty('accepted')
+    expect(parsed.finalThemes![0]).not.toHaveProperty('notes')
+  })
+
   it('turns an old play length into an end time after the link start', () => {
     const game = structuredClone(legacy)
     game.rounds[0].themes[0].questions[0].media = [
@@ -43,10 +72,20 @@ describe('parseGame', () => {
     expect(q).not.toHaveProperty('answerMediaUrl')
   })
 
-  it('normalizes the final round', () => {
-    const f = parseGame(structuredClone(legacy)).finalRound!
+  it('turns the single final of older games into the one final theme', () => {
+    const parsed = parseGame(structuredClone(legacy))
+    expect(parsed).not.toHaveProperty('finalRound')
+    const [f] = parsed.finalThemes!
+    expect(f).toMatchObject({ id: 'f_1', theme: 'F' })
     expect(f.media).toEqual([expect.objectContaining({ url: 'y.png', kind: 'image' })])
     expect(f).not.toHaveProperty('mediaUrl')
+  })
+
+  it('keeps final themes and drops an empty list', () => {
+    const data = { ...structuredClone(legacy), finalRound: undefined, finalThemes: [{ id: 'a', theme: 'A', text: '', answer: '' }, { id: 'b', theme: 'B', text: '', answer: '' }] }
+    expect(parseGame(data).finalThemes?.map((f) => f.theme)).toEqual(['A', 'B'])
+    expect(parseGame({ ...data, finalThemes: [] })).not.toHaveProperty('finalThemes', expect.anything())
+    expect(() => parseGame({ ...data, finalThemes: ['x'] })).toThrow()
   })
 
   it('does not duplicate a legacy URL already in the list', () => {

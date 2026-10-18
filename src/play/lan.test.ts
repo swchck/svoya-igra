@@ -20,8 +20,23 @@ beforeEach(() => {
   listen.mockReset()
 })
 
+describe('answerLabel', () => {
+  it('turns a choice index into its letter and text, and leaves typed answers alone', () => {
+    expect(lan.answerLabel({ options: ['Париж', 'Лион'] }, '1')).toBe('B. Лион')
+    expect(lan.answerLabel({ options: ['Париж'] }, '7')).toBe('7')
+    expect(lan.answerLabel({}, 'Париж')).toBe('Париж')
+  })
+})
+
 describe('stageInfo', () => {
-  const base = { players, teams: false, played: {} as Record<string, true>, chooserId: null as string | null }
+  const base = {
+    players,
+    teams: false,
+    played: {} as Record<string, true>,
+    chooserId: null as string | null,
+    activeQuestionId: null as string | null,
+    groupVerdicts: null,
+  }
 
   it('lets phones join by name only while players are set up', () => {
     expect(lan.stageInfo({ ...base, phase: 'title' }, 'Quiz')).toEqual({
@@ -35,6 +50,7 @@ describe('stageInfo', () => {
       teams: false,
       finalMode: null,
       caps: {},
+      ask: null,
       board: null,
       chooser: null,
       vibrate: true,
@@ -56,6 +72,29 @@ describe('stageInfo', () => {
       themes: [{ name: 'Флаги', questions: [{ id: 'q1', value: 100, played: true }, { id: 'q2', value: 200, played: false }] }],
     })
     expect(lan.stageInfo({ ...base, phase: 'question' }, '', round).board).toBeNull()
+  })
+
+  it('lets the picker strike a final theme from the phone', () => {
+    const final = { themes: [{ id: 'f1', theme: 'Кино' }, { id: 'f2', theme: 'Спорт' }], picker: 'b' }
+    const info = lan.stageInfo({ ...base, phase: 'final-themes', chooserId: 'a' }, '', undefined, true, final)
+    expect(info.chooser).toBe('b')
+    expect(info.board?.themes).toEqual([
+      { name: 'Кино', questions: [{ id: 'f1', value: 0, played: false, label: '✕' }] },
+      { name: 'Спорт', questions: [{ id: 'f2', value: 0, played: false, label: '✕' }] },
+    ])
+    expect(lan.stageInfo({ ...base, phase: 'final-bets' }, '', undefined, true, final).board).toBeNull()
+  })
+
+  it('asks every phone while a question for everyone is open, and stops taking answers at the reveal', () => {
+    const round = {
+      id: 'r1',
+      name: 'R',
+      themes: [{ id: 't1', name: 'Города', questions: [{ id: 'q1', value: 100, options: ['A', 'B'] }] }],
+    } as unknown as Round
+    const open = { ...base, activeQuestionId: 'q1', groupVerdicts: {} }
+    expect(lan.stageInfo({ ...open, phase: 'question' }, '', round).ask).toEqual({ key: 'q1', topic: 'Города', options: ['A', 'B'], open: true })
+    expect(lan.stageInfo({ ...open, phase: 'answer' }, '', round).ask?.open).toBe(false)
+    expect(lan.stageInfo({ ...base, activeQuestionId: 'q1', phase: 'question' }, '', round).ask).toBeNull()
   })
 
   it('names the person behind a press, with their team when the seat is shared', () => {

@@ -1,6 +1,8 @@
 import { invoke } from '@tauri-apps/api/core'
 import type { SessionSnapshot } from '@/composables/usePlaySession'
-import type { Round } from '@/types'
+import type { FinalQuestion, Question, Round } from '@/types'
+import { t } from '@/i18n'
+import { optionLetter } from '@/game/kinds'
 import { isDesktop } from '@/platform'
 import { playerColor } from './palette'
 
@@ -55,10 +57,37 @@ export interface LanPick {
 
 type FinalMode = 'bet' | 'answer'
 
+/** A question every player answers from their phone; `key` changes with each question. */
+interface LanAsk {
+  key: string
+  topic: string
+  /** Choices to pick one of; empty for a typed answer. */
+  options: string[]
+  /** Answers are taken until the answer is revealed. */
+  open: boolean
+}
+
 /** The board as phones see it while the chooser picks. */
 interface LanBoard {
   round: string
-  themes: { name: string; questions: { id: string; value: number; played: boolean }[] }[]
+  /** What the chooser is asked; unset while picking a question. */
+  title?: string
+  /** `label` replaces the value on the tile. */
+  themes: { name: string; questions: { id: string; value: number; played: boolean; label?: string }[] }[]
+}
+
+/** The final's themes while players strike them out, and whose turn it is. */
+export interface LanFinal {
+  themes: Pick<FinalQuestion, 'id' | 'theme'>[]
+  picker: string | null
+}
+
+function finalBoard(final: LanFinal): LanBoard {
+  return {
+    round: t('lan.final.title'),
+    title: t('lan.final.strike'),
+    themes: final.themes.map((f) => ({ name: f.theme, questions: [{ id: f.id, value: 0, played: false, label: '✕' }] })),
+  }
 }
 
 /** What the stage tells the phones. */
@@ -72,6 +101,7 @@ export interface LanStageInfo {
   finalMode: FinalMode | null
   /** Final round: the most each competitor may bet; those with nothing sit it out. */
   caps: Record<string, number>
+  ask: LanAsk | null
   board: LanBoard | null
   chooser: string | null
   /** Phones may buzz in the hand. */
@@ -83,13 +113,31 @@ export function emptyLanStatus(): LanStatus {
   return { phones: {}, people: {}, buzz: { state: 'closed', order: [], by: [], excluded: [] }, bets: {}, answers: {} }
 }
 
+function askFor(snapshot: Pick<SessionSnapshot, 'phase' | 'activeQuestionId' | 'groupVerdicts'>, round?: Round): LanAsk | null {
+  if (!snapshot.groupVerdicts || (snapshot.phase !== 'question' && snapshot.phase !== 'answer')) return null
+  const theme = round?.themes.find((t) => t.questions.some((q) => q.id === snapshot.activeQuestionId))
+  const q = theme?.questions.find((x) => x.id === snapshot.activeQuestionId)
+  if (!theme || !q) return null
+  return { key: q.id, topic: theme.name, options: q.options ?? [], open: snapshot.phase === 'question' }
+}
+
+/** Shows a phone's answer the way people read it: a choice by its letter and text. */
+export function answerLabel(q: Pick<Question, 'options'> | null | undefined, raw: string): string {
+  const options = q?.options
+  if (!options?.length) return raw
+  const i = Number(raw)
+  return Number.isInteger(i) && options[i] !== undefined ? `${optionLetter(i)}. ${options[i]}` : raw
+}
+
 /** Derives what phones should show from the session. */
 export function stageInfo(
-  snapshot: Pick<SessionSnapshot, 'phase' | 'players' | 'teams' | 'played' | 'chooserId'>,
+  snapshot: Pick<SessionSnapshot, 'phase' | 'players' | 'teams' | 'played' | 'chooserId' | 'activeQuestionId' | 'groupVerdicts'>,
   title: string,
   round?: Round,
   vibrate = true,
+  final?: LanFinal,
 ): LanStageInfo {
+  const striking = snapshot.phase === 'final-themes' && !!final
   const finalMode: FinalMode | null =
     snapshot.phase === 'final-bets' ? 'bet' : snapshot.phase === 'final-question' ? 'answer' : null
   return {
@@ -105,8 +153,10 @@ export function stageInfo(
     teams: snapshot.teams,
     finalMode,
     caps: finalMode ? Object.fromEntries(snapshot.players.filter((p) => p.score > 0).map((p) => [p.id, p.score])) : {},
-    board:
-      snapshot.phase === 'board' && round
+    ask: askFor(snapshot, round),
+    board: striking
+      ? finalBoard(final!)
+      : snapshot.phase === 'board' && round
         ? {
             round: round.name,
             themes: round.themes.map((t) => ({
@@ -115,18 +165,21 @@ export function stageInfo(
             })),
           }
         : null,
-    chooser: snapshot.chooserId,
+    chooser: striking ? final!.picker : snapshot.chooserId,
     vibrate,
   }
 }
 
-/** Reports whether anyone may race for the open question; auctions and cats in the bag go to one player. */
-export function buzzable(snapshot: Pick<SessionSnapshot, 'phase' | 'stake'>): boolean {
-  return snapshot.phase === 'question' && !snapshot.stake
+/**
+ * Reports whether anyone may race for the open question; auctions and cats in the bag go to
+ * one player, and a question for everyone is answered by all of them in writing.
+ */
+export function buzzable(snapshot: Pick<SessionSnapshot, 'phase' | 'stake' | 'groupVerdicts'>): boolean {
+  return snapshot.phase === 'question' && !snapshot.stake && !snapshot.groupVerdicts
 }
 
 /** The question the buttons are open for, or null while they should stay closed. */
-export function buzzWindow(snapshot: Pick<SessionSnapshot, 'phase' | 'activeQuestionId' | 'stake' | 'buzzArmed'>): string | null {
+export function buzzWindow(snapshot: Pick<SessionSnapshot, 'phase' | 'activeQuestionId' | 'stake' | 'buzzArmed' | 'groupVerdicts'>): string | null {
   return buzzable(snapshot) && snapshot.buzzArmed ? snapshot.activeQuestionId : null
 }
 

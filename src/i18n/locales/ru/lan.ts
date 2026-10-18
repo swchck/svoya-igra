@@ -44,6 +44,8 @@ export default {
     excluded: 'Уже отвечали: {names}',
   },
   final: {
+    title: 'Финал',
+    strike: 'Уберите тему',
     answers: 'Ответы с телефонов',
     noAnswer: 'нет ответа',
   },

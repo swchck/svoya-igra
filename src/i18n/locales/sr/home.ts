@@ -42,7 +42,6 @@ export default {
     openFailed: 'Nije uspelo otvaranje fajla',
     imported: 'Igra je uvezena',
     importFailed: 'Uvoz nije uspeo',
-    siqFinalSkipped: 'Finale: uzeta je samo prva kategorija, preskočeno još {n}',
   },
   footnote: 'Igre se čuvaju na ovom računaru. Da biste preneli igru, izvezite je kao .gamezip.',
   version: 'Verzija {version}',
