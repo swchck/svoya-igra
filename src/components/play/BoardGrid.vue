@@ -215,6 +215,131 @@ const columns = computed(() => Math.max(1, ...props.round.themes.map((th) => th.
   border-color: oklch(var(--tint) 0 0 / 0.06);
   box-shadow: none;
 }
+/* retro show: a frame of bulbs chasing around the board */
+[data-look='retro'] .board-frame {
+  position: relative;
+  padding: 18px;
+}
+[data-look='retro'] .board-frame::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border-radius: 22px;
+  padding: 8px;
+  background: radial-gradient(circle, oklch(0.95 0.12 90) 0 3px, oklch(0.6 0.15 60 / 0.4) 4px, transparent 5px) 0 0 / 22px 22px;
+  /* only the padding ring shows: the content box is cut out of the full box */
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: chase 0.9s steps(2) infinite;
+  pointer-events: none;
+}
+@keyframes chase {
+  to { background-position: 11px 11px; }
+}
+[data-look='retro'] .cell,
+[data-look='retro'] .theme {
+  border-radius: 8px;
+}
+/* chalkboard: hand-drawn frames, chalk letters, no depth */
+[data-look='chalk'] .cell,
+[data-look='chalk'] .theme {
+  border: 2px dashed oklch(0.95 0.01 100 / 0.55);
+  border-radius: 12px 16px 10px 14px / 14px 10px 16px 12px;
+  background: var(--tile);
+  box-shadow: none;
+}
+[data-look='chalk'] .value,
+[data-look='chalk'] .theme {
+  font-family: var(--font-chalk);
+  text-transform: none;
+  letter-spacing: 0;
+}
+[data-look='chalk'] .value {
+  color: oklch(0.96 0.06 95);
+  text-shadow: 0 0 2px oklch(1 0 0 / 0.5);
+}
+[data-look='chalk'] .cell.played {
+  border-style: dotted;
+  border-color: oklch(0.95 0.01 100 / 0.15);
+}
+/* pixels: square blocks with a hard drop shadow and an 8-bit face */
+[data-look='pixel'] .cell,
+[data-look='pixel'] .theme {
+  border-radius: 0;
+  border: 4px solid oklch(0.1 0.02 285);
+  background: var(--tile);
+  box-shadow: 4px 4px 0 oklch(0.05 0 0);
+}
+[data-look='pixel'] .theme {
+  background: var(--theme-top);
+}
+[data-look='pixel'] .value,
+[data-look='pixel'] .theme {
+  font-family: var(--font-pixel);
+  text-transform: uppercase;
+  letter-spacing: 0;
+  text-shadow: 3px 3px 0 oklch(0.1 0.02 285);
+}
+[data-look='pixel'] .value {
+  font-size: calc(clamp(10px, min(var(--cell-h) * 0.3, var(--cell-w) * 0.16), 40px) * var(--stage-scale, 1));
+}
+[data-look='pixel'] .theme {
+  font-size: calc(clamp(8px, min(var(--cell-h) * 0.13, var(--cell-w) * 0.07), 16px) * var(--stage-scale, 1));
+  line-height: 1.5;
+}
+[data-look='pixel'] .cell.played {
+  background: var(--played);
+  box-shadow: none;
+}
+/* noir: flat grey tiles, thin rules, the accent the only color left */
+[data-look='noir'] .cell,
+[data-look='noir'] .theme {
+  border-radius: 4px;
+  border: 1px solid oklch(0.6 0 0 / 0.35);
+  box-shadow: 0 12px 30px -16px oklch(0 0 0);
+}
+[data-look='noir'] .theme {
+  font-family: var(--font-serif);
+  text-transform: none;
+  font-style: italic;
+}
+/* space: glassy console panels with a cyan edge */
+[data-look='space'] .cell,
+[data-look='space'] .theme {
+  border: 1px solid color-mix(in oklch, var(--cyan) 45%, transparent);
+  border-radius: 6px 18px 6px 18px;
+  backdrop-filter: blur(4px);
+}
+[data-look='space'] .theme {
+  text-shadow: 0 0 10px var(--cyan);
+}
+/* halloween: orange plates over purple, a dark ink on the orange */
+[data-look='halloween'] .cell {
+  border-color: oklch(0.68 0.18 55 / 0.4);
+}
+[data-look='halloween'] .theme {
+  border-color: oklch(0.2 0.08 300);
+}
+/* contrast: solid fills and thick edges, nothing that smears */
+[data-look='contrast'] .cell,
+[data-look='contrast'] .theme {
+  border: 3px solid oklch(1 0 0);
+  border-radius: 6px;
+  background: var(--tile);
+  box-shadow: none;
+}
+[data-look='contrast'] .theme {
+  background: var(--theme-top);
+}
+[data-look='contrast'] .value {
+  font-weight: 800;
+}
+[data-look='contrast'] .cell.played {
+  background: var(--played);
+  border-color: oklch(1 0 0 / 0.2);
+}
 @media (prefers-reduced-motion: reduce) {
   .cascade .cell, .cascade .theme { animation: none; }
   .cell { transition: none; }

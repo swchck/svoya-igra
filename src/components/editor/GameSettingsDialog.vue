@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { toast } from 'vue-sonner'
 import { useI18n } from 'vue-i18n'
 import { ImagePlus, Settings, Trash2 } from '@lucide/vue'
-import { ACCENT_NAMES, STAGE_LOOKS, type GameSettings, type StageLook } from '@/types'
+import { ACCENT_NAMES, STAGE_LOOKS, type GameSettings, type Round, type StageLook } from '@/types'
 import { MAX_ANSWER_SECONDS } from '@/game/parse'
 import { ACCENTS, lookAttrs, stageLook } from '@/play/accents'
 import { Button } from '@/components/ui/button'
@@ -13,11 +13,14 @@ import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import NumberInput from '@/components/NumberInput.vue'
 import StageLogo from '@/components/play/StageLogo.vue'
+import StagePreviewFrame from './StagePreviewFrame.vue'
 import MediaThumb from '@/components/media/MediaThumb.vue'
 import { useMediaIngest } from '@/components/media/useMediaIngest'
 
 const { t } = useI18n()
 const settings = defineModel<GameSettings | undefined>()
+/** The round the look tab draws its live preview with. */
+defineProps<{ previewRound?: Round }>()
 const { fromFiles } = useMediaIngest()
 const fileInput = ref<HTMLInputElement>()
 const backgroundInput = ref<HTMLInputElement>()
@@ -52,7 +55,7 @@ function pickLook(look: StageLook) {
     <DialogTrigger as-child>
       <Button variant="secondary" data-tour="game-settings"><Settings />{{ t('settings.open') }}</Button>
     </DialogTrigger>
-    <DialogContent class="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
+    <DialogContent class="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
       <DialogTitle>{{ t('settings.title') }}</DialogTitle>
       <DialogDescription>{{ t('settings.description') }}</DialogDescription>
 
@@ -88,6 +91,7 @@ function pickLook(look: StageLook) {
         </TabsContent>
 
         <TabsContent value="look" class="grid grid-cols-[minmax(0,1fr)] gap-5 pt-3">
+          <StagePreviewFrame v-if="previewRound" :settings="settings" :round="previewRound" scene="board" />
           <div class="grid gap-2" role="radiogroup" :aria-label="t('settings.look.style')">
             <Label as="span">{{ t('settings.look.style') }}</Label>
             <div class="looks">
@@ -108,6 +112,7 @@ function pickLook(look: StageLook) {
               </button>
             </div>
             <p class="hint">{{ t(`settings.look.styleHints.${stageLook(settings)}`) }}</p>
+            <p v-if="settings?.look === 'brand' && !settings?.logo" class="hint brand-hint">{{ t('settings.look.brandNeedsLogo') }}</p>
           </div>
 
           <div class="grid gap-2">
@@ -211,7 +216,7 @@ function pickLook(look: StageLook) {
 }
 .looks {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 .look {
@@ -260,6 +265,25 @@ function pickLook(look: StageLook) {
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 12px;
+}
+[data-look='pixel'] .mini-cell {
+  border-radius: 0;
+  font-family: var(--font-pixel);
+  font-size: 8px;
+}
+[data-look='chalk'] .mini-cell,
+[data-look='chalk'] .mini-theme {
+  border: 1px dashed oklch(1 0 0 / 0.5);
+}
+[data-look='chalk'] .mini-cell {
+  font-family: var(--font-chalk);
+  font-size: 16px;
+}
+[data-look='contrast'] .mini-cell {
+  border: 2px solid white;
+}
+.brand-hint {
+  color: var(--gold);
 }
 [data-look='neon'] .mini-cell {
   border: 1px solid var(--magenta);

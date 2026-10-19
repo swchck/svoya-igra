@@ -187,6 +187,15 @@ export default {
     preview: 'Preview on stage',
     remove: 'Delete final',
   },
+  stagePreview: {
+    open: 'Stage preview',
+    title: 'How it looks in the game',
+    description: 'The board, a question and its answer in this game\'s style, as the audience will see them.',
+    scenes: { intro: 'Opening', board: 'Board', question: 'Question', answer: 'Answer' },
+    prev: 'Previous question',
+    next: 'Next question',
+    empty: 'This round has no questions yet',
+  },
   preview: {
     title: 'What the audience will see',
     description: 'Preview of the question and answer in 16:9 screen proportions.',

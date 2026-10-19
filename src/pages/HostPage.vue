@@ -11,7 +11,7 @@ import { useHostDemo } from '@/composables/useHostDemo'
 import { offerTour, tour } from '@/tour/state'
 import TourHelpButton from '@/tour/TourHelpButton.vue'
 import { QUESTION_PHASES, usePlaySession, type Phase, type SessionSnapshot, type Sign } from '@/composables/usePlaySession'
-import { accentStyle, lookAttrs } from '@/play/accents'
+import { useStageLook } from '@/play/useStageLook'
 import { playerColor } from '@/play/palette'
 import { useRemaining } from '@/play/timer'
 import { HOST_PING_MS, openPlayChannel, type HostCommand, type PlayChannel } from '@/play/channel'
@@ -90,8 +90,7 @@ function onScreen(): MediaItem[] {
 /** The clips on the stage right now, so the host can start and stop them. */
 const stageMedia = computed(() => onScreen().filter((m) => m.kind !== 'image'))
 
-const accent = computed(() => accentStyle(game.value?.settings))
-const look = computed(() => lookAttrs(game.value?.settings))
+const look = useStageLook(() => game.value?.settings)
 const answerMs = mirror.answerMs
 const remaining = useRemaining(() => state.timer)
 const timerRunning = computed(() => state.timer.endsAt !== null && remaining.value > 0)
@@ -206,7 +205,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <main v-if="game" class="host" :style="accent" v-bind="look">
+  <main v-if="game" class="host" v-bind="look">
     <header class="top" data-tauri-drag-region>
       <span class="brand">{{ t('host.brand') }}</span>
       <span class="game">{{ game.title }}</span>

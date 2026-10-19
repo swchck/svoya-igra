@@ -97,8 +97,11 @@ export interface FinalQuestion extends HostInfo {
 export const ACCENT_NAMES = ['gold', 'ruby', 'emerald', 'sapphire'] as const
 export type AccentName = (typeof ACCENT_NAMES)[number]
 
-/** Whole stage styles: the TV studio, a classic quiz show and neon. */
-export const STAGE_LOOKS = ['studio', 'classic', 'neon'] as const
+/**
+ * Whole stage styles. `contrast` drops every glow and animation for weak projectors;
+ * `brand` takes its colors from the game's logo.
+ */
+export const STAGE_LOOKS = ['studio', 'classic', 'neon', 'retro', 'winter', 'chalk', 'pixel', 'noir', 'space', 'halloween', 'contrast', 'brand'] as const
 export type StageLook = (typeof STAGE_LOOKS)[number]
 
 /** Per-game options for the timer and the look of the stage. */

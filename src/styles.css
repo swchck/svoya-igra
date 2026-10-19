@@ -58,6 +58,8 @@
   --font-sans: 'Golos Text Variable', system-ui, sans-serif;
   --font-display: 'Oswald Variable', 'Arial Narrow', sans-serif;
   --font-serif: 'PT Serif', Georgia, serif;
+  --font-pixel: 'Press Start 2P', monospace;
+  --font-chalk: 'Caveat', cursive;
   --font-heading: var(--font-display);
 
   --color-gold: var(--gold);
@@ -175,6 +177,127 @@
   --played: oklch(0.1 0.02 290 / 0.6);
   --panel: oklch(0.12 0.04 300 / 0.7);
   --glass: oklch(0.12 0.04 300 / 0.7);
+}
+
+[data-look='retro'] {
+  --stage-top: oklch(0.3 0.12 28);
+  --stage-bottom: oklch(0.1 0.04 30);
+  --set-glow: oklch(0.55 0.16 55 / 0.45);
+  --tile: oklch(0.42 0.21 262);
+  --tile-deep: oklch(0.32 0.2 264);
+  --theme-top: oklch(0.4 0.17 25);
+  --theme-bottom: oklch(0.3 0.14 25);
+  --theme-ink: oklch(0.97 0.03 90);
+}
+[data-look='winter'] {
+  --stage-top: oklch(0.32 0.08 160);
+  --stage-bottom: oklch(0.12 0.04 165);
+  --set-glow: oklch(0.6 0.12 160 / 0.4);
+  --tile: oklch(0.38 0.11 155);
+  --tile-deep: oklch(0.27 0.09 158);
+  --tile-glow: oklch(0.55 0.13 150);
+  --theme-top: oklch(0.45 0.18 25);
+  --theme-bottom: oklch(0.34 0.15 22);
+  --theme-ink: oklch(0.97 0.02 90);
+  --played: oklch(0.15 0.04 160 / 0.6);
+  --panel: oklch(0.18 0.05 160 / 0.6);
+  --glass: oklch(0.18 0.05 160 / 0.65);
+}
+[data-look='chalk'] {
+  --stage-top: oklch(0.33 0.045 160);
+  --stage-bottom: oklch(0.22 0.035 162);
+  --set-glow: oklch(0.45 0.04 160 / 0.5);
+  --tile: oklch(0.3 0.04 160);
+  --tile-deep: oklch(0.3 0.04 160);
+  --tile-glow: transparent;
+  --theme-top: oklch(0.3 0.04 160);
+  --theme-bottom: oklch(0.3 0.04 160);
+  --theme-ink: oklch(0.96 0.02 100);
+  --played: oklch(0.26 0.03 160 / 0.6);
+  --panel: oklch(0.27 0.04 160 / 0.7);
+  --glass: oklch(0.27 0.04 160 / 0.8);
+  --font-display: var(--font-chalk);
+}
+[data-look='pixel'] {
+  --stage-top: oklch(0.22 0.1 285);
+  --stage-bottom: oklch(0.08 0.03 285);
+  --set-glow: oklch(0.45 0.2 285 / 0.4);
+  --tile: oklch(0.45 0.22 265);
+  --tile-deep: oklch(0.45 0.22 265);
+  --tile-glow: transparent;
+  --theme-top: oklch(0.55 0.22 330);
+  --theme-bottom: oklch(0.55 0.22 330);
+  --theme-ink: oklch(0.98 0 0);
+  --played: oklch(0.12 0.04 285);
+}
+[data-look='noir'] {
+  --stage-top: oklch(0.28 0 0);
+  --stage-bottom: oklch(0.07 0 0);
+  --set-glow: oklch(0.85 0.02 90 / 0.25);
+  --tile: oklch(0.24 0 0);
+  --tile-deep: oklch(0.16 0 0);
+  --tile-glow: oklch(0.35 0 0);
+  --theme-top: oklch(0.32 0 0);
+  --theme-bottom: oklch(0.22 0 0);
+  --theme-ink: oklch(0.95 0 0);
+  --played: oklch(0.1 0 0 / 0.7);
+  --panel: oklch(0.15 0 0 / 0.7);
+  --glass: oklch(0.15 0 0 / 0.75);
+  --magenta: oklch(0.62 0.2 25);
+  --cyan: oklch(0.9 0 0);
+}
+[data-look='space'] {
+  --stage-top: oklch(0.2 0.07 280);
+  --stage-bottom: oklch(0.05 0.02 270);
+  --set-glow: oklch(0.4 0.12 280 / 0.35);
+  --tile: oklch(0.24 0.06 250 / 0.9);
+  --tile-deep: oklch(0.16 0.05 255 / 0.9);
+  --tile-glow: oklch(0.45 0.12 220 / 0.6);
+  --theme-top: oklch(0.2 0.05 250 / 0.9);
+  --theme-bottom: oklch(0.14 0.04 255 / 0.9);
+  --theme-ink: var(--cyan);
+  --played: oklch(0.1 0.03 260 / 0.6);
+  --panel: oklch(0.12 0.04 260 / 0.7);
+  --glass: oklch(0.12 0.04 260 / 0.7);
+}
+[data-look='halloween'] {
+  --stage-top: oklch(0.28 0.13 305);
+  --stage-bottom: oklch(0.09 0.05 300);
+  --set-glow: oklch(0.6 0.17 55 / 0.35);
+  --tile: oklch(0.32 0.15 302);
+  --tile-deep: oklch(0.22 0.12 302);
+  --tile-glow: oklch(0.55 0.17 50 / 0.6);
+  --theme-top: oklch(0.68 0.18 55);
+  --theme-bottom: oklch(0.56 0.18 45);
+  --theme-ink: oklch(0.16 0.06 300);
+  --played: oklch(0.12 0.05 300 / 0.6);
+  --panel: oklch(0.16 0.07 300 / 0.65);
+  --glass: oklch(0.16 0.07 300 / 0.7);
+}
+[data-look='contrast'] {
+  --stage-top: oklch(0.08 0 0);
+  --stage-bottom: oklch(0.08 0 0);
+  --set-glow: transparent;
+  --tile: oklch(0.32 0.2 264);
+  --tile-deep: oklch(0.32 0.2 264);
+  --tile-glow: transparent;
+  --theme-top: oklch(0.18 0 0);
+  --theme-bottom: oklch(0.18 0 0);
+  --theme-ink: oklch(1 0 0);
+  --gold: oklch(0.92 0.18 95);
+  --played: oklch(0.14 0 0);
+  --panel: oklch(0.14 0 0);
+  --glass: oklch(0.14 0 0);
+  --muted-foreground: oklch(0.9 0 0);
+}
+/* no motion and no glow anywhere on a high-contrast stage: a weak projector smears both */
+[data-look='contrast'] *,
+[data-look='contrast'] *::before,
+[data-look='contrast'] *::after {
+  animation: none !important;
+  transition: none !important;
+  text-shadow: none !important;
+  backdrop-filter: none !important;
 }
 
 /* overlay-style bars: invisible until the pointer is over the area that scrolls */

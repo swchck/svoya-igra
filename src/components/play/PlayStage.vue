@@ -20,8 +20,8 @@ import { buildHostConsole } from '@/play/hostConsole'
 import { createMediaRegistry, MEDIA_REGISTRY } from '@/play/mediaControl'
 import { plainCopy } from '@/lib/plain'
 import { prefersReducedMotion } from '@/lib/motion'
-import { useStageSounds, useTimerSounds } from '@/play/sounds'
-import { accentStyle, lookAttrs } from '@/play/accents'
+import { setSoundStyle, useStageSounds, useTimerSounds } from '@/play/sounds'
+import { useStageLook } from '@/play/useStageLook'
 import { answerMedia, isSpecial, kindInfo, withHints } from '@/game/kinds'
 import { answerLabel, buzzable, lanAvailable, phonesPreferred, setPhonesPreferred } from '@/play/lan'
 import { prefs } from '@/prefs'
@@ -117,8 +117,9 @@ async function begin() {
 }
 
 const settings = computed(() => props.game.settings)
-const accent = computed(() => accentStyle(settings.value))
-const look = computed(() => lookAttrs(settings.value))
+const look = useStageLook(() => settings.value)
+watch(() => settings.value?.look, (l) => setSoundStyle(l === 'pixel' ? 'chip' : 'recorded'), { immediate: true })
+onUnmounted(() => setSoundStyle('recorded'))
 const stageScale = computed(() => Math.min(1.4, Math.max(0.8, prefs.stageScale || 1)))
 const buzzHeld = computed(() => !!lanInfo.value && buzzable(state) && !state.buzzArmed)
 const wrongLabel = computed(() => (session.wrongPenalty.value ? t('lan.buzz.wrong', { value: activeValue.value }) : t('lan.buzz.wrongFree')))
@@ -416,7 +417,7 @@ onUnmounted(() => {
   <div
     class="stage"
     :class="{ 'chrome-hidden': !chromeVisible && state.phase !== 'title', 'cursor-hidden': prefs.hideCursor && !chromeVisible && state.phase !== 'title' }"
-    :style="[accent, { '--stage-scale': stageScale }]"
+    :style="{ '--stage-scale': stageScale }"
     v-bind="look"
   >
     <ReactionsLayer ref="reactions" />

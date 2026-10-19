@@ -85,7 +85,7 @@ export default {
     },
     looks: {
       title: 'Stage styles',
-      text: 'A TV studio, a classic show with flat blue screens, or neon. Put up your own background picture instead of the set.',
+      text: 'Twelve styles, from a TV studio and neon to holidays, a chalkboard, pixels and high contrast for a weak projector. The brand style takes its colors from your logo, and the editor shows how it all looks in the game.',
     },
     league: {
       title: 'Results, diplomas and a league',

@@ -85,7 +85,7 @@ export default {
     },
     looks: {
       title: 'Stilovi scene',
-      text: 'TV studio, klasična emisija sa ravnim plavim ekranima ili neon. Umesto dekora možete staviti svoju pozadinsku sliku.',
+      text: 'Dvanaest stilova, od TV studija i neona do novogodišnjeg, školske table, piksela i visokog kontrasta za slab projektor. Firmeni stil uzima boje iz logotipa, a uređivač pokazuje kako će sve izgledati u igri.',
     },
     league: {
       title: 'Rezultati, diplome i liga',

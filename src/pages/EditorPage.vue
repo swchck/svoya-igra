@@ -43,6 +43,7 @@ import StagePreview from '@/components/editor/StagePreview.vue'
 import HistoryDialog from '@/components/editor/HistoryDialog.vue'
 import IssuesDialog from '@/components/editor/IssuesDialog.vue'
 import GameSettingsDialog from '@/components/editor/GameSettingsDialog.vue'
+import StagePreviewDialog from '@/components/editor/StagePreviewDialog.vue'
 import ValuesDialog from '@/components/editor/ValuesDialog.vue'
 import TypeInDialog from '@/components/editor/TypeInDialog.vue'
 import SearchDialog from '@/components/editor/SearchDialog.vue'
@@ -450,7 +451,8 @@ async function exportAs(format: GameFileFormat) {
       <Button variant="ghost" data-tour="history" :aria-label="t('editor.page.history')" :title="t('editor.page.history')" @click="historyOpen = true"><History /><span class="lbl">{{ t('editor.page.history') }}</span></Button>
       <TourHelpButton id="editor" />
       <Button variant="ghost" size="icon" :aria-pressed="hotkeysOpen" :aria-label="t('common.hotkeys.toggle')" :title="t('common.hotkeys.toggle')" @click="hotkeysOpen = !hotkeysOpen"><Keyboard /></Button>
-      <GameSettingsDialog v-model="game.settings" />
+      <StagePreviewDialog :game="game" :round-index="typeof tab === 'number' ? tab : 0" />
+      <GameSettingsDialog v-model="game.settings" :preview-round="round ?? game.rounds[0]" />
       <DropdownMenu>
         <DropdownMenuTrigger as-child>
           <Button variant="secondary" data-tour="export" :disabled="exporting">

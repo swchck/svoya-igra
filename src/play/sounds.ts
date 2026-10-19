@@ -12,6 +12,7 @@ import finalUrl from '@/assets/sounds/final.mp3'
 import resultsUrl from '@/assets/sounds/results.mp3'
 import tickUrl from '@/assets/sounds/tick.mp3'
 import timeupUrl from '@/assets/sounds/timeup.mp3'
+import { playChip } from './chiptune'
 
 /*
  * Game show sound effects, all CC0: the jingles and UI sounds are Kenney's (kenney.nl), taken
@@ -89,6 +90,15 @@ if (typeof window !== 'undefined') {
   })
 }
 
+/** The stage's sounds: the recorded ones, or synthesized 8-bit ones for the pixel style. */
+export type SoundStyle = 'recorded' | 'chip'
+let style: SoundStyle = 'recorded'
+
+/** Switches the stage between recorded and 8-bit sounds. */
+export function setSoundStyle(next: SoundStyle): void {
+  style = next
+}
+
 const cache = new Map<SoundName, HTMLAudioElement>()
 
 // when effects collide in one tick the louder moment wins: the fanfare over the verdict under it
@@ -98,7 +108,12 @@ let queued: SoundName | null = null
 function flush(): void {
   const name = queued
   queued = null
-  if (!name || typeof Audio === 'undefined') return
+  if (!name) return
+  if (style === 'chip') {
+    playChip(name, soundVolume.value / 100)
+    return
+  }
+  if (typeof Audio === 'undefined') return
   let base = cache.get(name)
   if (!base) {
     base = new Audio(SOUNDS[name])

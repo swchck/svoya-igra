@@ -187,6 +187,15 @@ export default {
     preview: 'Pregled na sceni',
     remove: 'Obriši finale',
   },
+  stagePreview: {
+    open: 'Pregled scene',
+    title: 'Kako izgleda u igri',
+    description: 'Tabla, pitanje i odgovor u stilu ove igre, kako će ih videti publika.',
+    scenes: { intro: 'Uvod', board: 'Tabla', question: 'Pitanje', answer: 'Odgovor' },
+    prev: 'Prethodno pitanje',
+    next: 'Sledeće pitanje',
+    empty: 'U rundi još nema pitanja',
+  },
   preview: {
     title: 'Ovako će videti gledaoci',
     description: 'Pregled pitanja i odgovora u razmeri ekrana 16:9.',

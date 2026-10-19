@@ -10,6 +10,9 @@ import '@fontsource-variable/oswald'
 import '@fontsource/pt-serif/400.css'
 import '@fontsource/pt-serif/400-italic.css'
 import '@fontsource/pt-serif/700.css'
+// faces of two stage styles; the browser fetches them only when a stage uses them
+import '@fontsource/press-start-2p/400.css'
+import '@fontsource/caveat/700.css'
 import './styles.css'
 
 // installing the router starts the first navigation, so the page's chunk downloads alongside the messages
