@@ -337,7 +337,7 @@
 :root {
   /* room for the macOS traffic lights drawn over the page */
   --titlebar-inset: 0px;
-  /* every top bar is this tall: the traffic lights are centered on it, at y 30 in
+  /* every top bar is this tall: the traffic lights are centered on it, at y 34 in
      tauri.conf.json and channel.ts, which must change with it */
   --titlebar-height: 64px;
 }

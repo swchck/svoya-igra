@@ -36,7 +36,13 @@ export function displayUrl(url: string): Promise<string> {
   if (!isStoredMedia(url)) return Promise.resolve(url)
   let cached = objectUrls.get(url)
   if (!cached) {
-    cached = getMedia(url).then((blob) => (blob ? URL.createObjectURL(blob) : ''))
+    cached = getMedia(url).then(async (blob) => {
+      if (!blob) return ''
+      // after a restart WebKit hands back IndexedDB blobs as files on disk, and a blob: URL
+      // made from one loads nothing in the desktop app; a copy in memory loads fine
+      const inMemory = new Blob([await blob.arrayBuffer()], { type: blob.type })
+      return URL.createObjectURL(inMemory)
+    })
     objectUrls.set(url, cached)
   }
   return cached

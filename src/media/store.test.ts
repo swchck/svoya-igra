@@ -1,10 +1,23 @@
 // @vitest-environment node
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { dbPut, STORE_MEDIA } from '../db'
 import { mediaRef } from './ref'
-import { deleteUnreferencedMedia, getMedia, putMedia } from './store'
+import { deleteUnreferencedMedia, displayUrl, getMedia, putMedia } from './store'
 
 describe('media store', () => {
+  it('shows a stored blob from a copy in memory, never the stored one itself', async () => {
+    const url = await putMedia(new Blob(['png bytes'], { type: 'image/png' }))
+    const stored = await getMedia(url)
+    const made: Blob[] = []
+    const spy = vi.spyOn(URL, 'createObjectURL').mockImplementation((b) => (made.push(b as Blob), 'blob:copy'))
+
+    expect(await displayUrl(url)).toBe('blob:copy')
+    expect(made[0]).not.toBe(stored)
+    expect(made[0].type).toBe('image/png')
+    expect(await made[0].text()).toBe('png bytes')
+    spy.mockRestore()
+  })
+
   it('keeps blobs behind media:// URLs', async () => {
     const url = await putMedia(new Blob(['abc'], { type: 'audio/mpeg' }))
 
