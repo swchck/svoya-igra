@@ -53,7 +53,7 @@ function pickLook(look: StageLook) {
 <template>
   <Dialog>
     <DialogTrigger as-child>
-      <Button variant="secondary" data-tour="game-settings"><Settings />{{ t('settings.open') }}</Button>
+      <Button variant="secondary" data-tour="game-settings" :aria-label="t('settings.open')" :title="t('settings.open')"><Settings /><span class="lbl">{{ t('settings.open') }}</span></Button>
     </DialogTrigger>
     <DialogContent class="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
       <DialogTitle>{{ t('settings.title') }}</DialogTitle>

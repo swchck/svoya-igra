@@ -97,7 +97,7 @@ onBeforeUnmount(() => observer?.disconnect())
   overflow: hidden;
   border-radius: 12px;
   background: black;
-  /* the stage's fixed layers anchor to this box, not the window */
+  /* the stage's own z-indexes stay inside the preview */
   isolation: isolate;
 }
 .stage {
@@ -109,10 +109,14 @@ onBeforeUnmount(() => observer?.disconnect())
   overflow: hidden;
   color: var(--foreground);
   transform-origin: 0 0;
-  /* transform makes this the containing block of the backdrop's position: fixed */
-  contain: paint;
+}
+/* the desktop WebKit showed only the animated layers of this scaled box and lost the board
+   and podiums under them; their own layers keep them on top. zoom shrinks cq text twice */
+.stage :deep(.backdrop) {
+  position: absolute;
 }
 .scene {
+  will-change: transform;
   position: relative;
   z-index: 1;
   display: grid;
@@ -128,5 +132,6 @@ onBeforeUnmount(() => observer?.disconnect())
 .stage :deep(.podiums) {
   position: relative;
   z-index: 1;
+  will-change: transform;
 }
 </style>

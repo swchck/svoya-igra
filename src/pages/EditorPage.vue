@@ -468,7 +468,7 @@ async function exportAs(format: GameFileFormat) {
           <DropdownMenuItem @select="router.push({ name: 'print', params: { id: game.id } })"><Printer />{{ t('editor.page.cheatSheet') }}</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <Button size="lg" data-tour="play" @click="play"><Play />{{ t('editor.page.play') }}</Button>
+      <Button size="lg" data-tour="play" :aria-label="t('editor.page.play')" @click="play"><Play /><span class="play-lbl">{{ t('editor.page.play') }}</span></Button>
     </header>
 
     <div class="body">
@@ -591,7 +591,9 @@ async function exportAs(format: GameFileFormat) {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 56px;
+  /* 56 like every other top bar: the macOS traffic lights are centered on it (y 26 in
+     tauri.conf.json), so the title's two lines must not grow it */
+  height: 56px;
   padding: 4px 20px 4px calc(20px + var(--titlebar-inset));
   background: var(--panel-solid);
   backdrop-filter: blur(14px);
@@ -604,14 +606,26 @@ async function exportAs(format: GameFileFormat) {
 }
 .names input {
   min-width: 0;
+  padding: 0;
+  line-height: 1.2;
   text-overflow: ellipsis;
 }
 .save .lbl {
   white-space: nowrap;
 }
-@media (max-width: 1180px) {
-  .bar .lbl {
+/* buttons shed their labels as the window narrows, so the title keeps some room */
+@media (max-width: 1560px) {
+  .bar .lbl,
+  .bar :deep(.lbl) {
     display: none;
+  }
+}
+@media (max-width: 1100px) {
+  .bar .play-lbl {
+    display: none;
+  }
+  .bar {
+    gap: 6px;
   }
 }
 .game-title,
