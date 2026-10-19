@@ -1,5 +1,26 @@
 [
   {
+    "version": "0.5.1",
+    "date": "2026-10-19",
+    "notes": {
+      "ru": [
+        "Фирменный стиль берёт и приглушённые цвета логотипа, а плитка стиля сразу показывает найденный цвет.",
+        "Верхние панели стали выше, светофор на macOS стоит ровно по центру, а в полноэкранном режиме кнопки больше не оставляют для него пустое место.",
+        "Открытие и сохранение файлов в полноэкранном режиме больше не подвешивает программу."
+      ],
+      "en": [
+        "The brand style also takes muted logo colors, and the style tile shows the color it found.",
+        "Top bars are taller, the macOS window buttons sit right in their middle, and full screen no longer leaves an empty gap for them.",
+        "Opening and saving files in full screen no longer freezes the app."
+      ],
+      "sr": [
+        "Firmeni stil uzima i prigušene boje logotipa, a pločica stila odmah pokazuje pronađenu boju.",
+        "Gornje trake su više, dugmad prozora na macOS-u stoje tačno u sredini, a u punom ekranu više ne ostaje prazan prostor za njih.",
+        "Otvaranje i čuvanje datoteka u punom ekranu više ne zamrzava program."
+      ]
+    }
+  },
+  {
     "version": "0.5.0",
     "date": "2026-10-19",
     "notes": {
