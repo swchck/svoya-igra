@@ -3,16 +3,18 @@ import type { GameSettings, MediaItem } from '@/types'
 import { displayUrl } from '@/media/store'
 
 /*
- * The brand style paints the stage in the logo's own color: the most common vivid color of
- * the picture, with near-greys, near-blacks and near-whites left out, since a logo's text
- * and background are usually those and say nothing about the brand.
+ * The brand style paints the stage in the logo's own color: the most common colorful part of
+ * the picture, with greys, near-blacks and near-whites left out, since a logo's text and
+ * background are usually those and say nothing about the brand.
  */
 
 /** Side of the square the logo is shrunk to before counting, px; plenty for a color. */
 const SAMPLE = 48
 
-/** The logo's dominant vivid color as `rgb(r g b)`, from RGBA pixels; null for a grey logo. */
-export function dominantColor(pixels: Uint8ClampedArray): string | null {
+/** Saturation a color needs to count, tried in turn: a vivid one first, then a muted one. */
+const SATURATION_STEPS = [0.3, 0.12]
+
+function bucketed(pixels: Uint8ClampedArray, minSat: number): string | null {
   const buckets = new Map<number, { n: number; r: number; g: number; b: number; weight: number }>()
   for (let i = 0; i + 3 < pixels.length; i += 4) {
     const [r, g, b, a] = [pixels[i], pixels[i + 1], pixels[i + 2], pixels[i + 3]]
@@ -21,7 +23,7 @@ export function dominantColor(pixels: Uint8ClampedArray): string | null {
     const min = Math.min(r, g, b)
     const light = (max + min) / 510
     const sat = max === min ? 0 : (max - min) / (255 - Math.abs(max + min - 255))
-    if (sat < 0.3 || light < 0.12 || light > 0.92) continue
+    if (sat < minSat || light < 0.1 || light > 0.92) continue
     // 4 bits a channel: shades of one color land in one bucket
     const key = ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4)
     const bucket = buckets.get(key) ?? { n: 0, r: 0, g: 0, b: 0, weight: 0 }
@@ -36,6 +38,18 @@ export function dominantColor(pixels: Uint8ClampedArray): string | null {
   for (const bucket of buckets.values()) if (!best || bucket.weight > best.weight) best = bucket
   if (!best) return null
   return `rgb(${Math.round(best.r / best.n)} ${Math.round(best.g / best.n)} ${Math.round(best.b / best.n)})`
+}
+
+/**
+ * The logo's dominant color as `rgb(r g b)`, from RGBA pixels: a vivid one if the logo has
+ * any, else a muted one; null for a logo of greys, black and white only.
+ */
+export function dominantColor(pixels: Uint8ClampedArray): string | null {
+  for (const minSat of SATURATION_STEPS) {
+    const found = bucketed(pixels, minSat)
+    if (found) return found
+  }
+  return null
 }
 
 async function logoColor(logo: MediaItem): Promise<string | null> {
@@ -66,12 +80,15 @@ export function brandStyle(color: string | null): Record<string, string> {
   }
 }
 
-/** The brand color of the game's logo while the game uses the brand style; null otherwise. */
-export function useBrandColor(settings: () => GameSettings | undefined): Ref<string | null> {
+/**
+ * The brand color of the game's logo while the game uses the brand style, or always with
+ * `always`; null without a logo or when it has no color.
+ */
+export function useBrandColor(settings: () => GameSettings | undefined, always = false): Ref<string | null> {
   const color = ref<string | null>(null)
   watchEffect(async () => {
     const s = settings()
-    const logo = s?.look === 'brand' ? s.logo : undefined
+    const logo = always || s?.look === 'brand' ? s?.logo : undefined
     if (!logo) {
       color.value = null
       return

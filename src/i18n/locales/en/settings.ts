@@ -42,6 +42,7 @@ export default {
       brand: 'Colors come from the game\'s logo.',
     },
     brandNeedsLogo: 'Upload a logo below and its colors will be used.',
+    brandNoColor: 'The logo has no color, only black, white and grey, so the stage keeps the studio colors.',
     background: 'Background picture',
     backgroundHint: 'Replaces the studio set on every screen of the game.',
     backgroundAdd: 'Upload a background',

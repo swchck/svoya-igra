@@ -131,7 +131,8 @@ function kindLabel(q: Question): string {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 20px 10px calc(20px + var(--titlebar-inset));
+  min-height: var(--titlebar-height);
+  padding: 6px 20px 6px calc(20px + var(--titlebar-inset));
   color: var(--foreground);
   background: oklch(0.2 0.15 270 / 0.92);
   backdrop-filter: blur(14px);

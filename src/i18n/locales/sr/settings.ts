@@ -42,6 +42,7 @@ export default {
       brand: 'Boje se uzimaju iz logotipa igre.',
     },
     brandNeedsLogo: 'Otpremite logotip ispod i uzeće se njegove boje.',
+    brandNoColor: 'Logotip nema boju, samo crnu, belu i sivu, pa scena ostaje u bojama studija.',
     background: 'Pozadinska slika',
     backgroundHint: 'Zamenjuje dekor studija na svim ekranima igre.',
     backgroundAdd: 'Otpremi pozadinu',

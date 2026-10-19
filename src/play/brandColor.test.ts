@@ -13,6 +13,10 @@ describe('brand color', () => {
     expect(dominantColor(logo)).toBe('rgb(20 120 220)')
   })
 
+  it('settles for a muted color when the logo has no vivid one', () => {
+    expect(dominantColor(pixels([255, 255, 255, 255, 500], [40, 50, 90, 255, 100]))).toBe('rgb(40 50 90)')
+  })
+
   it('finds nothing in a grey logo', () => {
     expect(dominantColor(pixels([128, 128, 128, 255, 100], [255, 255, 255, 255, 10]))).toBeNull()
   })

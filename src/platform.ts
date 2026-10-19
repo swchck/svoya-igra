@@ -15,6 +15,22 @@ export const isDesktop = isTauri()
  */
 export const overlayTitleBar = isDesktop && /Mac/.test(navigator.userAgent)
 
+/**
+ * macOS: keeps the room for the traffic lights only while they are there. A full-screen
+ * window hides them, and its top bars then start at the edge.
+ */
+export async function trackTitleBar(): Promise<void> {
+  if (!overlayTitleBar) return
+  const root = document.documentElement
+  root.classList.add('overlay-titlebar')
+  const { getCurrentWindow } = await import('@tauri-apps/api/window')
+  const win = getCurrentWindow()
+  const sync = async () => root.classList.toggle('overlay-titlebar', !(await win.isFullscreen()))
+  await sync()
+  // entering and leaving full screen both resize the window; there is no event of its own
+  await win.onResized(() => void sync())
+}
+
 /** Resolves platform facts that the UI reads synchronously. Call once before mounting. */
 export async function initPlatform(): Promise<void> {
   if (isDesktop) mainWindow = (await import('@tauri-apps/api/window')).getCurrentWindow().label === 'main'
@@ -52,16 +68,39 @@ async function readPath(path: string): Promise<File> {
 }
 
 /**
+ * macOS: runs a native file dialog out of full screen and goes back after. The dialog
+ * library raises its panel to the screen-shielding window level, which a full-screen space
+ * (Game Mode included) never shows, and the app waits forever on the invisible panel.
+ */
+async function outOfFullscreen<T>(dialog: () => Promise<T>): Promise<T> {
+  if (!overlayTitleBar) return dialog()
+  const { getCurrentWindow } = await import('@tauri-apps/api/window')
+  const win = getCurrentWindow()
+  if (!(await win.isFullscreen())) return dialog()
+  await win.setFullscreen(false)
+  // the exit animation runs on its own; a panel opened during it lands in the old space
+  for (let i = 0; i < 40 && (await win.isFullscreen()); i++) await new Promise((r) => setTimeout(r, 50))
+  await new Promise((r) => setTimeout(r, 400))
+  try {
+    return await dialog()
+  } finally {
+    await win.setFullscreen(true)
+  }
+}
+
+/**
  * Desktop: shows the native open dialog for a game file, or only for the given extensions.
  * Returns null when cancelled.
  */
 export async function pickGameFile(extensions: string[] = GAME_EXTENSIONS): Promise<File | null> {
   const { open } = await import('@tauri-apps/plugin-dialog')
-  const path = await open({
-    multiple: false,
-    directory: false,
-    filters: [{ name: t('system.fileFilterName'), extensions }],
-  })
+  const path = await outOfFullscreen(() =>
+    open({
+      multiple: false,
+      directory: false,
+      filters: [{ name: t('system.fileFilterName'), extensions }],
+    }),
+  )
   return path ? readPath(path) : null
 }
 
@@ -74,7 +113,7 @@ export async function saveFile(blob: Blob, filename: string): Promise<boolean> {
   }
   const { save } = await import('@tauri-apps/plugin-dialog')
   const ext = filename.split('.').pop() ?? ''
-  const path = await save({ defaultPath: filename, filters: [{ name: ext.toUpperCase(), extensions: [ext] }] })
+  const path = await outOfFullscreen(() => save({ defaultPath: filename, filters: [{ name: ext.toUpperCase(), extensions: [ext] }] }))
   if (!path) return false
   const { writeFile } = await import('@tauri-apps/plugin-fs')
   await writeFile(path, new Uint8Array(await blob.arrayBuffer()))

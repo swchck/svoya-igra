@@ -177,7 +177,7 @@ function back() {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 56px;
+  min-height: var(--titlebar-height);
   padding: 4px 20px 4px calc(20px + var(--titlebar-inset));
 }
 .title {

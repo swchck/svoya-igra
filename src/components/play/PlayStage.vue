@@ -716,7 +716,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px 10px calc(16px + var(--titlebar-inset));
+  min-height: var(--titlebar-height);
+  padding: 4px 16px 4px calc(16px + var(--titlebar-inset));
   transition: opacity 0.5s ease;
 }
 .chrome-hidden .chrome {

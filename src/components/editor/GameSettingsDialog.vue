@@ -6,6 +6,7 @@ import { ImagePlus, Settings, Trash2 } from '@lucide/vue'
 import { ACCENT_NAMES, STAGE_LOOKS, type GameSettings, type Round, type StageLook } from '@/types'
 import { MAX_ANSWER_SECONDS } from '@/game/parse'
 import { ACCENTS, lookAttrs, stageLook } from '@/play/accents'
+import { brandStyle, useBrandColor } from '@/play/brandColor'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -24,6 +25,8 @@ defineProps<{ previewRound?: Round }>()
 const { fromFiles } = useMediaIngest()
 const fileInput = ref<HTMLInputElement>()
 const backgroundInput = ref<HTMLInputElement>()
+// the brand tile shows the logo's color before anyone picks it
+const brandColor = useBrandColor(() => settings.value, true)
 
 /** Applies a change; a game with no settings left carries none. */
 function update(patch: Partial<GameSettings>) {
@@ -105,7 +108,7 @@ function pickLook(look: StageLook) {
                 :aria-checked="stageLook(settings) === name"
                 @click="pickLook(name)"
               >
-                <span class="swatch" v-bind="lookAttrs({ look: name })" aria-hidden="true">
+                <span class="swatch" v-bind="lookAttrs({ look: name })" :style="name === 'brand' ? brandStyle(brandColor) : undefined" aria-hidden="true">
                   <span class="mini-theme" /><span class="mini-cell">200</span>
                 </span>
                 <span class="look-name">{{ t(`settings.look.styles.${name}`) }}</span>
@@ -113,6 +116,7 @@ function pickLook(look: StageLook) {
             </div>
             <p class="hint">{{ t(`settings.look.styleHints.${stageLook(settings)}`) }}</p>
             <p v-if="settings?.look === 'brand' && !settings?.logo" class="hint brand-hint">{{ t('settings.look.brandNeedsLogo') }}</p>
+            <p v-else-if="settings?.look === 'brand' && !brandColor" class="hint brand-hint">{{ t('settings.look.brandNoColor') }}</p>
           </div>
 
           <div class="grid gap-2">

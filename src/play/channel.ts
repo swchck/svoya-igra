@@ -117,7 +117,7 @@ export async function openHostWindow(gameId: string, title: string): Promise<voi
       minHeight: 560,
       titleBarStyle: 'overlay',
       hiddenTitle: true,
-      trafficLightPosition: new LogicalPosition(18, 26),
+      trafficLightPosition: new LogicalPosition(18, 30),
     })
     return
   }

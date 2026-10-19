@@ -470,6 +470,9 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-height: var(--titlebar-height);
+  /* the page's own top padding would push the bar off the traffic lights */
+  margin-top: -10px;
   padding-left: var(--titlebar-inset);
 }
 .brand {

@@ -591,9 +591,8 @@ async function exportAs(format: GameFileFormat) {
   display: flex;
   align-items: center;
   gap: 12px;
-  /* 56 like every other top bar: the macOS traffic lights are centered on it (y 26 in
-     tauri.conf.json), so the title's two lines must not grow it */
-  height: 56px;
+  /* fixed, so the title's two lines can't grow it off the traffic lights' center */
+  height: var(--titlebar-height);
   padding: 4px 20px 4px calc(20px + var(--titlebar-inset));
   background: var(--panel-solid);
   backdrop-filter: blur(14px);
