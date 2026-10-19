@@ -78,7 +78,7 @@ defineEmits<{ (e: 'remove', themeId: string): void }>()
   width: 100%;
   padding: 0.5em 2.2em;
   border-radius: 999px;
-  border: 1px solid oklch(1 0 0 / 0.18);
+  border: 1px solid oklch(var(--tint) 0 0 / 0.18);
   background: linear-gradient(180deg, var(--tile), var(--tile-deep));
   color: var(--gold);
   font-family: var(--font-display);

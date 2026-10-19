@@ -213,11 +213,11 @@ const total = computed(() => Object.values(props.phones).reduce((a, b) => a + b,
   padding: 10px 14px;
   border-radius: 14px;
   border-left: 4px solid var(--pc);
-  background: oklch(1 0 0 / 0.05);
+  background: oklch(var(--tint) 0 0 / 0.05);
   transition: background 0.3s;
 }
 .seat.on {
-  background: oklch(1 0 0 / 0.12);
+  background: oklch(var(--tint) 0 0 / 0.12);
 }
 .mark {
   display: grid;

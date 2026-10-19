@@ -22,4 +22,8 @@ export default {
   chips: {
     remove: 'Remove “{value}”',
   },
+  hotkeys: {
+    title: 'Keyboard shortcuts',
+    toggle: 'Keyboard shortcuts (?)',
+  },
 } satisfies typeof ru

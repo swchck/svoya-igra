@@ -18,6 +18,13 @@ export const lanAvailable = isDesktop
 export interface LanInfo {
   url: string
   code: string
+  /** Opens the host console on a phone; never shown on the stage. Empty for a shared file. */
+  hostKey: string
+}
+
+/** The address that opens the host console on a phone. */
+export function hostConsoleUrl(info: LanInfo): string {
+  return `${info.url}&h=${info.hostKey}`
 }
 
 type BuzzState = 'closed' | 'open' | 'locked'
@@ -106,6 +113,8 @@ export interface LanStageInfo {
   chooser: string | null
   /** Phones may buzz in the hand. */
   vibrate: boolean
+  /** The game is on hold: the buttons keep their state but take no presses. */
+  paused: boolean
 }
 
 /** The status of a room nobody has joined yet. */
@@ -131,7 +140,7 @@ export function answerLabel(q: Pick<Question, 'options'> | null | undefined, raw
 
 /** Derives what phones should show from the session. */
 export function stageInfo(
-  snapshot: Pick<SessionSnapshot, 'phase' | 'players' | 'teams' | 'played' | 'chooserId' | 'activeQuestionId' | 'groupVerdicts'>,
+  snapshot: Pick<SessionSnapshot, 'phase' | 'players' | 'teams' | 'played' | 'chooserId' | 'activeQuestionId' | 'groupVerdicts' | 'pause'>,
   title: string,
   round?: Round,
   vibrate = true,
@@ -167,6 +176,7 @@ export function stageInfo(
         : null,
     chooser: striking ? final!.picker : snapshot.chooserId,
     vibrate,
+    paused: !!snapshot.pause,
   }
 }
 
@@ -178,7 +188,11 @@ export function buzzable(snapshot: Pick<SessionSnapshot, 'phase' | 'stake' | 'gr
   return snapshot.phase === 'question' && !snapshot.stake && !snapshot.groupVerdicts
 }
 
-/** The question the buttons are open for, or null while they should stay closed. */
+/**
+ * The question the buttons are open for, or null while they should stay closed. A pause
+ * doesn't close them: closing forgets who pressed and who was shut out, so the room holds
+ * presses off by the stage's `paused` instead.
+ */
 export function buzzWindow(snapshot: Pick<SessionSnapshot, 'phase' | 'activeQuestionId' | 'stake' | 'buzzArmed' | 'groupVerdicts'>): string | null {
   return buzzable(snapshot) && snapshot.buzzArmed ? snapshot.activeQuestionId : null
 }
@@ -261,6 +275,23 @@ export async function onLanJoin(handle: (join: LanJoin) => void): Promise<() => 
 export async function onLanPick(handle: (pick: LanPick) => void): Promise<() => void> {
   const { listen } = await import('@tauri-apps/api/event')
   return listen<LanPick>('lan://pick', (e) => handle(e.payload))
+}
+
+/** Delivers commands from the host's phone, shaped like the host window's. */
+export async function onLanHost(handle: (command: unknown) => void): Promise<() => void> {
+  const { listen } = await import('@tauri-apps/api/event')
+  return listen<unknown>('lan://host', (e) => handle(e.payload))
+}
+
+/** Delivers spectators' reactions, one emoji each. */
+export async function onLanReaction(handle: (emoji: string) => void): Promise<() => void> {
+  const { listen } = await import('@tauri-apps/api/event')
+  return listen<string>('lan://react', (e) => handle(e.payload))
+}
+
+/** Gives the host's phone its console; null takes it away. */
+export function setHostView(view: unknown): Promise<void> {
+  return invoke('lan_host_view', { view })
 }
 
 /** The name to show for a press: the person, and their team when the seat is shared. */

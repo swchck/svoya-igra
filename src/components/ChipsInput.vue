@@ -64,7 +64,7 @@ function onKeydown(e: KeyboardEvent) {
   padding: 5px 8px;
   border-radius: 12px;
   border: 1px solid var(--input);
-  background: oklch(0.14 0.1 274 / 0.55);
+  background: var(--well);
   cursor: text;
 }
 .chips:focus-within {
@@ -101,7 +101,7 @@ function onKeydown(e: KeyboardEvent) {
 }
 .drop:hover {
   color: var(--foreground);
-  background: oklch(1 0 0 / 0.1);
+  background: oklch(var(--tint) 0 0 / 0.1);
 }
 .entry {
   flex: 1 1 120px;

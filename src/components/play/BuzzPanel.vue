@@ -82,7 +82,7 @@ const stateLabel = computed(() => (props.armed ? t(`lan.buzz.${props.status.buzz
   padding: 1px 10px;
   border-radius: 999px;
   font-size: 12px;
-  border: 1px solid oklch(1 0 0 / 0.25);
+  border: 1px solid oklch(var(--tint) 0 0 / 0.25);
   color: var(--muted-foreground);
 }
 .chip.open {
@@ -107,7 +107,7 @@ const stateLabel = computed(() => (props.armed ? t(`lan.buzz.${props.status.buzz
   gap: 8px;
   padding: 4px 12px 4px 4px;
   border-radius: 999px;
-  border: 1px solid oklch(1 0 0 / 0.18);
+  border: 1px solid oklch(var(--tint) 0 0 / 0.18);
   border-left: 4px solid var(--pc);
 }
 .order li.first {
@@ -121,7 +121,7 @@ const stateLabel = computed(() => (props.armed ? t(`lan.buzz.${props.status.buzz
   width: 24px;
   height: 24px;
   border-radius: 999px;
-  background: oklch(1 0 0 / 0.12);
+  background: oklch(var(--tint) 0 0 / 0.12);
   font-size: 13px;
 }
 .first .place {

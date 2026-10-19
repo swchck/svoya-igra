@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Crown, Home, Undo2 } from '@lucide/vue'
+import { Award, Crown, Home, ImageDown, Undo2 } from '@lucide/vue'
 import type { Player } from '@/types'
 import type { PlayerStats } from '@/composables/usePlaySession'
 import { playerColor } from '@/play/palette'
@@ -18,7 +18,7 @@ const props = defineProps<{
   /** Offers to take back the last scoring; used when no host window does. */
   canUndo?: boolean
 }>()
-defineEmits<{ (e: 'home'): void; (e: 'undo'): void }>()
+defineEmits<{ (e: 'home'): void; (e: 'undo'): void; (e: 'image'): void; (e: 'diplomas'): void }>()
 
 // colors follow the setup order, which the ranking has lost
 const colors = computed(() => new Map(props.ranking.map((p, i) => [p.id, playerColor(p, i)])))
@@ -62,6 +62,8 @@ onMounted(() => {
     <StatsTable v-if="stats && Object.keys(stats).length" class="stats" :players="ranking" :stats="stats" />
     <div v-if="showHome" class="actions">
       <Button v-if="canUndo" variant="ghost" @click="$emit('undo')"><Undo2 />{{ t('play.stage.undo') }}</Button>
+      <Button variant="secondary" size="lg" @click="$emit('image')"><ImageDown />{{ t('play.results.image') }}</Button>
+      <Button variant="secondary" size="lg" @click="$emit('diplomas')"><Award />{{ t('play.results.diplomas') }}</Button>
       <Button size="lg" @click="$emit('home')"><Home />{{ t('play.results.home') }}</Button>
     </div>
   </section>
@@ -125,9 +127,9 @@ onMounted(() => {
   width: 100%;
   border-radius: 16px 16px 0 0;
   background:
-    linear-gradient(180deg, oklch(1 0 0 / 0.18), transparent 35%),
+    linear-gradient(180deg, oklch(var(--tint) 0 0 / 0.18), transparent 35%),
     linear-gradient(180deg, var(--tile), var(--tile-deep));
-  border: 1px solid oklch(1 0 0 / 0.18);
+  border: 1px solid oklch(var(--tint) 0 0 / 0.18);
   border-bottom: 0;
 }
 .place-1 .block { height: clamp(120px, 26vh, 280px); border-top: 4px solid var(--gold); }
@@ -143,7 +145,7 @@ onMounted(() => {
   font-family: var(--font-display);
   font-weight: 700;
   font-size: clamp(36px, 6vh, 80px);
-  color: oklch(1 0 0 / 0.85);
+  color: oklch(var(--tint) 0 0 / 0.85);
 }
 .crown {
   width: clamp(28px, 4vw, 52px);
@@ -153,6 +155,8 @@ onMounted(() => {
 }
 .actions {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: center;
   gap: 12px;
 }

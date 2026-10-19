@@ -97,6 +97,10 @@ export interface FinalQuestion extends HostInfo {
 export const ACCENT_NAMES = ['gold', 'ruby', 'emerald', 'sapphire'] as const
 export type AccentName = (typeof ACCENT_NAMES)[number]
 
+/** Whole stage styles: the TV studio, a classic quiz show, neon, and a light one for projectors in a lit room. */
+export const STAGE_LOOKS = ['studio', 'classic', 'neon', 'minimal'] as const
+export type StageLook = (typeof STAGE_LOOKS)[number]
+
 /** Per-game options for the timer and the look of the stage. */
 export interface GameSettings {
   /** Seconds to answer; unset or 0 means no timer. */
@@ -108,6 +112,10 @@ export interface GameSettings {
   logo?: MediaItem
   /** Shown on the title screen under the title. */
   introText?: string
+  /** Unset is the studio. */
+  look?: StageLook
+  /** A picture behind the whole stage, in place of the set. */
+  background?: MediaItem
 }
 
 export interface Game {

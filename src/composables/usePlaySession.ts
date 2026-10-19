@@ -92,6 +92,16 @@ export type HistoryEntry =
       tally?: Tally
     }
 
+/** A hold on the game: a plain pause, or a break that ends at `until` (Unix ms). */
+export interface Pause {
+  until: number | null
+  /** The answer clock ran when the pause began, and runs on after it. */
+  resumeTimer: boolean
+}
+
+/** The longest break the host may call, in minutes. */
+export const MAX_BREAK_MINUTES = 60
+
 /** Right and wrong answers given to the open question so far. */
 export interface Tally {
   right: number
@@ -127,6 +137,8 @@ export interface SessionSnapshot {
   tally: Tally
   /** Tells this play-through apart from earlier ones of the same game. */
   sessionId: string
+  /** The game is on hold; null while it runs. */
+  pause: Pause | null
   finalBets: Record<string, number>
   finalVerdicts: Record<string, Sign>
   players: Player[]
@@ -169,6 +181,7 @@ function initialSnapshot(): SessionSnapshot {
     finalRemoved: [],
     tally: { right: 0, wrong: 0 },
     sessionId: uid('s_'),
+    pause: null,
     finalBets: {},
     finalVerdicts: {},
     players: [],
@@ -231,6 +244,7 @@ export function usePlaySession(
   state.finalRemoved ??= []
   state.tally ??= { right: 0, wrong: 0 }
   state.sessionId ??= uid('s_')
+  state.pause ??= null
 
   const round = computed(() => game.value?.rounds[state.roundIndex])
   const activeQuestion = computed<Question | null>(
@@ -345,12 +359,14 @@ export function usePlaySession(
 
   /** Opens the phone buttons for the open question, whatever the rules said. */
   function openBuzz() {
+    if (state.pause) return
     if (state.phase === 'question') state.buzzArmed = true
   }
 
   const timerPhase = () => (state.phase === 'question' || state.phase === 'final-question') && answerMs.value > 0
 
   function timerStart() {
+    if (state.pause) return
     if (!timerPhase()) return
     const now = Date.now()
     const remaining = timerRemaining(state.timer, now)
@@ -369,8 +385,30 @@ export function usePlaySession(
     if (timerPhase()) state.timer = { endsAt: null, left: answerMs.value }
   }
 
+  /**
+   * Puts the game on hold; with `minutes`, a break that counts down. Calling it again changes
+   * the break. While on hold every other action is ignored, wherever it comes from.
+   */
+  function pause(minutes?: number) {
+    if (!inProgress.value) return
+    const running = state.timer.endsAt !== null && timerRemaining(state.timer, Date.now()) > 0
+    const resumeTimer = state.pause?.resumeTimer ?? running
+    timerPause()
+    const until = minutes && minutes > 0 ? Date.now() + Math.min(minutes, MAX_BREAK_MINUTES) * 60_000 : null
+    state.pause = { until, resumeTimer }
+  }
+
+  /** Lifts the hold; the clock goes on if it ran before. */
+  function resume() {
+    const held = state.pause
+    if (!held) return
+    state.pause = null
+    if (held.resumeTimer) timerStart()
+  }
+
   /** The first round opens as the rules say; every later one by whoever trails. */
   function start() {
+    if (state.pause) return
     if (state.phase !== 'title') return
     const list = players.value
     const how = rules().firstChooser
@@ -386,6 +424,7 @@ export function usePlaySession(
   }
 
   function setChooser(playerId: string) {
+    if (state.pause) return
     if (player(playerId)) state.chooserId = playerId
   }
 
@@ -402,10 +441,12 @@ export function usePlaySession(
 
   /** Skips the rest of the round on the board. */
   function nextRound() {
+    if (state.pause) return
     if (state.phase === 'board') finishRound()
   }
 
   function pick(questionId: string) {
+    if (state.pause) return
     const inRound = round.value?.themes.some((t) => t.questions.some((q) => q.id === questionId))
     if (state.phase !== 'board' || !inRound || state.played[questionId]) return
     state.activeQuestionId = questionId
@@ -420,6 +461,7 @@ export function usePlaySession(
 
   /** Auction: the winner and their bid, at least the question's value; all-in takes everything they have. */
   function setAuctionStake(playerId: string, amount: number) {
+    if (state.pause) return
     const q = activeQuestion.value
     if (!q || state.phase !== 'auction' || !player(playerId) || !Number.isFinite(amount)) return
     const limit = maxStake(player(playerId), q.value)
@@ -431,6 +473,7 @@ export function usePlaySession(
 
   /** Cat in the bag: who gets the question; it is worth its cat price. */
   function giveCat(playerId: string) {
+    if (state.pause) return
     const q = activeQuestion.value
     if (!q || state.phase !== 'cat' || !player(playerId)) return
     state.stake = { playerId, amount: q.catValue ?? q.value }
@@ -440,6 +483,7 @@ export function usePlaySession(
 
   /** No risk: who answers, alone and without losing anything for a wrong answer. */
   function takeNoRisk(playerId: string) {
+    if (state.pause) return
     const q = activeQuestion.value
     if (!q || state.phase !== 'no-risk' || !player(playerId)) return
     state.stake = { playerId, amount: q.value, safe: true }
@@ -449,6 +493,7 @@ export function usePlaySession(
 
   /** Closes the open question, scoring the verdict if there is one; only an answered question takes a verdict. */
   function close(verdict?: { playerId: string; sign: Sign }) {
+    if (state.pause) return
     const q = activeQuestion.value
     if (!q || !QUESTION_PHASES.includes(state.phase) || (verdict && state.phase !== 'answer')) return
     record({ kind: 'turn', before: turnState() })
@@ -466,12 +511,14 @@ export function usePlaySession(
 
   /** Opens the next hint of the question on the stage; with no stake, it lowers the value. */
   function revealHint() {
+    if (state.pause) return
     const count = activeQuestion.value?.hints?.length ?? 0
     if (state.phase === 'question' && state.hintsShown < count) state.hintsShown += 1
   }
 
   /** A question for everyone: marks one player's answer right or wrong, or clears the mark. */
   function setGroupVerdict(playerId: string, sign: Sign | null) {
+    if (state.pause) return
     if (state.phase !== 'answer' || !state.groupVerdicts || !player(playerId)) return
     if (sign === 1 || sign === -1) state.groupVerdicts[playerId] = sign
     else if (sign === null) delete state.groupVerdicts[playerId]
@@ -479,6 +526,7 @@ export function usePlaySession(
 
   /** A question for everyone: scores every marked answer at the question's value and closes it. */
   function scoreGroup() {
+    if (state.pause) return
     const q = activeQuestion.value
     if (!q || state.phase !== 'answer' || !state.groupVerdicts) return
     record({ kind: 'turn', before: turnState() })
@@ -512,12 +560,14 @@ export function usePlaySession(
   }
 
   function setFinalVerdict(playerId: string, sign: Sign) {
+    if (state.pause) return
     if (state.phase !== 'final-answer' || !player(playerId) || (sign !== 1 && sign !== -1)) return
     state.finalVerdicts[playerId] = sign
   }
 
   /** Strikes out a final theme; once one is left, the final moves on to bets. */
   function removeFinalTheme(themeId: string) {
+    if (state.pause) return
     if (state.phase !== 'final-themes' || finalLeft.value.length < 2 || !finalLeft.value.some((f) => f.id === themeId)) return
     record({ kind: 'turn', before: turnState() })
     state.finalRemoved.push(themeId)
@@ -526,6 +576,7 @@ export function usePlaySession(
 
   /** Applies final bets by the marked verdicts and shows the results. */
   function scoreFinal() {
+    if (state.pause) return
     if (state.phase !== 'final-answer') return
     record({ kind: 'turn', before: turnState() })
     for (const p of players.value) {
@@ -540,6 +591,7 @@ export function usePlaySession(
 
   /** Advances the click-through phases; returns false where a decision is needed instead. */
   function advance(): boolean {
+    if (state.pause) return false
     const next: Partial<Record<Phase, Phase>> = {
       'round-intro': 'board',
       question: 'answer',
@@ -572,6 +624,7 @@ export function usePlaySession(
   }
 
   function adjustScore(playerId: string, delta: number) {
+    if (state.pause) return
     const p = player(playerId)
     if (!p || !Number.isFinite(delta) || delta === 0) return
     // points handed out while a question is open are a verdict on that player's answer
@@ -582,12 +635,14 @@ export function usePlaySession(
 
   /** Marks a wrong answer while the question stays open, charging for it if the rules say so. */
   function answerWrong(playerId: string) {
+    if (state.pause) return
     const p = player(playerId)
     if (p && answering()) scoreAnswer(p, -1, penalty())
   }
 
   /** Takes back the last scoring action, with the board state it changed. */
   function undo(): boolean {
+    if (state.pause) return false
     const entry = state.history.pop()
     if (!entry) return false
     if (entry.kind === 'adjust') {
@@ -653,6 +708,8 @@ export function usePlaySession(
     setGroupVerdict,
     scoreGroup,
     revealHint,
+    pause,
+    resume,
     advance,
     nextRound,
     removeFinalTheme,

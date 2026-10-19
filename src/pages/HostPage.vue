@@ -11,7 +11,7 @@ import { useHostDemo } from '@/composables/useHostDemo'
 import { offerTour, tour } from '@/tour/state'
 import TourHelpButton from '@/tour/TourHelpButton.vue'
 import { QUESTION_PHASES, usePlaySession, type Phase, type SessionSnapshot, type Sign } from '@/composables/usePlaySession'
-import { accentStyle } from '@/play/accents'
+import { accentStyle, lookAttrs } from '@/play/accents'
 import { playerColor } from '@/play/palette'
 import { useRemaining } from '@/play/timer'
 import { HOST_PING_MS, openPlayChannel, type HostCommand, type PlayChannel } from '@/play/channel'
@@ -31,6 +31,8 @@ import HostTimer from '@/components/play/HostTimer.vue'
 import StatsTable from '@/components/play/StatsTable.vue'
 import BuzzPanel from '@/components/play/BuzzPanel.vue'
 import AnswerKey from '@/components/play/AnswerKey.vue'
+import PauseControl from '@/components/play/PauseControl.vue'
+import HotkeysPanel, { type Hotkey } from '@/components/HotkeysPanel.vue'
 import FinalThemesSlide from '@/components/play/FinalThemesSlide.vue'
 
 const props = defineProps<{ id: string }>()
@@ -89,6 +91,7 @@ function onScreen(): MediaItem[] {
 const stageMedia = computed(() => onScreen().filter((m) => m.kind !== 'image'))
 
 const accent = computed(() => accentStyle(game.value?.settings))
+const look = computed(() => lookAttrs(game.value?.settings))
 const answerMs = mirror.answerMs
 const remaining = useRemaining(() => state.timer)
 const timerRunning = computed(() => state.timer.endsAt !== null && remaining.value > 0)
@@ -96,6 +99,16 @@ const showTimer = computed(() => answerMs.value > 0 && (state.phase === 'questio
 
 const selectedId = ref<string>()
 const hintOpen = ref(false)
+const hotkeys = computed<Hotkey[]>(() => [
+  { keys: ['1–9'], label: t('host.hotkeys.pick') },
+  { keys: ['+'], label: t('host.hotkeys.correct') },
+  { keys: ['−'], label: t('host.hotkeys.wrong') },
+  { keys: ['Space'], label: t('host.hotkeys.advance') },
+  { keys: ['P'], label: t('play.hotkeys.pause') },
+  { keys: ['Esc'], label: t('host.hotkeys.close') },
+  { keys: ['Ctrl', 'Z'], label: t('host.hotkeys.undo') },
+  { keys: ['?'], label: t('host.hotkeys.help') },
+])
 /** Who +/- apply to: the stake holder when one answers alone, else the host's pick. */
 const targetId = computed(() => state.stake?.playerId ?? selectedId.value)
 
@@ -154,6 +167,7 @@ function onKey(e: KeyboardEvent) {
   else if (e.key === '+' || e.key === '=') verdictKey(1)
   else if (e.key === '-') verdictKey(-1)
   else if (e.key === '?') hintOpen.value = !hintOpen.value
+  else if (e.code === 'KeyP') send(state.pause ? 'resume' : 'pause')
   else if (e.key === 'Escape') {
     if (hintOpen.value) hintOpen.value = false
     else if (QUESTION_PHASES.includes(state.phase)) send('close')
@@ -192,7 +206,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <main v-if="game" class="host" :style="accent">
+  <main v-if="game" class="host" :style="accent" v-bind="look">
     <header class="top" data-tauri-drag-region>
       <span class="brand">{{ t('host.brand') }}</span>
       <span class="game">{{ game.title }}</span>
@@ -203,6 +217,7 @@ onUnmounted(() => {
         <Button variant="ghost" size="icon" :aria-pressed="hintOpen" :aria-label="t('host.hotkeys.toggle')" :title="t('host.hotkeys.toggle')" @click="hintOpen = !hintOpen">
           <Keyboard />
         </Button>
+        <PauseControl v-if="connected && mirror.inProgress.value" :paused="!!state.pause" @pause="(m) => send('pause', m)" @resume="send('resume')" />
         <SoundToggle />
         <span v-if="connected" class="phase"><span class="dot" />{{ phaseLabel[state.phase] }}</span>
         <span v-else class="phase off">{{ t('host.offline') }}</span>
@@ -213,235 +228,229 @@ onUnmounted(() => {
       {{ t('host.openGame') }}
     </section>
 
-    <div v-else class="layout">
-      <section class="glass panel main">
-        <div v-if="state.phase === 'title'" class="center">
-          <p class="muted">{{ state.teams ? t('host.namesHintTeams') : t('host.namesHint') }}</p>
-          <Button size="lg" class="big" @click="send('start')">{{ t('host.start') }}</Button>
-        </div>
+    <template v-else>
+      <p v-if="state.pause" class="paused-bar" role="status">
+        {{ state.pause.until === null ? t('play.pause.title') : t('play.pause.breakTitle') }}
+      </p>
 
-        <div v-else-if="state.phase === 'round-intro' || state.phase === 'final-intro'" class="center">
-          <p class="title-gold text-4xl">{{ state.phase === 'final-intro' ? t('host.final') : round?.name }}</p>
-          <ul v-if="state.phase === 'round-intro' && round?.themes.some((th) => th.comment)" class="theme-notes">
-            <li v-for="th in round.themes" :key="th.id"><b>{{ th.name }}</b><span v-if="th.comment"> — {{ th.comment }}</span></li>
-          </ul>
-          <Button size="lg" class="big" @click="send('advance')">{{ state.phase === 'final-intro' ? (mirror.finalLeft.value.length > 1 ? t('host.toThemes') : t('host.toBets')) : t('host.toBoard') }}</Button>
-        </div>
-
-        <div v-else-if="state.phase === 'board' && round" class="board-wrap">
-          <div class="chooser" data-tour="host-chooser" role="group" :aria-label="t('lan.chooses')">
-            <span class="muted">{{ t('lan.chooses') }}:</span>
-            <button
-              v-for="p in players"
-              :key="p.id"
-              type="button"
-              class="chooser-chip"
-              :class="{ on: p.id === state.chooserId }"
-              :style="{ '--pc': seats.get(p.id)?.color }"
-              :aria-pressed="p.id === state.chooserId"
-              @click="send('setChooser', p.id)"
-            >{{ p.avatar }} {{ p.name }}</button>
+      <div class="layout">
+        <section class="glass panel main">
+          <div v-if="state.phase === 'title'" class="center">
+            <p class="muted">{{ state.teams ? t('host.namesHintTeams') : t('host.namesHint') }}</p>
+            <Button size="lg" class="big" @click="send('start')">{{ t('host.start') }}</Button>
           </div>
-          <BoardGrid compact :round="round" :played="state.played" @pick="(q) => send('pick', q.id)" />
-          <Button variant="ghost" class="self-center" @click="send('nextRound')">{{ t('host.skipRound') }}<SkipForward /></Button>
-        </div>
 
-        <div v-else-if="activeQuestion && isQuestionPhase" class="question" data-tour="host-question">
-          <div class="plate">
-            <span>{{ theme?.name }}</span>
-            <span v-if="isSpecial(activeQuestion.kind)" class="kind">{{ t(`host.kinds.${kindInfo(activeQuestion.kind).key}`) }}</span>
-            <span class="amount">{{ activeValue }}</span>
+          <div v-else-if="state.phase === 'round-intro' || state.phase === 'final-intro'" class="center">
+            <p class="title-gold text-4xl">{{ state.phase === 'final-intro' ? t('host.final') : round?.name }}</p>
+            <ul v-if="state.phase === 'round-intro' && round?.themes.some((th) => th.comment)" class="theme-notes">
+              <li v-for="th in round.themes" :key="th.id"><b>{{ th.name }}</b><span v-if="th.comment"> — {{ th.comment }}</span></li>
+            </ul>
+            <Button size="lg" class="big" @click="send('advance')">{{ state.phase === 'final-intro' ? (mirror.finalLeft.value.length > 1 ? t('host.toThemes') : t('host.toBets')) : t('host.toBoard') }}</Button>
           </div>
-          <MarkdownView class="q-text rich" :source="activeQuestion.text" />
-          <ol v-if="activeQuestion.hints?.length" class="host-hints" :aria-label="t('host.hints.title')">
-            <li v-for="(h, i) in activeQuestion.hints" :key="h.id" :class="{ shown: i < state.hintsShown }">
-              <span class="hint-value">{{ hintedValue(activeQuestion.value, activeQuestion.hints.length, i + 1) }}</span>
-              <span>{{ h.text || t('host.hints.mediaOnly') }}</span>
-            </li>
-          </ol>
-          <div class="answer">
-            <span class="answer-label"><Eye class="size-4" />{{ t('host.answer') }}</span>
-            <MarkdownView class="answer-text rich" :source="revealedAnswer(activeQuestion)" />
-            <AnswerKey :card="activeQuestion" />
+
+          <div v-else-if="state.phase === 'board' && round" class="board-wrap">
+            <div class="chooser" data-tour="host-chooser" role="group" :aria-label="t('lan.chooses')">
+              <span class="muted">{{ t('lan.chooses') }}:</span>
+              <button
+                v-for="p in players"
+                :key="p.id"
+                type="button"
+                class="chooser-chip"
+                :class="{ on: p.id === state.chooserId }"
+                :style="{ '--pc': seats.get(p.id)?.color }"
+                :aria-pressed="p.id === state.chooserId"
+                @click="send('setChooser', p.id)"
+              >{{ p.avatar }} {{ p.name }}</button>
+            </div>
+            <BoardGrid compact :round="round" :played="state.played" @pick="(q) => send('pick', q.id)" />
+            <Button variant="ghost" class="self-center" @click="send('nextRound')">{{ t('host.skipRound') }}<SkipForward /></Button>
           </div>
-          <HostMediaControls v-if="stageMedia.length" :items="stageMedia" :status="mediaStatus" @action="mediaAction" />
-          <HostTimer v-if="showTimer" data-tour="host-timer" :remaining-ms="remaining" :total-ms="answerMs" :running="timerRunning" @start="send('timerStart')" @pause="send('timerPause')" @reset="send('timerReset')" />
 
-          <ol v-if="activeQuestion.options?.length" class="host-options">
-            <li v-for="(o, i) in activeQuestion.options" :key="i" :class="{ right: i === activeQuestion.correctOption }">
-              <b>{{ optionLetter(i) }}</b> {{ o }}
-            </li>
-          </ol>
+          <div v-else-if="activeQuestion && isQuestionPhase" class="question" data-tour="host-question">
+            <div class="plate">
+              <span>{{ theme?.name }}</span>
+              <span v-if="isSpecial(activeQuestion.kind)" class="kind">{{ t(`host.kinds.${kindInfo(activeQuestion.kind).key}`) }}</span>
+              <span class="amount">{{ activeValue }}</span>
+            </div>
+            <MarkdownView class="q-text rich" :source="activeQuestion.text" />
+            <ol v-if="activeQuestion.hints?.length" class="host-hints" :aria-label="t('host.hints.title')">
+              <li v-for="(h, i) in activeQuestion.hints" :key="h.id" :class="{ shown: i < state.hintsShown }">
+                <span class="hint-value">{{ hintedValue(activeQuestion.value, activeQuestion.hints.length, i + 1) }}</span>
+                <span>{{ h.text || t('host.hints.mediaOnly') }}</span>
+              </li>
+            </ol>
+            <div class="answer">
+              <span class="answer-label"><Eye class="size-4" />{{ t('host.answer') }}</span>
+              <MarkdownView class="answer-text rich" :source="revealedAnswer(activeQuestion)" />
+              <AnswerKey :card="activeQuestion" />
+            </div>
+            <HostMediaControls v-if="stageMedia.length" :items="stageMedia" :status="mediaStatus" @action="mediaAction" />
+            <HostTimer v-if="showTimer" data-tour="host-timer" :remaining-ms="remaining" :total-ms="answerMs" :running="timerRunning" @start="send('timerStart')" @pause="send('timerPause')" @reset="send('timerReset')" />
 
-          <AuctionPanel
-            v-if="state.phase === 'auction'"
-            :players="players"
-            :value="activeQuestion.value"
-            :all-in="activeQuestion.kind === 'all-in'"
-            @stake="(id, amount) => send('setAuctionStake', id, amount)"
-          />
-          <CatPanel
-            v-else-if="state.phase === 'cat'"
-            :players="players"
-            :value="activeQuestion.catValue ?? activeQuestion.value"
-            @give="(id) => send('giveCat', id)"
-          />
-          <CatPanel
-            v-else-if="state.phase === 'no-risk'"
-            :players="players"
-            :value="activeQuestion.value"
-            :prompt="t('play.noRisk.who', { value: activeQuestion.value })"
-            :suggested-id="state.chooserId"
-            @give="(id) => send('takeNoRisk', id)"
-          />
-          <FinalVerdictPanel
-            v-else-if="state.phase === 'answer' && state.groupVerdicts"
-            :players="players"
-            :value="activeValue"
-            :verdicts="state.groupVerdicts"
-            :answers="lan ? groupAnswers : undefined"
-            :done-label="t('play.forAll.done')"
-            @verdict="(id, sign) => send('setGroupVerdict', id, sign)"
-            @done="send('scoreGroup')"
-          />
-          <template v-else-if="state.phase === 'question'">
-            <section v-if="lan && state.groupVerdicts" class="phone-answers" :aria-label="t('lan.final.answers')">
-              <h3 class="aside-title">{{ t('lan.final.answers') }}</h3>
-              <p v-for="p in players" :key="p.id">
-                <span class="who-name">{{ p.name }}</span>
-                <span v-if="lan.answers[p.id]" class="said">{{ answerLabel(activeQuestion, lan.answers[p.id]) }}</span>
-                <span v-else class="muted">{{ t('lan.final.noAnswer') }}</span>
-              </p>
-            </section>
-            <BuzzPanel
-              v-if="showBuzz && lan"
-              data-tour="host-buzz"
+            <ol v-if="activeQuestion.options?.length" class="host-options">
+              <li v-for="(o, i) in activeQuestion.options" :key="i" :class="{ right: i === activeQuestion.correctOption }">
+                <b>{{ optionLetter(i) }}</b> {{ o }}
+              </li>
+            </ol>
+
+            <AuctionPanel
+              v-if="state.phase === 'auction'"
               :players="players"
-              :status="lan"
-              :value="activeValue"
-              :armed="state.buzzArmed"
-              :penalty="mirror.wrongPenalty.value"
-              @reopen="(wrong) => send('buzzReopen', wrong)"
-              @open="send('openBuzz')"
+              :value="activeQuestion.value"
+              :all-in="activeQuestion.kind === 'all-in'"
+              @stake="(id, amount) => send('setAuctionStake', id, amount)"
             />
-            <div class="flex flex-wrap justify-center gap-3">
-              <Button v-if="hintsLeft" size="lg" variant="secondary" class="big" @click="send('revealHint')">
-                <Lightbulb />{{ t('play.hints.next', { n: state.hintsShown + 1, total: activeQuestion.hints!.length }) }}
-              </Button>
-              <Button size="lg" class="big" @click="send('advance')">
+            <CatPanel
+              v-else-if="state.phase === 'cat'"
+              :players="players"
+              :value="activeQuestion.catValue ?? activeQuestion.value"
+              @give="(id) => send('giveCat', id)"
+            />
+            <CatPanel
+              v-else-if="state.phase === 'no-risk'"
+              :players="players"
+              :value="activeQuestion.value"
+              :prompt="t('play.noRisk.who', { value: activeQuestion.value })"
+              :suggested-id="state.chooserId"
+              @give="(id) => send('takeNoRisk', id)"
+            />
+            <FinalVerdictPanel
+              v-else-if="state.phase === 'answer' && state.groupVerdicts"
+              :players="players"
+              :value="activeValue"
+              :verdicts="state.groupVerdicts"
+              :answers="lan ? groupAnswers : undefined"
+              :done-label="t('play.forAll.done')"
+              @verdict="(id, sign) => send('setGroupVerdict', id, sign)"
+              @done="send('scoreGroup')"
+            />
+            <template v-else-if="state.phase === 'question'">
+              <section v-if="lan && state.groupVerdicts" class="phone-answers" :aria-label="t('lan.final.answers')">
+                <h3 class="aside-title">{{ t('lan.final.answers') }}</h3>
+                <p v-for="p in players" :key="p.id">
+                  <span class="who-name">{{ p.name }}</span>
+                  <span v-if="lan.answers[p.id]" class="said">{{ answerLabel(activeQuestion, lan.answers[p.id]) }}</span>
+                  <span v-else class="muted">{{ t('lan.final.noAnswer') }}</span>
+                </p>
+              </section>
+              <BuzzPanel
+                v-if="showBuzz && lan"
+                data-tour="host-buzz"
+                :players="players"
+                :status="lan"
+                :value="activeValue"
+                :armed="state.buzzArmed"
+                :penalty="mirror.wrongPenalty.value"
+                @reopen="(wrong) => send('buzzReopen', wrong)"
+                @open="send('openBuzz')"
+              />
+              <div class="flex flex-wrap justify-center gap-3">
+                <Button v-if="hintsLeft" size="lg" variant="secondary" class="big" @click="send('revealHint')">
+                  <Lightbulb />{{ t('play.hints.next', { n: state.hintsShown + 1, total: activeQuestion.hints!.length }) }}
+                </Button>
+                <Button size="lg" class="big" @click="send('advance')">
+                  {{ t('host.showAnswer') }}
+                </Button>
+              </div>
+            </template>
+            <VerdictPanel
+              v-else
+              data-tour="host-verdict"
+              :players="players"
+              :value="activeValue"
+              :loss="mirror.activePenalty.value"
+              :only-player-id="state.stake?.playerId"
+              @verdict="(playerId, sign) => send('close', { playerId, sign })"
+              @nobody="send('close')"
+            />
+          </div>
+
+          <div v-else-if="state.phase === 'final-themes'" class="center">
+            <FinalThemesSlide
+              :themes="game.finalThemes ?? []"
+              :removed="state.finalRemoved"
+              :picker="finalPickerName"
+              interactive
+              @remove="(id) => send('removeFinalTheme', id)"
+            />
+          </div>
+
+          <div v-else-if="activeFinal && isFinalPhase" class="question">
+            <div class="plate"><span>{{ t('host.final') }}</span><span class="kind">{{ activeFinal.theme }}</span></div>
+            <MarkdownView class="q-text rich" :source="activeFinal.text" />
+            <div class="answer">
+              <span class="answer-label"><Eye class="size-4" />{{ t('host.answer') }}</span>
+              <MarkdownView class="answer-text rich" :source="activeFinal.answer" />
+              <AnswerKey :card="activeFinal" />
+            </div>
+            <HostMediaControls v-if="stageMedia.length" :items="stageMedia" :status="mediaStatus" @action="mediaAction" />
+            <HostTimer v-if="showTimer" :remaining-ms="remaining" :total-ms="answerMs" :running="timerRunning" @start="send('timerStart')" @pause="send('timerPause')" @reset="send('timerReset')" />
+            <FinalBetsPanel
+              v-if="state.phase === 'final-bets'"
+              :players="players"
+              :bets="state.finalBets"
+              @bet="(id, amount) => send('setFinalBet', id, amount)"
+              @done="send('advance')"
+            />
+            <template v-else-if="state.phase === 'final-question'">
+              <section v-if="lan" class="phone-answers" :aria-label="t('lan.final.answers')">
+                <h3 class="aside-title">{{ t('lan.final.answers') }}</h3>
+                <p v-for="p in players.filter((x) => x.score > 0)" :key="p.id">
+                  <span class="who-name">{{ p.name }}</span>
+                  <span v-if="lan.answers[p.id]" class="said">{{ lan.answers[p.id] }}</span>
+                  <span v-else class="muted">{{ t('lan.final.noAnswer') }}</span>
+                </p>
+              </section>
+              <Button size="lg" class="big self-center" @click="send('advance')">
                 {{ t('host.showAnswer') }}
               </Button>
-            </div>
-          </template>
-          <VerdictPanel
-            v-else
-            data-tour="host-verdict"
-            :players="players"
-            :value="activeValue"
-            :loss="mirror.activePenalty.value"
-            :only-player-id="state.stake?.playerId"
-            @verdict="(playerId, sign) => send('close', { playerId, sign })"
-            @nobody="send('close')"
-          />
-        </div>
-
-        <div v-else-if="state.phase === 'final-themes'" class="center">
-          <FinalThemesSlide
-            :themes="game.finalThemes ?? []"
-            :removed="state.finalRemoved"
-            :picker="finalPickerName"
-            interactive
-            @remove="(id) => send('removeFinalTheme', id)"
-          />
-        </div>
-
-        <div v-else-if="activeFinal && isFinalPhase" class="question">
-          <div class="plate"><span>{{ t('host.final') }}</span><span class="kind">{{ activeFinal.theme }}</span></div>
-          <MarkdownView class="q-text rich" :source="activeFinal.text" />
-          <div class="answer">
-            <span class="answer-label"><Eye class="size-4" />{{ t('host.answer') }}</span>
-            <MarkdownView class="answer-text rich" :source="activeFinal.answer" />
-            <AnswerKey :card="activeFinal" />
+            </template>
+            <FinalVerdictPanel
+              v-else
+              :players="players"
+              :bets="state.finalBets"
+              :verdicts="state.finalVerdicts"
+              :answers="lan?.answers"
+              @verdict="(id, sign) => send('setFinalVerdict', id, sign)"
+              @done="send('scoreFinal')"
+            />
           </div>
-          <HostMediaControls v-if="stageMedia.length" :items="stageMedia" :status="mediaStatus" @action="mediaAction" />
-          <HostTimer v-if="showTimer" :remaining-ms="remaining" :total-ms="answerMs" :running="timerRunning" @start="send('timerStart')" @pause="send('timerPause')" @reset="send('timerReset')" />
-          <FinalBetsPanel
-            v-if="state.phase === 'final-bets'"
-            :players="players"
-            :bets="state.finalBets"
-            @bet="(id, amount) => send('setFinalBet', id, amount)"
-            @done="send('advance')"
-          />
-          <template v-else-if="state.phase === 'final-question'">
-            <section v-if="lan" class="phone-answers" :aria-label="t('lan.final.answers')">
-              <h3 class="aside-title">{{ t('lan.final.answers') }}</h3>
-              <p v-for="p in players.filter((x) => x.score > 0)" :key="p.id">
-                <span class="who-name">{{ p.name }}</span>
-                <span v-if="lan.answers[p.id]" class="said">{{ lan.answers[p.id] }}</span>
-                <span v-else class="muted">{{ t('lan.final.noAnswer') }}</span>
-              </p>
-            </section>
-            <Button size="lg" class="big self-center" @click="send('advance')">
-              {{ t('host.showAnswer') }}
-            </Button>
-          </template>
-          <FinalVerdictPanel
-            v-else
-            :players="players"
-            :bets="state.finalBets"
-            :verdicts="state.finalVerdicts"
-            :answers="lan?.answers"
-            @verdict="(id, sign) => send('setFinalVerdict', id, sign)"
-            @done="send('scoreFinal')"
-          />
-        </div>
 
-        <div v-else-if="state.phase === 'results'" class="center">
-          <p class="title-gold text-4xl">{{ t('host.resultsOnStage') }}</p>
-          <StatsTable v-if="Object.keys(state.stats).length" compact :players="ranking" :stats="state.stats" />
-        </div>
-      </section>
+          <div v-else-if="state.phase === 'results'" class="center">
+            <p class="title-gold text-4xl">{{ t('host.resultsOnStage') }}</p>
+            <StatsTable v-if="Object.keys(state.stats).length" compact :players="ranking" :stats="state.stats" />
+          </div>
+        </section>
 
-      <aside class="glass panel scores" data-tour="host-scores" :aria-label="t('host.score')">
-        <div class="aside-head">
-          <h2 class="aside-title">{{ state.teams ? t('host.teamsScore') : t('host.score') }}</h2>
-          <Button variant="ghost" size="sm" :disabled="!canUndo" :title="t('host.undoHint')" @click="send('undo')"><Undo2 />{{ t('host.undo') }}</Button>
-        </div>
-        <TransitionGroup name="rank" tag="ol" class="rank">
-          <li
-            v-for="p in ranking"
-            :key="p.id"
-            :class="{ active: p.id === state.stake?.playerId || p.id === buzzedId, selected: p.id === targetId }"
-            :style="{ '--pc': seats.get(p.id)?.color }"
-          >
-            <span class="who">
-              <button type="button" class="seat" :aria-pressed="p.id === targetId" :aria-label="p.name" @click="selectedId = p.id">{{ seats.get(p.id)?.n }}</button>
-              <span class="label">{{ p.avatar }} {{ p.name }}</span>
-              <Smartphone v-if="lan?.phones[p.id]" class="size-3.5 shrink-0 text-cyan" :aria-label="t('lan.phoneConnected')" />
-            </span>
-            <span class="pts" :class="{ neg: p.score < 0 }"><AnimatedNumber :value="p.score" /></span>
-            <span class="adjust">
-              <Button size="icon-sm" variant="secondary" :aria-label="`${p.name}: −${scoreStep}`" @click="send('adjustScore', p.id, -scoreStep)"><Minus /></Button>
-              <Button size="icon-sm" variant="secondary" :aria-label="`${p.name}: +${scoreStep}`" @click="send('adjustScore', p.id, scoreStep)"><Plus /></Button>
-            </span>
-          </li>
-        </TransitionGroup>
-        <p class="hint">{{ t('host.scoreHint', { step: scoreStep }) }}</p>
-      </aside>
-    </div>
-
-    <aside v-if="hintOpen" class="glass hotkeys" role="region" :aria-label="t('host.hotkeys.title')">
-      <h2 class="aside-title">{{ t('host.hotkeys.title') }}</h2>
-      <dl>
-        <div><dt><kbd>1</kbd>–<kbd>9</kbd></dt><dd>{{ t('host.hotkeys.pick') }}</dd></div>
-        <div><dt><kbd>+</kbd></dt><dd>{{ t('host.hotkeys.correct') }}</dd></div>
-        <div><dt><kbd>−</kbd></dt><dd>{{ t('host.hotkeys.wrong') }}</dd></div>
-        <div><dt><kbd>Space</kbd></dt><dd>{{ t('host.hotkeys.advance') }}</dd></div>
-        <div><dt><kbd>Esc</kbd></dt><dd>{{ t('host.hotkeys.close') }}</dd></div>
-        <div><dt><kbd>Ctrl</kbd>+<kbd>Z</kbd></dt><dd>{{ t('host.hotkeys.undo') }}</dd></div>
-        <div><dt><kbd>?</kbd></dt><dd>{{ t('host.hotkeys.help') }}</dd></div>
-      </dl>
-    </aside>
+        <aside class="glass panel scores" data-tour="host-scores" :aria-label="t('host.score')">
+          <div class="aside-head">
+            <h2 class="aside-title">{{ state.teams ? t('host.teamsScore') : t('host.score') }}</h2>
+            <Button variant="ghost" size="sm" :disabled="!canUndo" :title="t('host.undoHint')" @click="send('undo')"><Undo2 />{{ t('host.undo') }}</Button>
+          </div>
+          <TransitionGroup name="rank" tag="ol" class="rank">
+            <li
+              v-for="p in ranking"
+              :key="p.id"
+              :class="{ active: p.id === state.stake?.playerId || p.id === buzzedId, selected: p.id === targetId }"
+              :style="{ '--pc': seats.get(p.id)?.color }"
+            >
+              <span class="who">
+                <button type="button" class="seat" :aria-pressed="p.id === targetId" :aria-label="p.name" @click="selectedId = p.id">{{ seats.get(p.id)?.n }}</button>
+                <span class="label">{{ p.avatar }} {{ p.name }}</span>
+                <Smartphone v-if="lan?.phones[p.id]" class="size-3.5 shrink-0 text-cyan" :aria-label="t('lan.phoneConnected')" />
+              </span>
+              <span class="pts" :class="{ neg: p.score < 0 }"><AnimatedNumber :value="p.score" /></span>
+              <span class="adjust">
+                <Button size="icon-sm" variant="secondary" :aria-label="`${p.name}: −${scoreStep}`" @click="send('adjustScore', p.id, -scoreStep)"><Minus /></Button>
+                <Button size="icon-sm" variant="secondary" :aria-label="`${p.name}: +${scoreStep}`" @click="send('adjustScore', p.id, scoreStep)"><Plus /></Button>
+              </span>
+            </li>
+          </TransitionGroup>
+          <p class="hint">{{ t('host.scoreHint', { step: scoreStep }) }}</p>
+        </aside>
+      </div>
+    </template>
+    <HotkeysPanel v-if="hintOpen" :items="hotkeys" @close="hintOpen = false" />
   </main>
 </template>
 
@@ -454,7 +463,9 @@ onUnmounted(() => {
   padding: 10px 18px 18px;
   background:
     radial-gradient(80% 50% at 0% 0%, color-mix(in oklch, var(--cyan) 14%, transparent), transparent 70%),
-    radial-gradient(80% 50% at 100% 100%, color-mix(in oklch, var(--magenta) 14%, transparent), transparent 70%);
+    radial-gradient(80% 50% at 100% 100%, color-mix(in oklch, var(--magenta) 14%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--stage-top), var(--stage-bottom));
+  color: var(--foreground);
 }
 .top {
   display: flex;
@@ -497,7 +508,7 @@ onUnmounted(() => {
   font-size: 14px;
 }
 .phase.off {
-  border-color: oklch(1 0 0 / 0.2);
+  border-color: oklch(var(--tint) 0 0 / 0.2);
   color: var(--muted-foreground);
 }
 .dot {
@@ -578,7 +589,8 @@ onUnmounted(() => {
 .kind {
   padding: 2px 10px;
   border-radius: 999px;
-  background: oklch(0.3 0.18 290);
+  background: var(--theme-top);
+  color: var(--on-tile, var(--foreground));
 }
 .amount {
   padding: 2px 12px;
@@ -663,7 +675,7 @@ onUnmounted(() => {
 .host-options li {
   padding: 6px 10px;
   border-radius: 10px;
-  background: oklch(1 0 0 / 0.06);
+  background: oklch(var(--tint) 0 0 / 0.06);
 }
 .host-options li.right {
   background: color-mix(in oklch, var(--gold) 22%, transparent);
@@ -737,7 +749,7 @@ onUnmounted(() => {
   padding: 10px 12px;
   border-radius: 14px;
   background: linear-gradient(180deg, var(--tile), var(--tile-deep));
-  border: 1px solid oklch(1 0 0 / 0.14);
+  border: 1px solid oklch(var(--tint) 0 0 / 0.14);
 }
 .rank li {
   border-left: 5px solid var(--pc);
@@ -766,7 +778,7 @@ onUnmounted(() => {
   width: 24px;
   height: 24px;
   border-radius: 7px;
-  border: 1px solid oklch(1 0 0 / 0.3);
+  border: 1px solid oklch(var(--tint) 0 0 / 0.3);
   font-size: 13px;
   line-height: 1;
   cursor: pointer;
@@ -786,46 +798,15 @@ onUnmounted(() => {
   justify-content: space-between;
   gap: 8px;
 }
-.hotkeys {
-  position: fixed;
-  right: 18px;
-  bottom: 18px;
-  z-index: 20;
-  width: min(340px, calc(100vw - 36px));
-  padding: 14px 16px;
-  border-radius: 16px;
-}
-.hotkeys dl {
-  display: grid;
-  gap: 6px;
-  margin: 10px 0 0;
-  font-size: 14px;
-}
-.hotkeys dl > div {
-  display: grid;
-  grid-template-columns: 96px minmax(0, 1fr);
-  align-items: center;
-  gap: 10px;
-}
-.hotkeys dt {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  justify-content: flex-end;
-}
-.hotkeys dd {
+.paused-bar {
   margin: 0;
-  color: var(--muted-foreground);
-}
-kbd {
-  min-width: 24px;
-  padding: 1px 6px;
-  border-radius: 6px;
-  border: 1px solid oklch(1 0 0 / 0.3);
-  border-bottom-width: 2px;
-  background: oklch(1 0 0 / 0.08);
-  font-family: inherit;
-  font-size: 12px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  background: color-mix(in oklch, var(--gold) 20%, transparent);
+  color: var(--gold);
+  font-family: var(--font-display);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
   text-align: center;
 }
 .pts {

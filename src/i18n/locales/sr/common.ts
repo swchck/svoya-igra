@@ -22,4 +22,8 @@ export default {
   chips: {
     remove: 'Ukloni „{value}“',
   },
+  hotkeys: {
+    title: 'Prečice na tastaturi',
+    toggle: 'Prečice na tastaturi (?)',
+  },
 } satisfies typeof ru

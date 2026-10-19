@@ -265,7 +265,7 @@ onBeforeUnmount(() => {
   width: 6px;
   height: 6px;
   border-radius: 999px;
-  background: oklch(1 0 0 / 0.25);
+  background: oklch(var(--tint) 0 0 / 0.25);
 }
 .dot.past {
   background: color-mix(in oklch, var(--gold) 60%, transparent);

@@ -42,7 +42,7 @@ function setComment(e: Event) {
   padding: 10px 12px;
   border-radius: 12px;
   border: 1px solid var(--input);
-  background: oklch(0.14 0.1 274 / 0.55);
+  background: var(--well);
   color: inherit;
   font-size: 15px;
   line-height: 1.4;

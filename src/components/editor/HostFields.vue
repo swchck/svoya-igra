@@ -47,7 +47,7 @@ function setNotes(e: Event) {
   display: grid;
   gap: 10px;
   padding-top: 12px;
-  border-top: 1px dashed oklch(1 0 0 / 0.14);
+  border-top: 1px dashed oklch(var(--tint) 0 0 / 0.14);
 }
 .title {
   display: flex;
@@ -63,7 +63,7 @@ function setNotes(e: Event) {
   padding: 8px 10px;
   border-radius: 12px;
   border: 1px solid var(--input);
-  background: oklch(0.14 0.1 274 / 0.55);
+  background: var(--well);
   color: inherit;
   font-size: 14px;
   line-height: 1.4;

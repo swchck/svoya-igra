@@ -125,8 +125,8 @@ const REASON_KEYS = {
   gap: 12px;
   padding: 10px 12px;
   border-radius: 12px;
-  border: 1px solid oklch(1 0 0 / 0.1);
-  background: oklch(0.14 0.1 274 / 0.55);
+  border: 1px solid oklch(var(--tint) 0 0 / 0.1);
+  background: var(--well);
 }
 .when {
   display: flex;
@@ -139,7 +139,7 @@ const REASON_KEYS = {
 .reason {
   padding: 1px 8px;
   border-radius: 999px;
-  background: oklch(1 0 0 / 0.08);
+  background: oklch(var(--tint) 0 0 / 0.08);
   color: var(--muted-foreground);
   font-size: 12px;
   font-weight: 400;

@@ -68,7 +68,7 @@ thead th {
 td,
 .who {
   padding: 0.35em clamp(6px, 1vw, 16px);
-  background: linear-gradient(180deg, oklch(1 0 0 / 0.07), oklch(1 0 0 / 0.02));
+  background: linear-gradient(180deg, oklch(var(--tint) 0 0 / 0.07), oklch(var(--tint) 0 0 / 0.02));
 }
 tbody tr > :first-child {
   border-radius: 12px 0 0 12px;

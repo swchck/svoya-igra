@@ -44,6 +44,9 @@ export default {
   footnote: 'Игры хранятся на этом компьютере. Чтобы перенести игру, экспортируйте её в .gamezip.',
   version: 'Версия {version}',
   resume: {
+    bannerTitle: 'Незаконченная партия',
+    leader: 'лидирует {name} ({score})',
+    forget: 'Забыть партию',
     title: 'Продолжить партию?',
     description: 'Сохранена незаконченная игра.',
     descriptionLeader: 'Сохранена незаконченная игра: лидирует {name} ({score}).',

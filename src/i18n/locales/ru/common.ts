@@ -20,4 +20,8 @@ export default {
   chips: {
     remove: 'Убрать «{value}»',
   },
+  hotkeys: {
+    title: 'Горячие клавиши',
+    toggle: 'Горячие клавиши (?)',
+  },
 }

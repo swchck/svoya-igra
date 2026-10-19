@@ -13,7 +13,8 @@ import SettingsLibrary from '@/components/prefs/SettingsLibrary.vue'
 import { playSound, setSoundEffects, setSoundVolume, soundEffectsOn, soundVolume } from '@/play/sounds'
 import { lanAvailable, phonesPreferred, setPhonesPreferred } from '@/play/lan'
 import { canSelfUpdate } from '@/platform'
-import { prefs } from '@/prefs'
+import { prefs, type AppTheme } from '@/prefs'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { APP_VERSION, CHANGELOG } from '@/updates/changelog'
 import { checkForUpdates, offerUpdate, showChangelog, updates } from '@/updates/state'
 
@@ -26,6 +27,13 @@ function togglePhones(on: boolean) {
   setPhonesPreferred(on)
 }
 
+
+const THEMES: AppTheme[] = ['dark', 'light', 'system']
+
+// a single-choice group emits nothing when the picked item is clicked again
+function setTheme(v: unknown) {
+  if (v) prefs.theme = v as AppTheme
+}
 
 function back() {
   if (window.history.state?.back) router.back()
@@ -45,6 +53,14 @@ function back() {
       <section class="glass section">
         <h2 class="section-title">{{ t('prefs.language') }}</h2>
         <LanguagePicker />
+      </section>
+
+      <section class="glass section">
+        <h2 class="section-title">{{ t('prefs.theme') }}</h2>
+        <p class="hint">{{ t('prefs.themeHint') }}</p>
+        <ToggleGroup :model-value="prefs.theme" type="single" variant="outline" class="self-start" @update:model-value="setTheme">
+          <ToggleGroupItem v-for="name in THEMES" :key="name" :value="name" class="px-4">{{ t(`prefs.themes.${name}`) }}</ToggleGroupItem>
+        </ToggleGroup>
       </section>
 
       <section class="glass section">

@@ -90,8 +90,8 @@ function progress(r: Round) {
   height: 44px;
   padding: 0 16px;
   border-radius: 14px;
-  border: 1px solid oklch(1 0 0 / 0.12);
-  background: oklch(0.2 0.14 272 / 0.6);
+  border: 1px solid oklch(var(--tint) 0 0 / 0.12);
+  background: var(--panel);
   color: var(--muted-foreground);
   cursor: pointer;
   overflow: hidden;
@@ -122,7 +122,7 @@ function progress(r: Round) {
   right: 0;
   bottom: 0;
   height: 3px;
-  background: oklch(1 0 0 / 0.08);
+  background: oklch(var(--tint) 0 0 / 0.08);
 }
 .bar span {
   display: block;

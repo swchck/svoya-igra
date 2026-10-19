@@ -2,6 +2,12 @@ import type ru from '../ru/system'
 
 export default {
   appName: 'Svoya Igra',
+  menu: {
+    game: 'Game',
+    continueLast: 'Continue the last game',
+    library: 'Game library',
+    nothingToContinue: 'No unfinished games',
+  },
   confirm: { cancel: 'Cancel', yes: 'Yes' },
   desktop: {
     gameOpened: 'Game opened',

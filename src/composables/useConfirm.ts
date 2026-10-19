@@ -24,6 +24,12 @@ export function confirmAction(options: ConfirmOptions): Promise<boolean> {
   })
 }
 
+/** Closes the open question as declined; a question belongs to the page that asked it. */
+export function dismissConfirm(): void {
+  pending.value?.resolve(false)
+  pending.value = null
+}
+
 /** State for the single dialog host mounted in App. */
 export function useConfirmHost() {
   /** Settles the open question; later answers to the same question are ignored. */

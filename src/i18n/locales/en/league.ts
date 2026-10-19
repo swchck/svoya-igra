@@ -1,0 +1,31 @@
+import type ru from '../ru/league'
+
+export default {
+  title: 'League',
+  back: 'Back',
+  hint: 'A league gathers the games of several evenings into one table. Players are matched by name.',
+  defaultName: 'League {n}',
+  name: 'League name',
+  namePlaceholder: 'For example: Autumn season',
+  create: 'New league',
+  delete: 'Delete the league',
+  deleteTitle: 'Delete the league “{name}”?',
+  deleteHint: 'The table goes away; the game results stay.',
+  print: 'Print',
+  emptyTable: 'Tick the games below that belong to the league.',
+  rule: 'League points by place: {rule}. Ties go to more wins, then more game points.',
+  games: 'Games played',
+  noGames: 'Games played through to the results show up here.',
+  players: '{n} player | {n} players',
+  open: 'League',
+  col: {
+    name: 'Player',
+    points: 'Points',
+    pointsHint: 'League points by place: {rule}',
+    wins: 'Wins',
+    podiums: 'Podiums',
+    games: 'Games',
+    total: 'Total',
+    avgPlace: 'Avg place',
+  },
+} satisfies typeof ru

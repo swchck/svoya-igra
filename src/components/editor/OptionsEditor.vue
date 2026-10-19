@@ -127,7 +127,7 @@ function clear() {
   place-items: center;
   height: 36px;
   border-radius: 10px;
-  border: 1px solid oklch(1 0 0 / 0.16);
+  border: 1px solid oklch(var(--tint) 0 0 / 0.16);
   background: transparent;
   color: var(--muted-foreground);
   font-family: var(--font-display);
@@ -147,7 +147,7 @@ function clear() {
   padding: 0 10px;
   border-radius: 10px;
   border: 1px solid var(--input);
-  background: oklch(0.14 0.1 274 / 0.55);
+  background: var(--well);
   color: inherit;
   font-size: 15px;
   outline: none;
@@ -170,6 +170,6 @@ function clear() {
 }
 .remove:hover {
   color: var(--foreground);
-  background: oklch(1 0 0 / 0.08);
+  background: oklch(var(--tint) 0 0 / 0.08);
 }
 </style>

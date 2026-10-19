@@ -255,16 +255,16 @@ const segmentText = computed(
 <style scoped>
 .card {
   border-radius: 14px;
-  border: 1px solid oklch(1 0 0 / 0.1);
-  background: oklch(0.14 0.1 274 / 0.55);
+  border: 1px solid oklch(var(--tint) 0 0 / 0.1);
+  background: var(--well);
   transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 .card:hover {
-  border-color: oklch(1 0 0 / 0.2);
+  border-color: oklch(var(--tint) 0 0 / 0.2);
 }
 .card.open {
   border-color: color-mix(in oklch, var(--gold) 55%, transparent);
-  background: oklch(0.16 0.1 274 / 0.75);
+  background: var(--well);
 }
 .head {
   display: flex;
@@ -306,7 +306,7 @@ const segmentText = computed(
   gap: 4px;
   padding: 2px 8px;
   border-radius: 999px;
-  background: oklch(1 0 0 / 0.08);
+  background: oklch(var(--tint) 0 0 / 0.08);
   color: var(--muted-foreground);
   font-size: 12px;
   line-height: 18px;
@@ -344,7 +344,7 @@ const segmentText = computed(
   flex-direction: column;
   gap: 12px;
   padding: 12px 14px 14px;
-  border-top: 1px solid oklch(1 0 0 / 0.08);
+  border-top: 1px solid oklch(var(--tint) 0 0 / 0.08);
   animation: panel-in 0.2s ease;
 }
 .image-preview {

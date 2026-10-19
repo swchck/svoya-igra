@@ -97,7 +97,7 @@ const titleMs = computed(() => letters.value.length * 45 + 500)
   padding: 0.45em 1.1em;
   border-radius: 999px;
   border: 1px solid color-mix(in oklch, var(--gold) 55%, transparent);
-  background: linear-gradient(135deg, oklch(0.32 0.2 290 / 0.85), oklch(0.24 0.18 275 / 0.85));
+  background: linear-gradient(135deg, color-mix(in oklch, var(--theme-top) 85%, transparent), color-mix(in oklch, var(--theme-bottom) 85%, transparent));
   font-family: var(--font-display);
   font-size: clamp(16px, 1.9vw, 30px);
   letter-spacing: 0.05em;

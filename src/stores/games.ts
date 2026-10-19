@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import type { Game } from '../types'
 import { deleteGame, loadGames, pruneMedia, upsertGame } from '../storage'
 import { clearQuestionRecords } from '../play/questionStats'
+import { clearSession } from '@/play/savedSession'
 
 export const useGamesStore = defineStore('games', () => {
   const games = ref<Game[]>([])
@@ -23,6 +24,7 @@ export const useGamesStore = defineStore('games', () => {
     await ready
     await deleteGame(id)
     clearQuestionRecords(id)
+    clearSession(id)
     games.value = games.value.filter((g) => g.id !== id)
     await pruneMedia()
   }

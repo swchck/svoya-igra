@@ -153,7 +153,7 @@ async function onFile(e: Event) {
   gap: 8px;
   padding: 6px 12px 6px 6px;
   border-radius: 999px;
-  border: 1px solid oklch(1 0 0 / 0.2);
+  border: 1px solid oklch(var(--tint) 0 0 / 0.2);
   cursor: pointer;
 }
 .accent:focus-visible {
@@ -162,7 +162,7 @@ async function onFile(e: Event) {
 }
 .accent.on {
   border-color: var(--foreground);
-  background: oklch(1 0 0 / 0.1);
+  background: oklch(var(--tint) 0 0 / 0.1);
 }
 .chip {
   width: 22px;

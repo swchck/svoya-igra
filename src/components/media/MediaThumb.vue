@@ -49,7 +49,7 @@ const youtubeId = computed(() => (props.item.kind === 'youtube' ? parseYoutubeUr
   overflow: hidden;
   border-radius: 10px;
   background: oklch(0.12 0.08 274);
-  box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.1);
+  box-shadow: inset 0 0 0 1px oklch(var(--tint) 0 0 / 0.1);
 }
 .thumb img,
 .thumb video {

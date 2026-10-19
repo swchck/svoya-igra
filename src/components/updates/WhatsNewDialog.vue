@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { Sparkles } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from '@/components/ui/dialog'
-import { currentLocale } from '@/i18n'
+import { currentLocale, formatDay } from '@/i18n'
 import { APP_VERSION, notesIn } from '@/updates/changelog'
 import { markSeen, updates } from '@/updates/state'
 
@@ -12,8 +12,7 @@ const { t } = useI18n()
 const locale = computed(() => currentLocale())
 
 function date(day: string): string {
-  const tag = locale.value === 'sr' ? 'sr-Latn' : locale.value
-  return new Date(`${day}T12:00:00`).toLocaleDateString(tag, { day: 'numeric', month: 'long', year: 'numeric' })
+  return formatDay(new Date(`${day}T12:00:00`))
 }
 </script>
 

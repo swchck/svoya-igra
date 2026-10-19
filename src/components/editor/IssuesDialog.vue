@@ -4,11 +4,16 @@ import { useI18n } from 'vue-i18n'
 import { CircleAlert, CircleCheck, ChevronRight, ClipboardCheck, Clock, TriangleAlert } from '@lucide/vue'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import type { Issue } from '@/game/validate'
+import type { Game } from '@/types'
+import type { ProbeProblem } from '@/media/probe'
+import MediaCheck from './MediaCheck.vue'
 
 const props = defineProps<{
   issues: Issue[]
   /** Roughly how long the game plays, in seconds. */
   duration?: number
+  /** The game, for the playback check. */
+  game?: Game
 }>()
 
 const durationText = computed(() => {
@@ -18,7 +23,7 @@ const durationText = computed(() => {
   return h ? t('editor.issues.durationHours', { h, m }) : t('editor.issues.durationMinutes', { m })
 })
 const open = defineModel<boolean>('open', { required: true })
-const emit = defineEmits<{ (e: 'goto', issue: Issue): void }>()
+const emit = defineEmits<{ (e: 'goto', issue: Issue): void; (e: 'open-media', problem: ProbeProblem): void }>()
 
 const { t } = useI18n()
 
@@ -88,6 +93,7 @@ function go(issue: Issue) {
         <p v-if="duration" class="duration"><Clock class="size-4" />{{ t('editor.issues.duration', { time: durationText }) }}</p>
       </div>
 
+      <MediaCheck v-if="game" :game="game" @open="(p) => { open = false; emit('open-media', p) }" />
       <p v-if="!issues.length" class="clean"><CircleCheck class="size-5" />{{ t('editor.issues.clean') }}</p>
       <div v-else class="groups">
         <section v-for="g in groups" :key="g.key" class="group" :aria-label="g.title">
@@ -173,7 +179,7 @@ function go(issue: Issue) {
 .count {
   padding: 0 8px;
   border-radius: 999px;
-  background: oklch(1 0 0 / 0.1);
+  background: oklch(var(--tint) 0 0 / 0.1);
   font-size: 12px;
   line-height: 18px;
 }
@@ -194,7 +200,7 @@ function go(issue: Issue) {
   padding: 6px 10px;
   border-radius: 10px;
   border: 1px solid transparent;
-  background: oklch(1 0 0 / 0.04);
+  background: oklch(var(--tint) 0 0 / 0.04);
   text-align: left;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
@@ -203,7 +209,7 @@ function go(issue: Issue) {
 }
 .issue.action:hover,
 .issue.action:focus-visible {
-  background: oklch(1 0 0 / 0.09);
+  background: oklch(var(--tint) 0 0 / 0.09);
   border-color: color-mix(in oklch, var(--gold) 45%, transparent);
   outline: none;
 }
@@ -220,8 +226,8 @@ function go(issue: Issue) {
   min-height: 28px;
   padding: 0 10px;
   border-radius: 8px;
-  border: 1px solid oklch(1 0 0 / 0.16);
-  background: oklch(1 0 0 / 0.06);
+  border: 1px solid oklch(var(--tint) 0 0 / 0.16);
+  background: oklch(var(--tint) 0 0 / 0.06);
   font-family: var(--font-display);
   font-size: 14px;
   color: var(--gold);

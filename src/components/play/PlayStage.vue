@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, provide, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, provide, ref, shallowRef, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ArrowLeft, Cat, Maximize, Minimize, Lightbulb, MonitorSmartphone, ShieldCheck, SkipForward, Smartphone, Undo2, Unlock, X } from '@lucide/vue'
+import { ArrowLeft, Cat, Maximize, Minimize, Lightbulb, Keyboard, MonitorSmartphone, ShieldCheck, SkipForward, Smartphone, Undo2, Unlock, X } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 import type { Game } from '@/types'
 import { Button } from '@/components/ui/button'
@@ -11,12 +11,17 @@ import { confirmAction } from '@/composables/useConfirm'
 import { usePlaySession, type SessionSnapshot } from '@/composables/usePlaySession'
 import { clearSession, saveSession } from '@/play/savedSession'
 import { recordOutcome } from '@/play/questionStats'
-import { HOST_COMMANDS, HOST_PING_MS, openHostWindow, openPlayChannel, type PlayChannel } from '@/play/channel'
+import { recordResult, type GameResult } from '@/play/history'
+import { saveFile } from '@/platform'
+import { fileSlug } from '@/io/files'
+import { formatDay } from '@/i18n'
+import { HOST_COMMANDS, HOST_PING_MS, openHostWindow, openPlayChannel, type HostCommand, type PlayChannel } from '@/play/channel'
+import { buildHostConsole } from '@/play/hostConsole'
 import { createMediaRegistry, MEDIA_REGISTRY } from '@/play/mediaControl'
 import { plainCopy } from '@/lib/plain'
 import { prefersReducedMotion } from '@/lib/motion'
 import { useStageSounds, useTimerSounds } from '@/play/sounds'
-import { accentStyle } from '@/play/accents'
+import { accentStyle, lookAttrs } from '@/play/accents'
 import { answerMedia, isSpecial, kindInfo, withHints } from '@/game/kinds'
 import { answerLabel, buzzable, lanAvailable, phonesPreferred, setPhonesPreferred } from '@/play/lan'
 import { prefs } from '@/prefs'
@@ -36,6 +41,12 @@ import CardSlide from './CardSlide.vue'
 import SpecialSlide from './SpecialSlide.vue'
 import ResultsSlide from './ResultsSlide.vue'
 import FinalThemesSlide from './FinalThemesSlide.vue'
+import BuzzFlash from './BuzzFlash.vue'
+import ReactionsLayer from './ReactionsLayer.vue'
+import PauseScreen from './PauseScreen.vue'
+import PauseControl from './PauseControl.vue'
+import HotkeysPanel, { type Hotkey } from '@/components/HotkeysPanel.vue'
+import { playerColor } from '@/play/palette'
 import AuctionPanel from './AuctionPanel.vue'
 import CatPanel from './CatPanel.vue'
 import VerdictPanel from './VerdictPanel.vue'
@@ -59,8 +70,23 @@ const finalPickerName = computed(() => (session.finalPicker.value ? session.play
 
 useStageSounds(() => state.phase, players)
 
-const lan = useLanRoom(session, () => props.game.title, (id) => pick(id))
+const reactions = ref<InstanceType<typeof ReactionsLayer>>()
+const lan = useLanRoom(session, () => props.game.title, (id) => pick(id), {
+  console: () => hostConsole.value,
+  command: (c) => runCommand(c),
+  reaction: (emoji) => reactions.value?.add(emoji),
+})
 const { info: lanInfo, status: lanStatus, starting: lanStarting, winnerId: buzzedId, phones } = lan
+/** The chooser's name and seat color, for the board to take on. */
+const chooserLook = computed(() => {
+  const i = players.value.findIndex((p) => p.id === state.chooserId)
+  return i < 0 ? undefined : { name: players.value[i].name, color: playerColor(players.value[i], i) }
+})
+/** The first to press, flashed across the stage. */
+const buzzFlash = computed(() => {
+  const i = players.value.findIndex((p) => p.id === buzzedId.value)
+  return i < 0 ? undefined : { name: players.value[i].name, color: playerColor(players.value[i], i) }
+})
 const buzzedBy = computed(() => (buzzedId.value ? (lanStatus.value.buzz.by[0] ?? undefined) : undefined))
 const phoneCount = computed(() => Object.values(phones.value).reduce((a, b) => a + b, 0))
 const phonesOpen = ref(false)
@@ -92,6 +118,7 @@ async function begin() {
 
 const settings = computed(() => props.game.settings)
 const accent = computed(() => accentStyle(settings.value))
+const look = computed(() => lookAttrs(settings.value))
 const stageScale = computed(() => Math.min(1.4, Math.max(0.8, prefs.stageScale || 1)))
 const buzzHeld = computed(() => !!lanInfo.value && buzzable(state) && !state.buzzArmed)
 const wrongLabel = computed(() => (session.wrongPenalty.value ? t('lan.buzz.wrong', { value: activeValue.value }) : t('lan.buzz.wrongFree')))
@@ -118,6 +145,35 @@ const topic = computed(() => {
   const kind = activeQuestion.value?.kind
   return kind && isSpecial(kind) ? t(`play.stage.kinds.${kindInfo(kind).key}`) : theme.value?.name
 })
+
+const hostConsole = computed(() =>
+  buildHostConsole({
+    state,
+    players: players.value,
+    round: round.value,
+    question: activeQuestion.value,
+    topic: theme.value?.name ?? '',
+    value: activeValue.value,
+    loss: session.activePenalty.value,
+    canUndo: session.canUndo.value,
+    timed: answerMs.value > 0,
+    firstPress: buzzedId.value ? session.player(buzzedId.value)?.name : undefined,
+  }),
+)
+
+/**
+ * Runs a command from the host window or the host's phone. Both send the phase they saw;
+ * one from a phase the stage has left is a double click or a stale screen.
+ */
+function runCommand(raw: unknown) {
+  const m = raw as { name?: unknown; args?: unknown; phase?: unknown }
+  if (!HOST_COMMANDS.includes(m.name as HostCommand) || m.phase !== state.phase) return
+  const name = m.name as HostCommand
+  const args = Array.isArray(m.args) ? m.args : []
+  if (name === 'pick') pick(String(args[0]))
+  else if (name === 'buzzReopen') lan.reopen(args[0] === true)
+  else (session[name] as (...a: unknown[]) => void)(...args)
+}
 
 /** A key that changes whenever the stage should play a scene transition. */
 const sceneKey = computed(() => `${state.phase}:${state.roundIndex}:${state.activeQuestionId ?? ''}`)
@@ -148,6 +204,33 @@ watch(
   { deep: true },
 )
 watch(() => media.status, publishMedia, { deep: true })
+
+const result = shallowRef<GameResult | null>(null)
+watch(
+  () => state.phase === 'results',
+  (finished) => {
+    if (!finished) return
+    const { id, title } = props.game
+    result.value = recordResult({ id: state.sessionId, gameId: id, title, playedAt: Date.now(), teams: state.teams, players: players.value })
+  },
+  { immediate: true },
+)
+
+async function saveResultsImage() {
+  if (!result.value) return
+  try {
+    const { drawResultsCard, canvasToPng } = await import('@/play/resultsCard')
+    const canvas = await drawResultsCard(result.value, {
+      heading: t('play.results.title'),
+      date: formatDay(result.value.playedAt),
+      more: (n) => t('play.results.more', { n }),
+      footer: t('system.appName'),
+    })
+    if (await saveFile(await canvasToPng(canvas), `${fileSlug(props.game.title)}.png`)) toast.success(t('play.results.imageSaved'))
+  } catch {
+    toast.error(t('play.results.imageFailed'))
+  }
+}
 function publishLan() {
   channel?.post({ type: 'lan', status: lanInfo.value ? plainCopy(lanStatus.value) : null })
 }
@@ -265,8 +348,36 @@ function onKey(e: KeyboardEvent) {
   } else if ((e.key === ' ' || e.key === 'Enter') && session.advance()) e.preventDefault()
   else if (e.code === 'KeyB' && !e.ctrlKey && !e.metaKey && !e.altKey) session.openBuzz()
   else if (e.code === 'KeyH' && !e.ctrlKey && !e.metaKey && !e.altKey) session.revealHint()
+  else if (e.code === 'KeyP' && !e.ctrlKey && !e.metaKey && !e.altKey) togglePause()
+  else if (e.key === '?') hotkeysOpen.value = !hotkeysOpen.value
+  else if (e.key === 'Escape' && hotkeysOpen.value) hotkeysOpen.value = false
   else if (e.key === 'Escape' && state.phase === 'answer') session.close()
 }
+
+function togglePause() {
+  if (state.pause) session.resume()
+  else session.pause()
+}
+
+const hotkeysOpen = ref(false)
+const hotkeys = computed<Hotkey[]>(() => [
+  { keys: ['Space'], label: t('play.hotkeys.advance') },
+  { keys: ['B'], label: t('play.hotkeys.buzz') },
+  { keys: ['H'], label: t('play.hotkeys.hint') },
+  { keys: ['P'], label: t('play.hotkeys.pause') },
+  { keys: ['Esc'], label: t('play.hotkeys.close') },
+  { keys: ['Ctrl', 'Z'], label: t('play.hotkeys.undo') },
+  { keys: ['?'], label: t('common.hotkeys.toggle') },
+])
+
+// clips stop with the game; the host starts them again by hand
+watch(
+  () => !!state.pause,
+  (paused) => {
+    if (!paused) return
+    for (const [id, s] of Object.entries(media.status)) if (s.playing) media.run(id, 'pause')
+  },
+)
 
 onMounted(async () => {
   document.addEventListener('fullscreenchange', onFullscreenChange)
@@ -284,11 +395,8 @@ onMounted(async () => {
       }
     } else if (m.type === 'media-command') {
       media.run(m.id, m.action)
-    } else if (m.type === 'command' && HOST_COMMANDS.includes(m.name) && m.phase === state.phase) {
-      // a command from a phase the stage has left is a double click or a stale screen
-      if (m.name === 'pick') pick(String(m.args[0]))
-      else if (m.name === 'buzzReopen') lan.reopen(m.args[0] === true)
-      else (session[m.name] as (...args: unknown[]) => void)(...m.args)
+    } else if (m.type === 'command') {
+      runCommand(m)
     }
   })
   publish()
@@ -309,14 +417,18 @@ onUnmounted(() => {
     class="stage"
     :class="{ 'chrome-hidden': !chromeVisible && state.phase !== 'title', 'cursor-hidden': prefs.hideCursor && !chromeVisible && state.phase !== 'title' }"
     :style="[accent, { '--stage-scale': stageScale }]"
+    v-bind="look"
   >
-    <StageBackdrop :dim="state.phase === 'question' || state.phase === 'answer'" />
+    <ReactionsLayer ref="reactions" />
+    <StageBackdrop :dim="state.phase === 'question' || state.phase === 'answer'" :image="settings?.background" />
 
     <header class="chrome" data-tauri-drag-region>
       <Button variant="ghost" @click="home"><ArrowLeft />{{ t('play.stage.leave') }}</Button>
       <span v-if="hostConnected" class="host-on"><span class="dot" />{{ t('play.stage.hostConnected') }}</span>
       <div class="flex-1" data-tauri-drag-region />
       <SoundToggle />
+      <PauseControl v-if="inProgress" :paused="!!state.pause" @pause="session.pause" @resume="session.resume" />
+      <Button variant="ghost" size="icon" :aria-pressed="hotkeysOpen" :aria-label="t('common.hotkeys.toggle')" :title="t('common.hotkeys.toggle')" @click="hotkeysOpen = !hotkeysOpen"><Keyboard /></Button>
       <Button v-if="(lanInfo || usePhones) && state.phase !== 'title'" variant="ghost" @click="phonesOpen = true">
         <Smartphone />{{ t('lan.phones') }}<span v-if="lanInfo" class="phone-count">{{ phoneCount }}</span>
       </Button>
@@ -374,7 +486,7 @@ onUnmounted(() => {
         />
 
         <section v-else-if="state.phase === 'board' && round" :key="sceneKey" class="board-scene">
-          <BoardGrid data-tour="board-grid" :round="round" :played="state.played" :cascade="cascadeBoard" @pick="(q) => pick(q.id)" />
+          <BoardGrid data-tour="board-grid" :round="round" :played="state.played" :cascade="cascadeBoard" :chooser="chooserLook" @pick="(q) => pick(q.id)" />
           <div v-if="!hostConnected" class="board-actions" data-tour="board-actions">
             <Button v-if="session.canUndo.value" variant="ghost" @click="session.undo"><Undo2 />{{ t('play.stage.undo') }}</Button>
             <Button variant="ghost" @click="skipRound">{{ t('play.stage.skipRound') }}<SkipForward /></Button>
@@ -562,10 +674,15 @@ onUnmounted(() => {
           show-home
           @undo="session.undo"
           @home="router.push({ name: 'home' })"
+          @image="saveResultsImage"
+          @diplomas="result && router.push({ name: 'diploma', params: { id: result.id } })"
         />
       </Transition>
     </main>
 
+    <BuzzFlash :name="buzzFlash?.name" :color="buzzFlash?.color" />
+    <PauseScreen v-if="state.pause" :pause="state.pause" :players="players" :lan="lanInfo" :controls="!hostConnected" @resume="session.resume" />
+    <HotkeysPanel v-if="hotkeysOpen" :items="hotkeys" @close="hotkeysOpen = false" />
     <PlayerPodiums v-if="inProgress" :players="players" :active-id="state.stake?.playerId" :phones="phones" :buzzed-id="buzzedId"
       :buzzed-by="buzzedBy"
       :chooser-id="state.phase === 'board' ? (state.chooserId ?? undefined) : undefined"
@@ -590,6 +707,7 @@ onUnmounted(() => {
   grid-template-rows: auto minmax(0, 1fr) auto;
   height: 100dvh;
   overflow: hidden;
+  color: var(--foreground);
 }
 .chrome {
   position: relative;
@@ -751,7 +869,7 @@ onUnmounted(() => {
 .bets-status li {
   padding: 6px 16px;
   border-radius: 999px;
-  border: 1px dashed oklch(1 0 0 / 0.3);
+  border: 1px dashed oklch(var(--tint) 0 0 / 0.3);
   color: var(--muted-foreground);
   transition: all 0.3s ease;
 }
@@ -767,7 +885,7 @@ onUnmounted(() => {
   place-items: center;
   border-radius: 16px;
   background:
-    linear-gradient(180deg, oklch(1 0 0 / 0.16), transparent 45%),
+    linear-gradient(180deg, oklch(var(--tint) 0 0 / 0.16), transparent 45%),
     linear-gradient(180deg, var(--tile), var(--tile-deep));
   border: 2px solid var(--gold);
   font-family: var(--font-display);

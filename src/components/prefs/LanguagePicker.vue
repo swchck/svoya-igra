@@ -46,8 +46,8 @@ async function pick(code: Locale) {
   gap: 12px;
   padding: 14px;
   border-radius: 22px;
-  border: 1px solid oklch(1 0 0 / 0.12);
-  background: oklch(0.2 0.14 272 / 0.5);
+  border: 1px solid oklch(var(--tint) 0 0 / 0.12);
+  background: var(--panel);
   color: var(--foreground);
   cursor: pointer;
   transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
@@ -67,7 +67,7 @@ async function pick(code: Locale) {
 .flag-frame {
   overflow: hidden;
   border-radius: 12px;
-  box-shadow: 0 14px 34px -14px oklch(0 0 0 / 0.8), inset 0 0 0 1px oklch(1 0 0 / 0.15);
+  box-shadow: 0 14px 34px -14px oklch(0 0 0 / 0.8), inset 0 0 0 1px oklch(var(--tint) 0 0 / 0.15);
 }
 .large .flag-frame {
   width: clamp(150px, min(22vw, 30vh), 260px);

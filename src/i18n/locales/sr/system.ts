@@ -2,6 +2,12 @@ import type ru from '../ru/system'
 
 export default {
   appName: 'Svoja igra',
+  menu: {
+    game: 'Igra',
+    continueLast: 'Nastavi poslednju igru',
+    library: 'Biblioteka igara',
+    nothingToContinue: 'Nema nezavršenih partija',
+  },
   confirm: { cancel: 'Otkaži', yes: 'Da' },
   desktop: {
     gameOpened: 'Igra je otvorena',

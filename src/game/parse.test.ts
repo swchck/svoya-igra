@@ -118,15 +118,21 @@ describe('parseGame', () => {
       accent: 'ruby',
       logo: { id: 'mi_l', url: 'media://m_1', kind: 'image' },
       introText: 'Welcome',
+      look: 'neon',
+      background: { id: 'mi_b', url: 'media://m_2', kind: 'image' },
     }
     expect(parseGame({ ...structuredClone(legacy), settings }).settings).toEqual(settings)
     expect(parseGame(structuredClone(legacy))).not.toHaveProperty('settings')
   })
 
   it('drops invalid settings', () => {
-    const bad = { answerSeconds: -3, timerAutoStart: 'yes', accent: 'pink', logo: { url: 5 }, introText: '  ' }
+    const bad = { answerSeconds: -3, timerAutoStart: 'yes', accent: 'pink', logo: { url: 5 }, introText: '  ', look: 'disco', background: {} }
     expect(parseGame({ ...structuredClone(legacy), settings: bad })).not.toHaveProperty('settings')
     expect(parseGame({ ...structuredClone(legacy), settings: 'x' })).not.toHaveProperty('settings')
+  })
+
+  it('stores the studio look as no look at all', () => {
+    expect(parseGame({ ...structuredClone(legacy), settings: { look: 'studio' } })).not.toHaveProperty('settings')
   })
 
   it('caps the answer time', () => {

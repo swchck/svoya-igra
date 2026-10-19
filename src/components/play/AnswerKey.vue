@@ -44,7 +44,7 @@ defineProps<{ card: HostInfo }>()
   margin: 4px 0 0;
   padding: 8px 12px;
   border-radius: 10px;
-  background: oklch(1 0 0 / 0.06);
+  background: oklch(var(--tint) 0 0 / 0.06);
   color: var(--muted-foreground);
   white-space: pre-line;
 }

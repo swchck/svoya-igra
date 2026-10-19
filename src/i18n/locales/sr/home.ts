@@ -46,6 +46,9 @@ export default {
   footnote: 'Igre se čuvaju na ovom računaru. Da biste preneli igru, izvezite je kao .gamezip.',
   version: 'Verzija {version}',
   resume: {
+    bannerTitle: 'Nezavršena partija',
+    leader: 'vodi {name} ({score})',
+    forget: 'Zaboravi partiju',
     title: 'Nastaviti partiju?',
     description: 'Sačuvana je nedovršena igra.',
     descriptionLeader: 'Sačuvana je nedovršena igra: vodi {name} ({score}).',

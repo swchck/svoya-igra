@@ -262,7 +262,7 @@ onBeforeUnmount(() => unregister?.())
   bottom: 12px;
   height: 4px;
   border-radius: 2px;
-  background: oklch(1 0 0 / 0.2);
+  background: oklch(var(--tint) 0 0 / 0.2);
   overflow: hidden;
 }
 .stage-video-track span {

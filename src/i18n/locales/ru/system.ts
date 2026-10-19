@@ -1,5 +1,11 @@
 export default {
   appName: 'Своя игра',
+  menu: {
+    game: 'Игра',
+    continueLast: 'Продолжить последнюю игру',
+    library: 'Библиотека игр',
+    nothingToContinue: 'Незаконченных партий нет',
+  },
   confirm: { cancel: 'Отмена', yes: 'Да' },
   desktop: {
     gameOpened: 'Игра открыта',

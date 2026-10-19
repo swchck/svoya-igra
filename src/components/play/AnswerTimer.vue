@@ -39,7 +39,7 @@ const offset = computed(() => (up.value ? 0 : CIRCUMFERENCE * (1 - Math.min(1, p
   display: grid;
   place-items: center;
   border-radius: 999px;
-  background: radial-gradient(closest-side, oklch(0.16 0.12 274 / 0.75) 80%, transparent);
+  background: radial-gradient(closest-side, color-mix(in oklch, var(--background) 75%, transparent) 80%, transparent);
   filter: drop-shadow(0 8px 24px oklch(0.05 0.1 280 / 0.8));
 }
 .timer.urgent,
@@ -56,7 +56,7 @@ circle {
   stroke-width: 8;
 }
 .track {
-  stroke: oklch(1 0 0 / 0.16);
+  stroke: oklch(var(--tint) 0 0 / 0.16);
 }
 .arc {
   stroke: var(--ring);

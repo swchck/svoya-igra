@@ -107,9 +107,9 @@ watch(
   padding: 10px 16px 12px;
   border-radius: 18px 18px 10px 10px;
   background:
-    linear-gradient(180deg, oklch(1 0 0 / 0.1), transparent 40%),
+    linear-gradient(180deg, oklch(var(--tint) 0 0 / 0.1), transparent 40%),
     linear-gradient(180deg, var(--tile), var(--tile-deep));
-  border: 1px solid oklch(1 0 0 / 0.16);
+  border: 1px solid oklch(var(--tint) 0 0 / 0.16);
   border-bottom: 4px solid var(--pc);
   box-shadow: 0 18px 40px -22px oklch(0.05 0.1 280 / 0.95);
   transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
@@ -170,7 +170,7 @@ watch(
   white-space: nowrap;
   font-size: calc(clamp(14px, 1.4vw, 20px) * var(--stage-scale, 1));
   font-weight: 600;
-  color: color-mix(in oklch, var(--pc) 70%, var(--foreground));
+  color: color-mix(in oklch, var(--pc) 70%, var(--on-tile, var(--foreground)));
 }
 .avatar {
   margin-right: 0.35em;
@@ -180,8 +180,8 @@ watch(
   font-size: calc(clamp(28px, 3.4vw, 50px) * var(--stage-scale, 1));
   font-weight: 700;
   line-height: 1;
-  color: var(--gold);
-  text-shadow: 0 0 18px color-mix(in oklch, var(--gold) 45%, transparent);
+  color: var(--value, var(--gold));
+  text-shadow: 0 0 18px color-mix(in oklch, var(--value, var(--gold)) 45%, transparent);
 }
 .negative .score {
   color: var(--magenta);

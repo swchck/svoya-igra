@@ -1,4 +1,4 @@
-import type { AccentName, GameSettings } from '@/types'
+import type { AccentName, GameSettings, StageLook } from '@/types'
 
 /** The stage's gold in each curated palette: the bright tone and the deep one under it. */
 export const ACCENTS: Record<AccentName, { gold: string; deep: string }> = {
@@ -14,5 +14,22 @@ export function accentStyle(settings: GameSettings | undefined): Record<string, 
   if (!accent) return {}
   // Tailwind's --color-* copies were resolved at the root, so they need the override too
   const { gold, deep } = accent
-  return { '--gold': gold, '--gold-deep': deep, '--color-gold': gold, '--primary': gold, '--color-primary': gold, '--ring': gold, '--color-ring': gold }
+  const vars = { '--gold': gold, '--gold-deep': deep, '--color-gold': gold, '--primary': gold, '--color-primary': gold, '--ring': gold, '--color-ring': gold }
+  // on the light stage text needs the deep tone; the board's own screens keep the bright one
+  if (stageLook(settings) === 'minimal') return { ...vars, '--gold': deep, '--color-gold': deep, '--theme-ink': gold, '--value': gold }
+  return vars
+}
+
+/** The game's stage style. */
+export function stageLook(settings: GameSettings | undefined): StageLook {
+  return settings?.look ?? 'studio'
+}
+
+/**
+ * Attributes for the element that holds a stage: its style for the CSS in styles.css, and
+ * the light palette for the one style meant for a lit room.
+ */
+export function lookAttrs(settings: GameSettings | undefined): { 'data-look': StageLook; class: { 'light-surface': boolean } } {
+  const look = stageLook(settings)
+  return { 'data-look': look, class: { 'light-surface': look === 'minimal' } }
 }

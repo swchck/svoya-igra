@@ -69,7 +69,7 @@ function setOpen(open: boolean) {
   overflow-y: auto;
   padding: 12px 16px;
   border-radius: 14px;
-  background: oklch(1 0 0 / 0.05);
+  background: oklch(var(--tint) 0 0 / 0.05);
 }
 .notes-title {
   margin: 0 0 8px;
@@ -93,7 +93,7 @@ function setOpen(open: boolean) {
 .bar {
   height: 8px;
   border-radius: 999px;
-  background: oklch(1 0 0 / 0.1);
+  background: oklch(var(--tint) 0 0 / 0.1);
   overflow: hidden;
 }
 .bar span {

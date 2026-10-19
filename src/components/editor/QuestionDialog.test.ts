@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DOMWrapper, flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { defineComponent, h, ref } from 'vue'
 import type { Question } from '../../types'
@@ -6,7 +6,15 @@ import { makeEmptyQuestion } from '../../game/model'
 import { TooltipProvider } from '../ui/tooltip'
 import QuestionDialog from './QuestionDialog.vue'
 
-const MarkdownEditor = defineComponent({ props: { modelValue: { type: String, default: '' }, label: { type: String, default: '' } }, setup: (p) => () => h('div', { class: 'md-stub', 'data-label': p.label }) })
+// the real editor loads lazily and brings a whole rich-text engine; a stub stands in for it
+vi.mock('@/components/markdownEditorLoader', async () => {
+  const { defineComponent, h } = await import('vue')
+  const LazyMarkdownEditor = defineComponent({
+    props: { modelValue: { type: String, default: '' }, label: { type: String, default: '' } },
+    setup: (p) => () => h('div', { class: 'md-stub', 'data-label': p.label }),
+  })
+  return { LazyMarkdownEditor, preloadMarkdownEditor: () => {} }
+})
 
 let wrapper: VueWrapper | undefined
 afterEach(() => wrapper?.unmount())
@@ -30,7 +38,7 @@ async function mountDialog(q: Question = makeEmptyQuestion(100)) {
       }),
     ),
   )
-  wrapper = mount(Host, { attachTo: document.body, global: { stubs: { MarkdownEditor } } })
+  wrapper = mount(Host, { attachTo: document.body })
   await flushPromises()
   return { question, events, body: new DOMWrapper(document.body) }
 }

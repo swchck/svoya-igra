@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
-import { Archive, Cat, Download, Globe, RefreshCw, Save, WifiOff } from '@lucide/vue'
+import { Archive, Cat, Download, Globe, Palette, RefreshCw, Save, Smartphone, Trophy, WifiOff } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
 import LocaleSwitch from '@/components/LocaleSwitch.vue'
@@ -31,6 +31,9 @@ const title = computed(() =>
 const SHOWCASE = ['editor', 'board', 'question', 'host'] as const
 const FACTS = [
   { id: 'special', icon: Cat },
+  { id: 'phones', icon: Smartphone },
+  { id: 'looks', icon: Palette },
+  { id: 'league', icon: Trophy },
   { id: 'saved', icon: Save },
   { id: 'offline', icon: WifiOff },
   { id: 'file', icon: Archive },

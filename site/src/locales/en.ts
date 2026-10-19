@@ -79,9 +79,21 @@ export default {
       title: 'Six kinds of questions',
       text: 'Auction, cat in the bag, all in, no risk, and a question for all that everyone answers at once. Add answer choices or open hints one by one. In the final, players strike categories and place bets.',
     },
+    phones: {
+      title: 'Phones, spectators and a remote',
+      text: 'Players buzz on their own phones, spectators send reactions to the big screen, and the host can run the game from a phone with the question, the answer and the buttons.',
+    },
+    looks: {
+      title: 'Stage styles',
+      text: 'A TV studio, a classic show, neon, or a light style for a projector in a lit room. Put up your own background, and switch the app itself to light.',
+    },
+    league: {
+      title: 'Results, diplomas and a league',
+      text: 'Save the results as a picture for the chat, print diplomas, and add up several evenings into one league table.',
+    },
     saved: {
       title: 'Games survive a closed window',
-      text: 'Scores are saved after every turn. Close the window mid-game and you can pick up where you left off.',
+      text: 'Scores are saved after every turn. Close the window mid-game and the unfinished game waits on the home screen. A 5–15 minute break shows a countdown and the score.',
     },
     offline: {
       title: 'No internet, no account',

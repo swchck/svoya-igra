@@ -16,6 +16,8 @@ export const HOST_COMMANDS = [
   'setGroupVerdict',
   'scoreGroup',
   'revealHint',
+  'pause',
+  'resume',
   'advance',
   'nextRound',
   'removeFinalTheme',

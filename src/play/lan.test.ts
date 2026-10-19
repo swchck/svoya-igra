@@ -20,6 +20,14 @@ beforeEach(() => {
   listen.mockReset()
 })
 
+describe('buzzWindow', () => {
+  it('keeps the buttons armed through a pause, so who pressed and who is out survive it', () => {
+    const open = { phase: 'question' as const, activeQuestionId: 'q', stake: null, buzzArmed: true, groupVerdicts: null }
+    expect(lan.buzzWindow(open)).toBe('q')
+    expect(lan.buzzWindow({ ...open, pause: { until: null, resumeTimer: false } } as typeof open)).toBe('q')
+  })
+})
+
 describe('answerLabel', () => {
   it('turns a choice index into its letter and text, and leaves typed answers alone', () => {
     expect(lan.answerLabel({ options: ['Париж', 'Лион'] }, '1')).toBe('B. Лион')
@@ -36,6 +44,7 @@ describe('stageInfo', () => {
     chooserId: null as string | null,
     activeQuestionId: null as string | null,
     groupVerdicts: null,
+    pause: null,
   }
 
   it('lets phones join by name only while players are set up', () => {
@@ -54,8 +63,10 @@ describe('stageInfo', () => {
       board: null,
       chooser: null,
       vibrate: true,
+      paused: false,
     })
     expect(lan.stageInfo({ ...base, phase: 'board' }, 'Quiz').allowJoin).toBe(false)
+    expect(lan.stageInfo({ ...base, phase: 'question', pause: { until: null, resumeTimer: false } }, 'Quiz').paused).toBe(true)
     expect(lan.stageInfo({ ...base, phase: 'board' }, 'Quiz', undefined, false).vibrate).toBe(false)
   })
 

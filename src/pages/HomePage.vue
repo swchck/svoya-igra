@@ -4,7 +4,7 @@ import { defineAsyncComponent, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
-import { ChevronDown, Download, FileJson, MoreHorizontal, Package, Pencil, Play, Plus, Settings, Sparkles, Trash2, Upload, Wifi } from '@lucide/vue'
+import { ChevronDown, Download, FileJson, MoreHorizontal, Package, Pencil, Play, Plus, Settings, Sparkles, Trash2, Trophy, Upload, Wifi } from '@lucide/vue'
 import type { Game } from '@/types'
 import { Button } from '@/components/ui/button'
 import {
@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useGamesStore } from '@/stores/games'
+import ResumeBanner from '@/components/ResumeBanner.vue'
 import { confirmAction } from '@/composables/useConfirm'
 import { useBackup } from '@/composables/useBackup'
 import { hasFinal, newGameSettings } from '@/game/model'
@@ -28,7 +29,7 @@ import TourHelpButton from '@/tour/TourHelpButton.vue'
 import { isDesktop, pickGameFile } from '@/platform'
 import StageBackdrop from '@/components/play/StageBackdrop.vue'
 import MiniBoard from '@/components/MiniBoard.vue'
-import { currentLocale } from '@/i18n'
+import { intlTag } from '@/i18n'
 
 // the file formats and the Wi-Fi share are only needed once a button asks for them
 const gameFile = () => import('@/io/gameFile')
@@ -154,8 +155,7 @@ function stats(g: Game) {
 }
 
 function fmtDate(ts: number) {
-  const locale = currentLocale() === 'sr' ? 'sr-Latn' : currentLocale()
-  return new Date(ts).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' })
+  return new Date(ts).toLocaleString(intlTag(), { dateStyle: 'medium', timeStyle: 'short' })
 }
 </script>
 
@@ -166,6 +166,7 @@ function fmtDate(ts: number) {
       <div class="locale" data-tour="home-tools">
         <Button v-if="updates.available" variant="secondary" size="sm" class="update-pill" @click="offerUpdate"><Download />{{ t('system.updates.pill', { version: updates.available.version }) }}</Button>
         <TourHelpButton id="home" />
+        <Button variant="ghost" size="icon" :aria-label="t('league.open')" :title="t('league.open')" @click="router.push({ name: 'league' })"><Trophy /></Button>
         <Button variant="ghost" size="icon" :aria-label="t('prefs.open')" :title="t('prefs.open')" @click="router.push({ name: 'settings' })"><Settings /></Button>
       </div>
       <h1 class="title-shine hero-title">{{ t('system.appName') }}</h1>
@@ -190,6 +191,8 @@ function fmtDate(ts: number) {
         <input ref="fileInput" type="file" class="hidden" :accept="GAME_FILE_ACCEPT" @change="onFile" />
       </div>
     </header>
+
+    <ResumeBanner />
 
     <section v-if="store.loadError" class="glass notice text-destructive">
       {{ t('home.libraryError', { message: store.loadError.message }) }}

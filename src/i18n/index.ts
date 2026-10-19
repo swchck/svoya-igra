@@ -75,6 +75,17 @@ export function currentLocale(): Locale {
   return i18n.global.locale.value
 }
 
+/** The current language as a tag for Intl formatting; Serbian is written in Latin here. */
+export function intlTag(): string {
+  const locale = currentLocale()
+  return locale === 'sr' ? 'sr-Latn' : locale
+}
+
+/** Formats a day in the current language: 19 October 2026. */
+export function formatDay(date: Date | number): string {
+  return new Date(date).toLocaleDateString(intlTag(), { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
 /** Reports whether someone has picked the interface language, rather than it being guessed. */
 export function localeChosen(): boolean {
   try {

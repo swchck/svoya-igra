@@ -23,7 +23,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
     :class="cn('relative flex h-6 w-full touch-none items-center select-none data-disabled:opacity-50', props.class)"
     v-bind="forwarded"
   >
-    <SliderTrack data-slot="slider-track" class="relative h-1.5 w-full grow overflow-hidden rounded-full bg-white/15">
+    <SliderTrack data-slot="slider-track" class="relative h-1.5 w-full grow overflow-hidden rounded-full bg-foreground/15">
       <SliderRange data-slot="slider-range" class="absolute h-full rounded-full bg-gold" />
     </SliderTrack>
     <SliderThumb

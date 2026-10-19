@@ -79,9 +79,21 @@ export default {
       title: 'Šest vrsta pitanja',
       text: 'Aukcija, mačka u džaku, va bank, pitanje bez rizika i pitanje za sve, na koje svi odgovaraju odjednom. Mogu se dati ponuđeni odgovori ili otvarati nagoveštaji jedan po jedan. U finalu igrači uklanjaju teme i stavljaju uloge.',
     },
+    phones: {
+      title: 'Telefoni, gledaoci i pult',
+      text: 'Igrači pritiskaju dugme na svom telefonu, gledaoci šalju reakcije na veliki ekran, a voditelj može da vodi igru sa telefona: tamo su pitanje, odgovor i dugmad.',
+    },
+    looks: {
+      title: 'Stilovi scene',
+      text: 'TV studio, klasična emisija, neon ili svetli stil za projektor u osvetljenoj sali. Možete staviti svoju pozadinu, a sam program prebaciti na svetlu temu.',
+    },
+    league: {
+      title: 'Rezultati, diplome i liga',
+      text: 'Rezultati se čuvaju kao slika za čet, diplome se štampaju, a igre više večeri se sabiraju u zajedničku tabelu lige.',
+    },
     saved: {
       title: 'Partija se ne gubi',
-      text: 'Rezultat se čuva posle svakog poteza. Ako zatvorite prozor usred igre, sledeći put nastavljate odatle.',
+      text: 'Rezultat se čuva posle svakog poteza. Ako zatvorite prozor usred igre, nezavršena partija čeka na početnom ekranu. Pauza od 5–15 minuta prikazuje odbrojavanje i rezultat.',
     },
     offline: {
       title: 'Bez interneta i naloga',

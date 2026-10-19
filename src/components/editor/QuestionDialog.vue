@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label'
 import IconButton from '@/components/IconButton.vue'
 import NumberInput from '@/components/NumberInput.vue'
 import MediaList from '@/components/MediaList.vue'
-import MarkdownEditor from '@/components/MarkdownEditor.vue'
+import { LazyMarkdownEditor as MarkdownEditor } from '@/components/markdownEditorLoader'
 import HostFields from './HostFields.vue'
 import OptionsEditor from './OptionsEditor.vue'
 import HintsEditor from './HintsEditor.vue'
@@ -177,7 +177,7 @@ function onKeydown(e: KeyboardEvent) {
   align-items: center;
   gap: 8px;
   padding: 14px 64px 14px 16px;
-  border-bottom: 1px solid oklch(1 0 0 / 0.08);
+  border-bottom: 1px solid oklch(var(--tint) 0 0 / 0.08);
 }
 .title {
   flex: 1;
@@ -238,8 +238,8 @@ function onKeydown(e: KeyboardEvent) {
   min-height: 40px;
   padding: 6px 8px;
   border-radius: 12px;
-  border: 1px solid oklch(1 0 0 / 0.12);
-  background: oklch(0.16 0.11 274 / 0.6);
+  border: 1px solid oklch(var(--tint) 0 0 / 0.12);
+  background: var(--well);
   color: var(--muted-foreground);
   font-size: 13px;
   font-weight: 500;
@@ -282,7 +282,7 @@ function onKeydown(e: KeyboardEvent) {
   height: 36px;
   padding: 0 12px;
   border-radius: 10px;
-  border: 1px solid oklch(1 0 0 / 0.12);
+  border: 1px solid oklch(var(--tint) 0 0 / 0.12);
   background: transparent;
   color: var(--muted-foreground);
   font-size: 13px;
@@ -306,7 +306,7 @@ function onKeydown(e: KeyboardEvent) {
   min-width: 48px;
   padding: 0 10px;
   border-radius: 10px;
-  border: 1px solid oklch(1 0 0 / 0.12);
+  border: 1px solid oklch(var(--tint) 0 0 / 0.12);
   background: transparent;
   color: var(--muted-foreground);
   font-family: var(--font-display);
@@ -342,8 +342,8 @@ function onKeydown(e: KeyboardEvent) {
   overflow-y: auto;
   padding: 14px;
   border-radius: 16px;
-  border: 1px solid oklch(1 0 0 / 0.08);
-  background: oklch(0.16 0.11 274 / 0.4);
+  border: 1px solid oklch(var(--tint) 0 0 / 0.08);
+  background: var(--well);
 }
 .col.answer {
   border-color: color-mix(in oklch, var(--gold) 28%, transparent);
@@ -364,7 +364,7 @@ function onKeydown(e: KeyboardEvent) {
   align-items: center;
   gap: 6px;
   padding: 12px 16px;
-  border-top: 1px solid oklch(1 0 0 / 0.08);
-  background: oklch(0.18 0.13 272 / 0.95);
+  border-top: 1px solid oklch(var(--tint) 0 0 / 0.08);
+  background: var(--panel-solid);
 }
 </style>

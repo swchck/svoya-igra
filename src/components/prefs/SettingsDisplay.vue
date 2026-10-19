@@ -132,8 +132,8 @@ async function identify(s: Screen, index: number) {
   gap: 4px;
   padding-right: 6px;
   border-radius: 14px;
-  border: 1px solid oklch(1 0 0 / 0.12);
-  background: oklch(0.2 0.14 272 / 0.5);
+  border: 1px solid oklch(var(--tint) 0 0 / 0.12);
+  background: var(--panel);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .choice:hover {

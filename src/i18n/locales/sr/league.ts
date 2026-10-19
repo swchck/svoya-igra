@@ -1,0 +1,31 @@
+import type ru from '../ru/league'
+
+export default {
+  title: 'Liga',
+  back: 'Nazad',
+  hint: 'Liga skuplja igre više večeri u jednu tabelu. Igrače prepoznajemo po imenu.',
+  defaultName: 'Liga {n}',
+  name: 'Naziv lige',
+  namePlaceholder: 'Na primer: Jesenja sezona',
+  create: 'Nova liga',
+  delete: 'Obriši ligu',
+  deleteTitle: 'Obrisati ligu „{name}“?',
+  deleteHint: 'Tabela nestaje, rezultati igara ostaju.',
+  print: 'Štampaj',
+  emptyTable: 'Označite ispod igre koje ulaze u ligu.',
+  rule: 'Bodovi lige po mestima: {rule}. Pri izjednačenju više je onaj sa više pobeda, zatim sa više poena u igrama.',
+  games: 'Odigrane igre',
+  noGames: 'Ovde se pojavljuju igre odigrane do rezultata.',
+  players: '{n} igrač | {n} igrača | {n} igrača',
+  open: 'Liga',
+  col: {
+    name: 'Igrač',
+    points: 'Bodovi',
+    pointsHint: 'Bodovi lige po mestima: {rule}',
+    wins: 'Pobede',
+    podiums: 'Postolja',
+    games: 'Igre',
+    total: 'Zbir',
+    avgPlace: 'Pros. mesto',
+  },
+} satisfies typeof ru

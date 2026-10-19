@@ -1,12 +1,17 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:is(.dark *):not(.light-surface, .light-surface *));
 
-/* The app has one look, the TV studio: deep blue with gold. <html> carries .dark so
- * shadcn components pick their variants meant for dark backgrounds. */
-:root {
+/* The app's own look is the TV studio: deep blue with gold. <html> carries .dark so
+ * shadcn components pick their variants meant for dark backgrounds; .light-surface below
+ * turns any subtree light. A dark stage style redeclares the palette, so it stays dark
+ * inside the light theme too (the style previews in the settings dialog). */
+:root,
+:where([data-look]:not(.light-surface)) {
   --radius: 0.75rem;
+  /* lightness of the translucent overlays: white ones on dark, black ones on light */
+  --tint: 1;
 
   --background: oklch(0.24 0.17 268);
   --foreground: oklch(0.985 0.005 270);
@@ -16,15 +21,15 @@
   --popover-foreground: var(--foreground);
   --primary: oklch(0.84 0.17 84);
   --primary-foreground: oklch(0.2 0.12 268);
-  --secondary: oklch(1 0 0 / 0.1);
+  --secondary: oklch(var(--tint) 0 0 / 0.1);
   --secondary-foreground: var(--foreground);
-  --muted: oklch(1 0 0 / 0.08);
+  --muted: oklch(var(--tint) 0 0 / 0.08);
   --muted-foreground: oklch(0.85 0.06 278);
   --accent: oklch(0.84 0.17 84 / 0.16);
   --accent-foreground: oklch(0.9 0.14 88);
   --destructive: oklch(0.7 0.19 25);
-  --border: oklch(1 0 0 / 0.16);
-  --input: oklch(1 0 0 / 0.2);
+  --border: oklch(var(--tint) 0 0 / 0.16);
+  --input: oklch(var(--tint) 0 0 / 0.2);
   --ring: oklch(0.84 0.17 84);
 
   /* game surfaces: the studio at night, its screen-blue board, gold numbers and two
@@ -37,9 +42,70 @@
   --tile: oklch(0.43 0.24 266);
   --tile-deep: oklch(0.27 0.2 268);
   --board: oklch(0.2 0.15 268 / 0.6);
-  --board-played: oklch(1 0 0 / 0.05);
+  --board-played: oklch(var(--tint) 0 0 / 0.05);
   --stage-top: oklch(0.42 0.26 268);
   --stage-bottom: oklch(0.14 0.12 274);
+  --glow: oklch(0.55 0.25 268 / 0.55);
+  --theme-top: oklch(0.32 0.2 290);
+  --theme-bottom: oklch(0.24 0.18 275);
+  --tile-glow: oklch(0.55 0.26 262);
+  --played: oklch(0.2 0.12 272 / 0.45);
+  --well: oklch(0.14 0.1 274 / 0.55);
+  --panel: oklch(0.2 0.14 272 / 0.55);
+  --panel-solid: oklch(0.2 0.14 272 / 0.95);
+  --glass: oklch(0.2 0.14 272 / 0.62);
+  --scrim: oklch(0.12 0.1 274 / 0.92);
+}
+
+/* The light palette: the editor's light theme on <html>, and the stage style for a
+ * projector in a lit room. Everything that reads --tint is redeclared here because a
+ * custom property resolves var() where it is declared. The board keeps its TV colors,
+ * so --theme-ink and --value stay bright while --gold darkens for text on white. */
+.light-surface {
+  color-scheme: light;
+  --tint: 0;
+  --background: oklch(0.97 0.012 265);
+  --foreground: oklch(0.24 0.06 268);
+  --card: oklch(1 0 0 / 0.8);
+  --card-foreground: var(--foreground);
+  --popover: oklch(0.995 0.004 265);
+  --popover-foreground: var(--foreground);
+  --primary: oklch(0.8 0.16 80);
+  --primary-foreground: oklch(0.22 0.1 268);
+  --secondary: oklch(0 0 0 / 0.06);
+  --secondary-foreground: var(--foreground);
+  --muted: oklch(0 0 0 / 0.05);
+  --muted-foreground: oklch(0.45 0.05 270);
+  --accent: oklch(0.8 0.16 80 / 0.22);
+  --accent-foreground: oklch(0.45 0.12 70);
+  --destructive: oklch(0.55 0.21 25);
+  --border: oklch(0 0 0 / 0.12);
+  --input: oklch(0 0 0 / 0.16);
+  --ring: oklch(0.62 0.15 70);
+  --gold: oklch(0.6 0.14 70);
+  --gold-deep: oklch(0.48 0.12 60);
+  --magenta: oklch(0.58 0.24 352);
+  --cyan: oklch(0.6 0.12 220);
+  --tile: oklch(0.5 0.21 264);
+  --tile-deep: oklch(0.4 0.2 266);
+  --board: oklch(1 0 0 / 0.55);
+  --board-played: oklch(0 0 0 / 0.04);
+  --stage-top: oklch(0.99 0.006 265);
+  --stage-bottom: oklch(0.92 0.025 265);
+  --glow: oklch(0.88 0.06 268 / 0.6);
+  --set-glow: var(--glow);
+  --theme-top: oklch(0.42 0.2 285);
+  --theme-bottom: oklch(0.34 0.19 275);
+  --theme-ink: oklch(0.9 0.14 88);
+  --value: oklch(0.92 0.14 90);
+  --on-tile: oklch(0.98 0.01 265);
+  --tile-glow: oklch(0.62 0.2 262);
+  --played: oklch(0 0 0 / 0.06);
+  --well: oklch(1 0 0 / 0.85);
+  --panel: oklch(1 0 0 / 0.7);
+  --panel-solid: oklch(0.99 0.005 265 / 0.97);
+  --glass: oklch(1 0 0 / 0.72);
+  --scrim: oklch(0.97 0.01 265 / 0.94);
 }
 
 @theme inline {
@@ -87,10 +153,13 @@
   html {
     color-scheme: dark;
   }
+  html.light-surface {
+    color-scheme: light;
+  }
   body {
     @apply min-h-screen font-sans text-foreground antialiased;
     background:
-      radial-gradient(1200px 640px at 50% -12%, oklch(0.55 0.25 268 / 0.55), transparent 65%),
+      radial-gradient(1200px 640px at 50% -12%, var(--glow), transparent 65%),
       linear-gradient(180deg, var(--stage-top) 0%, var(--stage-bottom) 100%) fixed;
     background-color: var(--stage-bottom);
   }
@@ -127,11 +196,42 @@
   }
 
   .glass {
-    background: oklch(0.2 0.14 272 / 0.62);
-    border: 1px solid oklch(1 0 0 / 0.12);
+    background: var(--glass);
+    border: 1px solid oklch(var(--tint) 0 0 / 0.12);
     backdrop-filter: blur(14px) saturate(1.3);
     box-shadow: 0 24px 60px -30px oklch(0.05 0.1 280 / 0.9);
   }
+}
+
+/* stage styles, on the element holding a stage (see lookAttrs); the studio is :root itself
+ * and minimal is .light-surface, the rest of each style lives with the board and the set */
+[data-look='classic'] {
+  --stage-top: oklch(0.3 0.2 266);
+  --stage-bottom: oklch(0.11 0.07 268);
+  --glow: oklch(0.42 0.22 266 / 0.4);
+  --set-glow: var(--glow);
+  --tile: oklch(0.37 0.26 266);
+  --tile-deep: oklch(0.33 0.25 266);
+  --tile-glow: transparent;
+  --theme-top: oklch(0.37 0.26 266);
+  --theme-bottom: oklch(0.33 0.25 266);
+  --theme-ink: oklch(0.98 0 0);
+  --played: oklch(0.12 0.08 268 / 0.7);
+}
+[data-look='neon'] {
+  --stage-top: oklch(0.17 0.05 300);
+  --stage-bottom: oklch(0.07 0.02 290);
+  --glow: oklch(0.45 0.25 330 / 0.3);
+  --set-glow: var(--glow);
+  --tile: oklch(0.15 0.05 300);
+  --tile-deep: oklch(0.1 0.03 290);
+  --tile-glow: oklch(0.5 0.27 330 / 0.35);
+  --theme-top: oklch(0.15 0.05 300);
+  --theme-bottom: oklch(0.1 0.03 290);
+  --theme-ink: var(--cyan);
+  --played: oklch(0.1 0.02 290 / 0.6);
+  --panel: oklch(0.12 0.04 300 / 0.7);
+  --glass: oklch(0.12 0.04 300 / 0.7);
 }
 
 /* overlay-style bars: invisible until the pointer is over the area that scrolls */
@@ -149,17 +249,17 @@
   background: transparent padding-box;
 }
 :hover::-webkit-scrollbar-thumb {
-  background-color: oklch(1 0 0 / 0.22);
+  background-color: oklch(var(--tint) 0 0 / 0.22);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background-color: oklch(1 0 0 / 0.4);
+  background-color: oklch(var(--tint) 0 0 / 0.4);
 }
 /* Chromium lets the standard properties override the pseudo-elements above, so only
    engines without them get these */
 @supports not selector(::-webkit-scrollbar) {
   * {
     scrollbar-width: thin;
-    scrollbar-color: oklch(1 0 0 / 0.22) transparent;
+    scrollbar-color: oklch(var(--tint) 0 0 / 0.22) transparent;
   }
 }
 

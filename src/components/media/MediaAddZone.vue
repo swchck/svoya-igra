@@ -132,7 +132,7 @@ function submit() {
   aspect-ratio: 1;
   padding: 0;
   overflow: hidden;
-  border: 1px solid oklch(1 0 0 / 0.14);
+  border: 1px solid oklch(var(--tint) 0 0 / 0.14);
   border-radius: 10px;
   background: transparent;
   cursor: pointer;
@@ -147,7 +147,7 @@ function submit() {
   gap: 8px;
   padding: 14px;
   border-radius: 14px;
-  border: 1.5px dashed oklch(1 0 0 / 0.2);
+  border: 1.5px dashed oklch(var(--tint) 0 0 / 0.2);
   text-align: center;
   outline: none;
   transition: border-color 0.15s ease, background 0.15s ease;
@@ -155,7 +155,7 @@ function submit() {
 .zone:hover,
 .zone:focus-visible {
   border-color: color-mix(in oklch, var(--gold) 70%, transparent);
-  background: oklch(1 0 0 / 0.03);
+  background: oklch(var(--tint) 0 0 / 0.03);
 }
 .zone:focus-visible {
   box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 40%, transparent);

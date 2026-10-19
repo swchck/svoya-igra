@@ -117,10 +117,10 @@ function setMode(value: unknown) {
   cursor: pointer;
 }
 .avatar:hover {
-  background: oklch(1 0 0 / 0.12);
+  background: oklch(var(--tint) 0 0 / 0.12);
 }
 .avatar.on {
-  background: oklch(1 0 0 / 0.2);
+  background: oklch(var(--tint) 0 0 / 0.2);
   outline: 1px solid var(--gold);
 }
 </style>

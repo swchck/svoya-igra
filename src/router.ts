@@ -1,5 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { localeChosen } from './i18n'
+import { dismissConfirm } from './composables/useConfirm'
 
 export const router = createRouter({
   history: createWebHashHistory(),
@@ -12,6 +13,8 @@ export const router = createRouter({
     { path: '/settings', name: 'settings', component: () => import('./pages/SettingsPage.vue') },
     { path: '/flash', name: 'flash', component: () => import('./pages/FlashPage.vue') },
     { path: '/print/:id', name: 'print', component: () => import('./pages/PrintPage.vue'), props: true },
+    { path: '/league', name: 'league', component: () => import('./pages/LeaguePage.vue') },
+    { path: '/diploma/:id', name: 'diploma', component: () => import('./pages/DiplomaPage.vue'), props: true },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 })
@@ -20,4 +23,8 @@ export const router = createRouter({
 // file) go straight through and the library asks later
 router.beforeEach((to) => {
   if (to.name === 'home' && !localeChosen()) return { name: 'welcome' }
+})
+
+router.afterEach((to, from) => {
+  if (to.path !== from.path) dismissConfirm()
 })

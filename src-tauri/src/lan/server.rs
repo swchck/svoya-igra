@@ -16,7 +16,7 @@ use serde::Deserialize;
 use serde_json::json;
 use tiny_http::{Header, Method, Request, Response, Server, StatusCode};
 
-use super::room::{CodeGuard, LanStatus, NewPlayer, Pick, Reject, Room};
+use super::room::{reaction, CodeGuard, LanStatus, NewPlayer, Pick, Reject, Room};
 
 const PAGE: &str = include_str!("phone.html");
 /// The phone page's fonts, so it looks like the stage without reaching the internet.
@@ -33,6 +33,8 @@ const POLL_WAIT: Duration = Duration::from_secs(20);
 /// Requests parked on their own thread at once: long polls and file downloads.
 const MAX_WORKERS: usize = 64;
 const STATUS_TICK: Duration = Duration::from_secs(2);
+/// One address sends at most one reaction this often; faster taps are dropped.
+const REACTION_GAP: Duration = Duration::from_millis(250);
 
 /// What the server tells the app about.
 #[derive(Debug, Clone)]
@@ -40,6 +42,10 @@ pub enum Notice {
     Status(LanStatus),
     Joined(NewPlayer),
     Picked(Pick),
+    /// A command from the host's phone, in the shape the host window sends.
+    Host(serde_json::Value),
+    /// A spectator's reaction, one of `room::REACTIONS`.
+    Reaction(&'static str),
 }
 
 /// A game file offered for download.
@@ -56,6 +62,7 @@ struct Shared {
     guard: Mutex<CodeGuard>,
     file: Mutex<Option<SharedFile>>,
     last_status: Mutex<Option<LanStatus>>,
+    reacted: Mutex<HashMap<IpAddr, Instant>>,
     notify: Box<dyn Fn(Notice) + Send + Sync>,
 }
 
@@ -107,6 +114,7 @@ pub fn start(addrs: &[SocketAddr], code: String, notify: impl Fn(Notice) + Send 
         guard: Mutex::new(CodeGuard::default()),
         file: Mutex::new(None),
         last_status: Mutex::new(None),
+        reacted: Mutex::new(HashMap::new()),
         notify: Box::new(notify),
     });
 
@@ -138,6 +146,10 @@ pub fn start(addrs: &[SocketAddr], code: String, notify: impl Fn(Notice) + Send 
 impl LanServer {
     pub fn code(&self) -> String {
         self.shared.room().code().to_string()
+    }
+
+    pub fn host_key(&self) -> String {
+        self.shared.room().host_key().to_string()
     }
 
     /// Changes the room and tells long polls and the app about it.
@@ -253,6 +265,9 @@ struct Body {
     amount: i64,
     text: String,
     question_id: String,
+    host_key: String,
+    command: serde_json::Value,
+    emoji: String,
 }
 
 fn read_body(request: &mut Request) -> Result<Body, Response<Cursor<Vec<u8>>>> {
@@ -292,7 +307,19 @@ fn handle(shared: &Arc<Shared>, mut request: Request) {
         return;
     }
 
-    let known = ["/api/poll", "/api/join", "/api/claim", "/api/leave", "/api/buzz", "/api/bet", "/api/answer", "/api/pick", "/game.gamezip"];
+    let known = [
+        "/api/poll",
+        "/api/join",
+        "/api/claim",
+        "/api/leave",
+        "/api/buzz",
+        "/api/bet",
+        "/api/answer",
+        "/api/pick",
+        "/api/host",
+        "/api/react",
+        "/game.gamezip",
+    ];
     if !known.contains(&path.as_str()) {
         let _ = request.respond(Response::empty(404));
         return;
@@ -317,6 +344,13 @@ fn handle(shared: &Arc<Shared>, mut request: Request) {
             let _ = request.respond(error(403, "bad-code"));
             return;
         }
+        // a wrong host key counts like a wrong code, so the key can't be swept either
+        let host = params.get("h").map(String::as_str).unwrap_or_default();
+        if !host.is_empty() && !shared.room().check_host(host) {
+            guard.fail(ip);
+            let _ = request.respond(error(403, "bad-host"));
+            return;
+        }
     }
 
     match path.as_str() {
@@ -324,6 +358,8 @@ fn handle(shared: &Arc<Shared>, mut request: Request) {
         "/game.gamezip" => spawn_worker(shared, request, download),
         _ => {
             let response = match read_body(&mut request) {
+                Ok(body) if path == "/api/host" => host_command(shared, ip, body),
+                Ok(body) if path == "/api/react" => react(shared, ip, &body),
                 Ok(body) => act(shared, &path, body),
                 Err(response) => response,
             };
@@ -367,7 +403,8 @@ fn poll(shared: &Shared, request: Request, params: &HashMap<String, String>) {
     if let Some(t) = token {
         room.touch(t, now);
     }
-    let view = room.view(token, now);
+    // the key was checked on the way in
+    let view = if params.get("h").is_some_and(|h| !h.is_empty()) { room.host_phone_view(now) } else { room.view(token, now) };
     drop(room);
     let _ = request.respond(json_response(200, &serde_json::to_value(view).unwrap_or_default()));
 }
@@ -419,6 +456,43 @@ fn act(shared: &Shared, path: &str, body: Body) -> Response<Cursor<Vec<u8>>> {
         }
         Err(r) => reject(r),
     }
+}
+
+/// Hands a command from the host's phone to the app, which checks it like one from the
+/// host window: the room has no idea what the commands mean.
+fn host_command(shared: &Shared, ip: IpAddr, body: Body) -> Response<Cursor<Vec<u8>>> {
+    let room = shared.room();
+    if !room.check_host(&body.host_key) {
+        drop(room);
+        shared.guard.lock().unwrap_or_else(|e| e.into_inner()).fail(ip);
+        return error(403, "bad-host");
+    }
+    if !body.command.get("name").is_some_and(serde_json::Value::is_string) {
+        return error(400, "bad-body");
+    }
+    let view = room.host_phone_view(Instant::now());
+    drop(room);
+    (shared.notify)(Notice::Host(body.command));
+    json_response(200, &json!({ "view": view }))
+}
+
+/// Passes a spectator's reaction to the stage, at most one per address every `REACTION_GAP`.
+fn react(shared: &Shared, ip: IpAddr, body: &Body) -> Response<Cursor<Vec<u8>>> {
+    if !shared.room().enabled() {
+        return reject(Reject::Disabled);
+    }
+    let Some(emoji) = reaction(&body.emoji) else {
+        return error(400, "bad-reaction");
+    };
+    let now = Instant::now();
+    let mut reacted = shared.reacted.lock().unwrap_or_else(|e| e.into_inner());
+    if reacted.get(&ip).is_some_and(|at| now.duration_since(*at) < REACTION_GAP) {
+        return json_response(200, &json!({ "dropped": true }));
+    }
+    reacted.insert(ip, now);
+    drop(reacted);
+    (shared.notify)(Notice::Reaction(emoji));
+    json_response(200, &json!({}))
 }
 
 /// `filename*` per RFC 6266 / RFC 5987, with a plain ASCII fallback for old clients.
@@ -528,6 +602,41 @@ mod tests {
 
     fn json(reply: &Reply) -> serde_json::Value {
         serde_json::from_str(&reply.body).unwrap_or_else(|_| panic!("not json: {}", reply.body))
+    }
+
+    #[test]
+    fn runs_the_host_console_and_reactions() {
+        let (tx, rx) = mpsc::channel();
+        let tx = Mutex::new(tx);
+        let server = start(&["127.0.0.1:0".parse().unwrap()], "4321".into(), move |n| {
+            let _ = tx.lock().unwrap().send(n);
+        })
+        .unwrap();
+        let port = server.port;
+        server.update(|room| {
+            room.set_enabled(true);
+            room.set_host_view(Some(json!({ "phase": "board" })));
+        });
+        let key = server.host_key();
+
+        assert_eq!(http(port, "GET", "/api/poll?r=4321&h=nope&v=0", "").status, 403);
+        let console = json(&http(port, "GET", &format!("/api/poll?r=4321&h={key}&v=0"), ""));
+        assert_eq!((console["isHost"].as_bool(), console["host"]["phase"].as_str()), (Some(true), Some("board")));
+        let player = json(&http(port, "GET", "/api/poll?r=4321&v=0", ""));
+        assert!(player.get("host").is_none() && player.get("isHost").is_none(), "only the key opens the console");
+
+        let command = r#"{"name":"advance","args":[],"phase":"board"}"#;
+        assert_eq!(http(port, "POST", "/api/host?r=4321", &format!(r#"{{"hostKey":"bad","command":{command}}}"#)).status, 403);
+        assert_eq!(http(port, "POST", "/api/host?r=4321", &format!(r#"{{"hostKey":"{key}","command":[]}}"#)).status, 400);
+        assert_eq!(http(port, "POST", "/api/host?r=4321", &format!(r#"{{"hostKey":"{key}","command":{command}}}"#)).status, 200);
+        assert_eq!(http(port, "POST", "/api/react?r=4321", r#"{"emoji":"💩"}"#).status, 400);
+        assert_eq!(http(port, "POST", "/api/react?r=4321", r#"{"emoji":"🔥"}"#).status, 200);
+        let dropped = json(&http(port, "POST", "/api/react?r=4321", r#"{"emoji":"🔥"}"#));
+        assert_eq!(dropped["dropped"], true, "a burst of taps sends one reaction");
+
+        let notices: Vec<Notice> = rx.try_iter().collect();
+        assert!(notices.iter().any(|n| matches!(n, Notice::Host(c) if c["name"] == "advance")));
+        assert_eq!(notices.iter().filter(|n| matches!(n, Notice::Reaction("🔥"))).count(), 1);
     }
 
     #[test]

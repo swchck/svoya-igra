@@ -536,6 +536,50 @@ describe('usePlaySession', () => {
   })
 })
 
+describe('pause', () => {
+  it('holds the clock and the phone buttons, and lets them go on after', () => {
+    vi.useFakeTimers()
+    const game = tinyGame()
+    game.settings = { answerSeconds: 30 }
+    const s = usePlaySession(ref(game), undefined, () => ({ wrongPenalty: true, firstChooser: 'first', buzzOpen: 'question' }))
+    s.pause()
+    expect(s.state.pause).toBeNull()
+    s.start()
+    s.advance()
+    s.pick(game.rounds[0].themes[0].questions[0].id)
+    s.timerStart()
+    vi.advanceTimersByTime(10_000)
+    s.pause(10)
+    expect(s.state.timer.endsAt).toBeNull()
+    expect(s.state.pause).toMatchObject({ resumeTimer: true, until: Date.now() + 600_000 })
+    s.pause(5)
+    expect(s.state.pause?.resumeTimer).toBe(true)
+    vi.advanceTimersByTime(60_000)
+    s.resume()
+    expect(s.state.pause).toBeNull()
+    expect(timerRemaining(s.state.timer, Date.now())).toBe(20_000)
+    vi.useRealTimers()
+  })
+
+  it('lets nothing move the game behind the pause screen', () => {
+    const game = tinyGame()
+    const s = usePlaySession(ref(game), undefined, () => ({ wrongPenalty: true, firstChooser: 'first', buzzOpen: 'question' }))
+    s.start()
+    s.advance()
+    s.pause()
+    const before = JSON.stringify(s.snapshot())
+    s.pick(game.rounds[0].themes[0].questions[0].id)
+    expect(s.advance()).toBe(false)
+    s.adjustScore(s.players.value[0].id, 500)
+    s.nextRound()
+    expect(s.undo()).toBe(false)
+    expect(JSON.stringify(s.snapshot())).toBe(before)
+    s.resume()
+    s.pick(game.rounds[0].themes[0].questions[0].id)
+    expect(s.state.phase).not.toBe('board')
+  })
+})
+
 describe('answer timer', () => {
   afterEach(() => vi.useRealTimers())
 

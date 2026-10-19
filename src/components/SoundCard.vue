@@ -60,7 +60,7 @@ const progress = computed(() => (props.length > 0 ? Math.min(1, props.elapsed / 
     radial-gradient(120% 140% at 100% 100%, color-mix(in oklch, var(--cyan) 26%, transparent), transparent 60%),
     var(--night);
   border: 1px solid color-mix(in oklch, var(--gold) 35%, transparent);
-  box-shadow: 0 24px 60px -24px oklch(0.1 0.15 280 / 0.9), inset 0 1px 0 oklch(1 0 0 / 0.08);
+  box-shadow: 0 24px 60px -24px oklch(0.1 0.15 280 / 0.9), inset 0 1px 0 oklch(var(--tint) 0 0 / 0.08);
   color: var(--foreground);
   text-align: left;
   cursor: pointer;
@@ -128,7 +128,7 @@ const progress = computed(() => (props.length > 0 ? Math.min(1, props.elapsed / 
 .sound-track {
   height: 4px;
   border-radius: 2px;
-  background: oklch(1 0 0 / 0.12);
+  background: oklch(var(--tint) 0 0 / 0.12);
   overflow: hidden;
 }
 .sound-fill {

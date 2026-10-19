@@ -1,4 +1,4 @@
-import { ACCENT_NAMES, type FinalQuestion, type Game, type GameSettings, type HostInfo, type RoundRules, type MediaItem, type MediaKind, type MediaMode, type Question } from '../types'
+import { ACCENT_NAMES, STAGE_LOOKS, type FinalQuestion, type Game, type GameSettings, type HostInfo, type RoundRules, type MediaItem, type MediaKind, type MediaMode, type Question } from '../types'
 import { t } from '../i18n'
 import { uid } from './model'
 import { MAX_OPTIONS } from './kinds'
@@ -137,6 +137,10 @@ function normalizeSettings(raw: unknown): GameSettings | undefined {
     out.logo = { id: typeof raw.logo.id === 'string' ? raw.logo.id : uid('mi_'), url: raw.logo.url, kind: 'image' }
   }
   if (typeof raw.introText === 'string' && raw.introText.trim()) out.introText = raw.introText
+  if (STAGE_LOOKS.includes(raw.look as never) && raw.look !== 'studio') out.look = raw.look as GameSettings['look']
+  if (isObject(raw.background) && typeof raw.background.url === 'string' && raw.background.url) {
+    out.background = { id: typeof raw.background.id === 'string' ? raw.background.id : uid('mi_'), url: raw.background.url, kind: 'image' }
+  }
   return Object.keys(out).length ? out : undefined
 }
 

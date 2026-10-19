@@ -303,4 +303,26 @@ export default {
     removeTitle: 'Obrisati {n} pitanje? | Obrisati {n} pitanja? | Obrisati {n} pitanja?',
     hint: 'Shift ili Cmd+klik bira više pitanja, strelice prelaze između polja.',
   },
+  hotkeys: {
+    undo: 'Poništi izmenu',
+    redo: 'Ponovi',
+    search: 'Pretraga igre',
+    arrows: 'Kretanje po poljima table',
+    click: 'klik',
+    pick: 'Izaberi više pitanja',
+    clear: 'Poništi izbor',
+    step: 'Prethodno ili sledeće pitanje u prozoru pitanja',
+  },
+  mediaCheck: {
+    title: 'Reprodukcija',
+    hint: 'Program će pokušati da otvori svaki fajl i snimak, kao tokom igre.',
+    run: 'Proveri',
+    running: 'Provereno {done} od {total}',
+    ok: 'Sve radi: {n} fajlova i snimaka',
+    failure: {
+      missing: 'Fajl je nestao iz igre',
+      unsupported: 'Ovaj uređaj ne može da reprodukuje format',
+      unreachable: 'Link nije dostupan ili je snimak uklonjen',
+    },
+  },
 } satisfies typeof ru

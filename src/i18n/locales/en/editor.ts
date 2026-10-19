@@ -303,4 +303,26 @@ export default {
     removeTitle: 'Delete {n} question? | Delete {n} questions?',
     hint: 'Shift or Cmd+click selects several questions; arrow keys move between cells.',
   },
+  hotkeys: {
+    undo: 'Undo a change',
+    redo: 'Redo',
+    search: 'Search the game',
+    arrows: 'Move between board cells',
+    click: 'click',
+    pick: 'Select several questions',
+    clear: 'Clear the selection',
+    step: 'Previous or next question in the question window',
+  },
+  mediaCheck: {
+    title: 'Playback',
+    hint: 'The app tries to open every file and clip, as it would during the game.',
+    run: 'Check',
+    running: 'Checked {done} of {total}',
+    ok: 'Everything plays: {n} files and clips',
+    failure: {
+      missing: 'The file is gone from the game',
+      unsupported: 'This device cannot play the format',
+      unreachable: 'The link is unreachable or the video was removed',
+    },
+  },
 } satisfies typeof ru

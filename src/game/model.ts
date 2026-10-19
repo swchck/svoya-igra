@@ -86,6 +86,7 @@ export function mediaItems(game: Game): MediaItem[] {
   }
   for (const f of game.finalThemes ?? []) items.push(...(f.media ?? []), ...(f.answerMedia ?? []))
   if (game.settings?.logo) items.push(game.settings.logo)
+  if (game.settings?.background) items.push(game.settings.background)
   return items
 }
 

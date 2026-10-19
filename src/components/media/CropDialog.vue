@@ -250,10 +250,10 @@ const HANDLES: Handle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']
   /* dims the picture outside the box; the stage clips it */
   box-shadow: 0 0 0 9999px oklch(0 0 0 / 0.58);
   background:
-    linear-gradient(oklch(1 0 0 / 0.35), oklch(1 0 0 / 0.35)) 33.33% 0 / 1px 100% no-repeat,
-    linear-gradient(oklch(1 0 0 / 0.35), oklch(1 0 0 / 0.35)) 66.66% 0 / 1px 100% no-repeat,
-    linear-gradient(oklch(1 0 0 / 0.35), oklch(1 0 0 / 0.35)) 0 33.33% / 100% 1px no-repeat,
-    linear-gradient(oklch(1 0 0 / 0.35), oklch(1 0 0 / 0.35)) 0 66.66% / 100% 1px no-repeat;
+    linear-gradient(oklch(var(--tint) 0 0 / 0.35), oklch(var(--tint) 0 0 / 0.35)) 33.33% 0 / 1px 100% no-repeat,
+    linear-gradient(oklch(var(--tint) 0 0 / 0.35), oklch(var(--tint) 0 0 / 0.35)) 66.66% 0 / 1px 100% no-repeat,
+    linear-gradient(oklch(var(--tint) 0 0 / 0.35), oklch(var(--tint) 0 0 / 0.35)) 0 33.33% / 100% 1px no-repeat,
+    linear-gradient(oklch(var(--tint) 0 0 / 0.35), oklch(var(--tint) 0 0 / 0.35)) 0 66.66% / 100% 1px no-repeat;
   cursor: move;
   touch-action: none;
   outline: none;

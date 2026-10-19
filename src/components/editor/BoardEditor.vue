@@ -329,8 +329,8 @@ function dropOnTheme(index: number) {
   padding: 4px 6px 4px 2px;
   border-radius: 14px;
   background:
-    linear-gradient(180deg, oklch(1 0 0 / 0.08), transparent 50%),
-    linear-gradient(135deg, oklch(0.32 0.2 290), oklch(0.24 0.18 275));
+    linear-gradient(180deg, oklch(var(--tint) 0 0 / 0.08), transparent 50%),
+    linear-gradient(135deg, var(--theme-top), var(--theme-bottom));
   border: 1px solid color-mix(in oklch, var(--gold) 45%, transparent);
 }
 .grip {
@@ -338,11 +338,11 @@ function dropOnTheme(index: number) {
   place-items: center;
   width: 20px;
   align-self: stretch;
-  color: oklch(1 0 0 / 0.35);
+  color: oklch(var(--tint) 0 0 / 0.35);
   cursor: grab;
 }
 .grip:hover {
-  color: var(--gold);
+  color: var(--theme-ink, var(--gold));
 }
 .theme-input {
   flex: 1;
@@ -361,7 +361,7 @@ function dropOnTheme(index: number) {
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--gold);
+  color: var(--theme-ink, var(--gold));
   outline: none;
 }
 .theme-input:hover,
@@ -397,9 +397,9 @@ function dropOnTheme(index: number) {
   place-items: center;
   min-height: 0;
   border-radius: 14px;
-  border: 1px solid oklch(1 0 0 / 0.16);
+  border: 1px solid oklch(var(--tint) 0 0 / 0.16);
   background:
-    linear-gradient(180deg, oklch(1 0 0 / 0.14), transparent 45%),
+    linear-gradient(180deg, oklch(var(--tint) 0 0 / 0.14), transparent 45%),
     linear-gradient(180deg, var(--tile), var(--tile-deep));
   box-shadow: inset 0 -4px 0 oklch(0.15 0.15 270 / 0.6);
   cursor: pointer;
@@ -412,27 +412,27 @@ function dropOnTheme(index: number) {
 .tile.kind-auction,
 .tile.kind-all-in {
   background:
-    linear-gradient(180deg, oklch(1 0 0 / 0.14), transparent 45%),
+    linear-gradient(180deg, oklch(var(--tint) 0 0 / 0.14), transparent 45%),
     linear-gradient(180deg, oklch(0.52 0.15 70), oklch(0.33 0.12 60));
 }
 .tile.kind-cat-in-bag {
   background:
-    linear-gradient(180deg, oklch(1 0 0 / 0.14), transparent 45%),
+    linear-gradient(180deg, oklch(var(--tint) 0 0 / 0.14), transparent 45%),
     linear-gradient(180deg, color-mix(in oklch, var(--magenta) 80%, black), oklch(0.3 0.16 340));
 }
 .tile.kind-no-risk {
   background:
-    linear-gradient(180deg, oklch(1 0 0 / 0.14), transparent 45%),
+    linear-gradient(180deg, oklch(var(--tint) 0 0 / 0.14), transparent 45%),
     linear-gradient(180deg, oklch(0.5 0.12 160), oklch(0.3 0.1 170));
 }
 .tile.kind-for-all {
   background:
-    linear-gradient(180deg, oklch(1 0 0 / 0.14), transparent 45%),
+    linear-gradient(180deg, oklch(var(--tint) 0 0 / 0.14), transparent 45%),
     linear-gradient(180deg, color-mix(in oklch, var(--cyan) 60%, black), oklch(0.3 0.12 230));
 }
 .tile.draft {
-  background: oklch(0.22 0.12 272 / 0.55);
-  border: 1px dashed oklch(1 0 0 / 0.28);
+  background: var(--panel);
+  border: 1px dashed oklch(var(--tint) 0 0 / 0.28);
   box-shadow: none;
 }
 .tile.draft .value {
@@ -458,7 +458,7 @@ function dropOnTheme(index: number) {
   padding: 8px 10px;
   border-radius: 14px;
   border: 1px solid color-mix(in oklch, var(--cyan) 50%, transparent);
-  background: oklch(0.2 0.14 272 / 0.95);
+  background: var(--panel-solid);
   backdrop-filter: blur(10px);
 }
 .bulk-count {
@@ -482,7 +482,7 @@ function dropOnTheme(index: number) {
   font-size: 22px;
   font-weight: 700;
   line-height: 1;
-  color: var(--gold);
+  color: var(--value, var(--gold));
   text-shadow: 0 2px 0 oklch(0.3 0.12 60 / 0.7);
 }
 .record {
@@ -506,7 +506,7 @@ function dropOnTheme(index: number) {
   bottom: 6px;
   display: flex;
   gap: 3px;
-  color: oklch(1 0 0 / 0.75);
+  color: oklch(var(--tint) 0 0 / 0.75);
 }
 .marks :deep(svg) {
   width: 12px;
@@ -514,7 +514,7 @@ function dropOnTheme(index: number) {
 }
 .pad {
   border-radius: 14px;
-  border: 1px dashed oklch(1 0 0 / 0.06);
+  border: 1px dashed oklch(var(--tint) 0 0 / 0.06);
 }
 .add-q {
   display: grid;
@@ -532,7 +532,7 @@ function dropOnTheme(index: number) {
   gap: 6px;
   min-height: 40px;
   border-radius: 14px;
-  border: 1px dashed oklch(1 0 0 / 0.25);
+  border: 1px dashed oklch(var(--tint) 0 0 / 0.25);
   background: transparent;
   color: var(--muted-foreground);
   font-weight: 500;

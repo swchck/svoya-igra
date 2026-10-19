@@ -76,7 +76,7 @@ function where(hit: SearchHit): string {
   padding: 0 12px;
   border-radius: 12px;
   border: 1px solid var(--input);
-  background: oklch(0.14 0.1 274 / 0.55);
+  background: var(--well);
 }
 .field:focus-within {
   border-color: var(--ring);
@@ -115,7 +115,7 @@ function where(hit: SearchHit): string {
   cursor: pointer;
 }
 .hit.active {
-  background: oklch(1 0 0 / 0.08);
+  background: oklch(var(--tint) 0 0 / 0.08);
 }
 .where {
   grid-area: where;

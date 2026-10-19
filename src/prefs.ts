@@ -11,6 +11,8 @@ import type { AccentName } from './types'
 export type FirstChooser = 'random' | 'first' | 'host'
 /** When the phone buttons open on a question. */
 export type BuzzOpen = 'question' | 'host' | 'timer'
+/** The look of the library, editor and settings; the stage follows the game's own style. */
+export type AppTheme = 'dark' | 'light' | 'system'
 /** How hard pictures are shrunk when added to a game. */
 export type ImageQuality = 'original' | 'normal' | 'strong'
 
@@ -46,6 +48,7 @@ export interface Prefs {
   imageQuality: ImageQuality
   /** Desktop: look for a new version in the background and offer it. */
   autoUpdateCheck: boolean
+  theme: AppTheme
 }
 
 export const DEFAULT_PREFS: Readonly<Prefs> = Object.freeze({
@@ -66,6 +69,7 @@ export const DEFAULT_PREFS: Readonly<Prefs> = Object.freeze({
   phoneVibration: true,
   imageQuality: 'normal',
   autoUpdateCheck: true,
+  theme: 'dark',
 })
 
 const STORAGE_KEY = 'svoya-igra:prefs'

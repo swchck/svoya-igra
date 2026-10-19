@@ -117,7 +117,7 @@ onBeforeUnmount(() => observer?.disconnect())
 .rich :deep(code) {
   padding: 0.05em 0.3em;
   border-radius: 0.25em;
-  background: oklch(1 0 0 / 0.14);
+  background: oklch(var(--tint) 0 0 / 0.14);
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 0.85em;
   text-transform: none;

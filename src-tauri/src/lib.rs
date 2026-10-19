@@ -39,6 +39,7 @@ pub fn run() {
             lan::lan_start,
             lan::lan_stop,
             lan::lan_sync,
+            lan::lan_host_view,
             lan::lan_buzz_arm,
             lan::lan_buzz_close,
             lan::lan_buzz_reopen,

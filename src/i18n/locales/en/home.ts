@@ -46,6 +46,9 @@ export default {
   footnote: 'Games are stored on this computer. To move a game, export it as .gamezip.',
   version: 'Version {version}',
   resume: {
+    bannerTitle: 'An unfinished game',
+    leader: '{name} leads ({score})',
+    forget: 'Forget this game',
     title: 'Resume the game?',
     description: 'There is an unfinished game saved.',
     descriptionLeader: 'There is an unfinished game saved: {name} is leading ({score}).',

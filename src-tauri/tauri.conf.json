@@ -35,7 +35,7 @@
         "img-src": "'self' data: blob: https:",
         "media-src": "'self' data: blob: https:",
         "frame-src": "http://127.0.0.1:* https://www.youtube-nocookie.com",
-        "connect-src": "'self' ipc: http://ipc.localhost"
+        "connect-src": "'self' ipc: http://ipc.localhost https://www.youtube.com"
       }
     }
   },

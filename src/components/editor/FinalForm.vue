@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import MediaList from '@/components/MediaList.vue'
-import MarkdownEditor from '@/components/MarkdownEditor.vue'
+import { LazyMarkdownEditor as MarkdownEditor } from '@/components/markdownEditorLoader'
 import HostFields from './HostFields.vue'
 
 const { t } = useI18n()

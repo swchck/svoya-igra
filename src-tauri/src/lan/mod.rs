@@ -21,6 +21,8 @@ const PORTS: std::ops::RangeInclusive<u16> = 47800..=47810;
 const STATUS_EVENT: &str = "lan://status";
 const JOIN_EVENT: &str = "lan://join";
 const PICK_EVENT: &str = "lan://pick";
+const HOST_EVENT: &str = "lan://host";
+const REACT_EVENT: &str = "lan://react";
 const SHARE_NAME_HEADER: &str = "x-file-name";
 
 /// Holds the server while anything uses it.
@@ -29,9 +31,12 @@ pub struct Lan(Mutex<Option<LanServer>>);
 
 /// Where phones reach the server.
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LanInfo {
     pub url: String,
     pub code: String,
+    /// Opens the host console when added to `url` as `h`; empty for a shared file.
+    pub host_key: String,
 }
 
 /// Returns `bytes` random bytes as lowercase hex.
@@ -117,6 +122,8 @@ fn ensure_started<'a, R: Runtime>(app: &AppHandle<R>, slot: &'a mut Option<LanSe
                 Notice::Status(status) => app.emit(STATUS_EVENT, status),
                 Notice::Joined(player) => app.emit(JOIN_EVENT, player),
                 Notice::Picked(pick) => app.emit(PICK_EVENT, pick),
+                Notice::Host(command) => app.emit(HOST_EVENT, command),
+                Notice::Reaction(emoji) => app.emit(REACT_EVENT, emoji),
             };
         })
         .map_err(|e| e.to_string())?;
@@ -151,7 +158,7 @@ pub fn lan_start<R: Runtime>(app: AppHandle<R>, lan: State<'_, Lan>, code: Optio
     if !server.buzzers_on() {
         server.update(|room| room.set_enabled(true));
     }
-    Ok(LanInfo { url: format!("{url}/?r={code}"), code })
+    Ok(LanInfo { url: format!("{url}/?r={code}"), code, host_key: server.host_key() })
 }
 
 /// Turns the buzzers off and forgets every phone; the server stops unless it shares a file.
@@ -168,6 +175,12 @@ pub fn lan_stop(lan: State<'_, Lan>) {
 #[tauri::command]
 pub fn lan_sync(lan: State<'_, Lan>, stage: StageInfo) {
     with_server(&lan, |s| s.update(|room| room.set_stage(stage)));
+}
+
+/// Gives the host's phone its console; None takes it away.
+#[tauri::command]
+pub fn lan_host_view(lan: State<'_, Lan>, view: Option<serde_json::Value>) {
+    with_server(&lan, |s| s.update(|room| room.set_host_view(view)));
 }
 
 /// Opens the buttons for a question; a new `key` starts its order afresh.
@@ -207,7 +220,7 @@ pub fn lan_share_start<R: Runtime>(app: AppHandle<R>, lan: State<'_, Lan>, reque
     let server = slot.as_ref().expect("server is running");
     server.set_file(Some(SharedFile { name, bytes: Arc::from(bytes.as_slice()) }));
     let code = server.code();
-    Ok(LanInfo { url: format!("{url}/game.gamezip?r={code}"), code })
+    Ok(LanInfo { url: format!("{url}/game.gamezip?r={code}"), code, host_key: String::new() })
 }
 
 /// Stops offering the file; the server stops unless the buzzers are on.

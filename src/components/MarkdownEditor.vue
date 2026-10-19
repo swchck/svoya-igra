@@ -82,7 +82,7 @@ const isActive = (a: Action) => !!editor.value?.isActive(a.active)
   flex-direction: column;
   border-radius: 12px;
   border: 1px solid var(--input);
-  background: oklch(0.14 0.1 274 / 0.55);
+  background: var(--well);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .md-editor:focus-within {
@@ -94,7 +94,7 @@ const isActive = (a: Action) => !!editor.value?.isActive(a.active)
   flex-wrap: wrap;
   gap: 2px;
   padding: 4px;
-  border-bottom: 1px solid oklch(1 0 0 / 0.08);
+  border-bottom: 1px solid oklch(var(--tint) 0 0 / 0.08);
 }
 .tool {
   display: grid;
@@ -109,7 +109,7 @@ const isActive = (a: Action) => !!editor.value?.isActive(a.active)
 }
 .tool:hover {
   color: var(--foreground);
-  background: oklch(1 0 0 / 0.08);
+  background: oklch(var(--tint) 0 0 / 0.08);
 }
 .tool.on {
   color: var(--gold);
@@ -148,7 +148,7 @@ const isActive = (a: Action) => !!editor.value?.isActive(a.active)
 .content :deep(.tiptap code) {
   padding: 0.05em 0.3em;
   border-radius: 4px;
-  background: oklch(1 0 0 / 0.1);
+  background: oklch(var(--tint) 0 0 / 0.1);
   font-size: 0.9em;
 }
 .content :deep(.tiptap p.is-editor-empty:first-child::before) {

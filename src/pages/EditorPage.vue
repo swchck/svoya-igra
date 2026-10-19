@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, provide, ref, watch } from 'vue'
+import { preloadMarkdownEditor } from '@/components/markdownEditorLoader'
 import { toast } from 'vue-sonner'
 import {
-  ArrowLeft, ArrowRight, CircleAlert, CircleCheck, ClipboardPaste, Coins, Download, FileArchive, FileJson, History, Loader2, MoreHorizontal, Package, Play, Plus, Printer,
+  ArrowLeft, ArrowRight, CircleAlert, Keyboard, CircleCheck, ClipboardPaste, Coins, Download, FileArchive, FileJson, History, Loader2, MoreHorizontal, Package, Play, Plus, Printer,
   Redo2, Search, SlidersHorizontal, Trash2, TriangleAlert, Trophy, Undo2, Wifi,
 } from '@lucide/vue'
 import { onBeforeRouteLeave, useRouter } from 'vue-router'
@@ -32,6 +33,7 @@ import { useAutosave } from '@/composables/useAutosave'
 import { useGameIssues } from '@/composables/useGameIssues'
 import { useHistory } from '@/composables/useHistory'
 import { useUndo } from '@/composables/useUndo'
+import HotkeysPanel, { type Hotkey } from '@/components/HotkeysPanel.vue'
 import { questionRecords } from '@/play/questionStats'
 import RoundStrip from '@/components/editor/RoundStrip.vue'
 import BoardEditor from '@/components/editor/BoardEditor.vue'
@@ -230,7 +232,24 @@ async function goToHit(hit: SearchHit) {
   selectedId.value = hit.questionId ?? null
 }
 
+const hotkeysOpen = ref(false)
+const hotkeys = computed<Hotkey[]>(() => [
+  { keys: ['Ctrl', 'Z'], label: t('editor.hotkeys.undo') },
+  { keys: ['Ctrl', 'Shift', 'Z'], label: t('editor.hotkeys.redo') },
+  { keys: ['Ctrl', 'F'], label: t('editor.hotkeys.search') },
+  { keys: ['← ↑ → ↓'], label: t('editor.hotkeys.arrows') },
+  { keys: ['Shift', t('editor.hotkeys.click')], label: t('editor.hotkeys.pick') },
+  { keys: ['Esc'], label: t('editor.hotkeys.clear') },
+  { keys: ['Alt', '← →'], label: t('editor.hotkeys.step') },
+  { keys: ['?'], label: t('common.hotkeys.toggle') },
+])
+
 function onEditorKey(e: KeyboardEvent) {
+  const typing = e.target instanceof Element && !!e.target.closest('input, textarea, [contenteditable]')
+  if (e.key === '?' && !typing) {
+    hotkeysOpen.value = !hotkeysOpen.value
+    return
+  }
   if (!(e.ctrlKey || e.metaKey) || e.altKey) return
   // layout-independent codes, so Cyrillic keyboards work as well
   if (!e.shiftKey && e.code === 'KeyF') {
@@ -255,7 +274,10 @@ watch(
     if (typeof tab.value === 'number' && count !== undefined && tab.value >= count) tab.value = Math.max(0, count - 1)
   },
 )
-onMounted(() => window.addEventListener('keydown', onEditorKey))
+onMounted(() => {
+  window.addEventListener('keydown', onEditorKey)
+  preloadMarkdownEditor()
+})
 onUnmounted(() => window.removeEventListener('keydown', onEditorKey))
 
 function moveQuestion(offset: -1 | 1) {
@@ -427,6 +449,7 @@ async function exportAs(format: GameFileFormat) {
       <Button variant="ghost" :aria-label="t('editor.search.title')" :title="t('editor.search.hint')" aria-keyshortcuts="Control+F Meta+F" @click="searchOpen = true"><Search /></Button>
       <Button variant="ghost" data-tour="history" :aria-label="t('editor.page.history')" :title="t('editor.page.history')" @click="historyOpen = true"><History /><span class="lbl">{{ t('editor.page.history') }}</span></Button>
       <TourHelpButton id="editor" />
+      <Button variant="ghost" size="icon" :aria-pressed="hotkeysOpen" :aria-label="t('common.hotkeys.toggle')" :title="t('common.hotkeys.toggle')" @click="hotkeysOpen = !hotkeysOpen"><Keyboard /></Button>
       <GameSettingsDialog v-model="game.settings" />
       <DropdownMenu>
         <DropdownMenuTrigger as-child>
@@ -525,7 +548,8 @@ async function exportAs(format: GameFileFormat) {
     </div>
 
     <HistoryDialog v-model:open="historyOpen" :game-id="game.id" @restore="restore" />
-    <IssuesDialog v-model:open="issuesOpen" :issues="issues" :duration="duration" @goto="goToIssue" />
+    <IssuesDialog v-model:open="issuesOpen" :issues="issues" :duration="duration" :game="game" @open-media="(p) => goToHit({ roundIndex: p.roundIndex, questionId: p.questionId, themeName: '', field: 'text', snippet: '' })" @goto="goToIssue" />
+    <HotkeysPanel v-if="hotkeysOpen" :items="hotkeys" @close="hotkeysOpen = false" />
     <SearchDialog v-model:open="searchOpen" :game="game" @goto="goToHit" />
     <ShareGameDialog v-if="isDesktop" v-model:open="shareOpen" :game="game" />
 
@@ -567,9 +591,9 @@ async function exportAs(format: GameFileFormat) {
   gap: 12px;
   min-height: 56px;
   padding: 4px 20px 4px calc(20px + var(--titlebar-inset));
-  background: oklch(0.2 0.15 270 / 0.82);
+  background: var(--panel-solid);
   backdrop-filter: blur(14px);
-  border-bottom: 1px solid oklch(1 0 0 / 0.08);
+  border-bottom: 1px solid oklch(var(--tint) 0 0 / 0.08);
 }
 .names {
   flex: 1;
@@ -602,7 +626,7 @@ async function exportAs(format: GameFileFormat) {
 .game-sub:focus,
 .round-name:hover,
 .round-name:focus {
-  border-bottom-color: oklch(1 0 0 / 0.25);
+  border-bottom-color: oklch(var(--tint) 0 0 / 0.25);
 }
 .game-title {
   font-family: var(--font-display);
@@ -721,7 +745,7 @@ async function exportAs(format: GameFileFormat) {
   display: grid;
   gap: 10px;
   padding-bottom: 18px;
-  border-bottom: 1px solid oklch(1 0 0 / 0.08);
+  border-bottom: 1px solid oklch(var(--tint) 0 0 / 0.08);
 }
 .final-n {
   margin: 0;

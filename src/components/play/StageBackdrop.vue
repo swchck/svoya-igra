@@ -1,9 +1,22 @@
 <script setup lang="ts">
-defineProps<{ dim?: boolean }>()
+import { ref, watchEffect } from 'vue'
+import type { MediaItem } from '@/types'
+import { displayUrl } from '@/media/store'
+
+/** `image` replaces the set with the game's own picture. */
+const props = defineProps<{ dim?: boolean; image?: MediaItem }>()
+const src = ref('')
+
+watchEffect(async () => {
+  const url = props.image?.url
+  const resolved = url ? await displayUrl(url) : ''
+  if (url === props.image?.url) src.value = resolved
+})
 </script>
 
 <template>
-  <div class="backdrop" :class="{ dim }" aria-hidden="true">
+  <div class="backdrop" :class="{ dim, pictured: !!src }" aria-hidden="true">
+    <img v-if="src" class="picture" :src="src" alt="" draggable="false" />
     <div class="beam beam-magenta" />
     <div class="beam beam-cyan" />
     <div class="floor" />
@@ -20,12 +33,15 @@ defineProps<{ dim?: boolean }>()
   overflow: hidden;
   pointer-events: none;
   background:
-    radial-gradient(110% 70% at 50% -10%, oklch(0.5 0.27 268 / 0.9), transparent 70%),
+    radial-gradient(110% 70% at 50% -10%, var(--set-glow, oklch(0.5 0.27 268 / 0.9)), transparent 70%),
     linear-gradient(180deg, var(--stage-top), var(--stage-bottom) 85%);
   transition: filter 0.8s ease;
 }
 .backdrop.dim {
   filter: brightness(0.7) saturate(0.9);
+}
+.light-surface .backdrop.dim {
+  filter: none;
 }
 /* two stage spotlights sweeping slowly from the top corners */
 .beam {
@@ -84,4 +100,29 @@ defineProps<{ dim?: boolean }>()
 @media (prefers-reduced-motion: reduce) {
   .beam, .bulbs { animation: none; }
 }
+.picture {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+/* a picture of their own is the whole set; the vignette stays so text keeps its contrast */
+.pictured .beam,
+.pictured .floor,
+.pictured .bulbs,
+.light-surface .beam,
+.light-surface .floor,
+.light-surface .bulbs,
+.light-surface .vignette,
+[data-look='classic'] .beam {
+  display: none;
+}
+[data-look='neon'] .bulbs {
+  display: none;
+}
+[data-look='neon'] .beam {
+  opacity: 0.7;
+}
+
 </style>

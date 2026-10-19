@@ -20,6 +20,13 @@ pub const ONLINE_WINDOW: Duration = Duration::from_secs(35);
 const EVICT_AFTER: Duration = Duration::from_secs(120);
 /// Wrong room codes one address may try before it is shut out until the server restarts.
 const MAX_CODE_FAILURES: u32 = 30;
+/// What spectators may send to the stage; anything else is dropped.
+pub const REACTIONS: [&str; 6] = ["👏", "🔥", "😂", "😮", "❤️", "🎉"];
+
+/// The reaction among `REACTIONS` that `raw` names, if any.
+pub fn reaction(raw: &str) -> Option<&'static str> {
+    REACTIONS.iter().copied().find(|r| *r == raw)
+}
 
 /// One competitor as the stage sees them.
 #[derive(Debug, Clone, Default, PartialEq, Deserialize, Serialize)]
@@ -122,6 +129,9 @@ pub struct StageInfo {
     /// Phones may buzz in the hand; a stage that doesn't say leaves it on.
     #[serde(default = "yes")]
     pub vibrate: bool,
+    /// The game is on hold: the buttons keep who pressed and who is out, but take no presses.
+    #[serde(default)]
+    pub paused: bool,
 }
 
 fn yes() -> bool {
@@ -141,6 +151,7 @@ impl Default for StageInfo {
             board: None,
             chooser: None,
             vibrate: yes(),
+            paused: false,
         }
     }
 }
@@ -326,6 +337,12 @@ pub struct PhoneView {
     pub chooser: Option<String>,
     pub my_turn: bool,
     pub vibrate: bool,
+    /// Set only for the host's phone, which shows the console instead of a buzzer.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub is_host: bool,
+    /// The console the stage drew for the host's phone; null until the stage sends one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub host: Option<serde_json::Value>,
 }
 
 /// Counts wrong room codes per address, so the 4-digit code can't simply be swept.
@@ -387,6 +404,10 @@ pub struct Room {
     /// Set once the chooser picks, so a double tap can't open two questions before the
     /// stage takes the board down.
     picked: bool,
+    /// Opens the host console; unlike the code it never shows on the stage, so the room
+    /// can't be run by anyone who merely sees the screen.
+    host_key: String,
+    host_view: Option<serde_json::Value>,
 }
 
 impl Room {
@@ -402,7 +423,30 @@ impl Room {
             bets: BTreeMap::new(),
             answers: BTreeMap::new(),
             picked: false,
+            host_key: super::random_hex(8),
+            host_view: None,
         }
+    }
+
+    pub fn host_key(&self) -> &str {
+        &self.host_key
+    }
+
+    pub fn check_host(&self, key: &str) -> bool {
+        !key.is_empty() && key == self.host_key
+    }
+
+    /// Takes the console the host's phone shows; opaque to the room.
+    pub fn set_host_view(&mut self, view: Option<serde_json::Value>) {
+        if self.host_view != view {
+            self.host_view = view;
+            self.bump();
+        }
+    }
+
+    /// The view for the host's phone: everyone's view plus the console.
+    pub fn host_phone_view(&self, now: Instant) -> PhoneView {
+        PhoneView { is_host: true, host: Some(self.host_view.clone().unwrap_or(serde_json::Value::Null)), ..self.view(None, now) }
     }
 
     pub fn code(&self) -> &str {
@@ -612,7 +656,7 @@ impl Room {
         if let Some(i) = self.buzz.order.iter().position(|id| *id == player_id) {
             return Ok(i + 1);
         }
-        if !self.buzz.open {
+        if !self.buzz.open || self.stage.paused {
             return Err(Reject::NotOpen);
         }
         self.buzz.order.push(player_id);
@@ -761,7 +805,8 @@ impl Room {
                 .collect(),
             reset: token.is_some_and(|t| !t.is_empty()) && client.is_none(),
             buzz: PhoneBuzz {
-                state: self.buzz.state(),
+                // a paused game shows its buttons waiting, though the room keeps them open
+                state: if self.stage.paused && self.buzz.state() == BuzzState::Open { BuzzState::Closed } else { self.buzz.state() },
                 position: my_id.and_then(|id| self.buzz.order.iter().position(|o| o == id)).map(|i| i + 1),
                 excluded: my_id.is_some_and(|id| self.buzz.excluded.iter().any(|e| e == id)),
                 winner,
@@ -777,6 +822,8 @@ impl Room {
             my_turn: self.stage.board.is_some() && !self.picked && my_id.is_some() && my_id == self.stage.chooser.as_deref(),
             vibrate: self.stage.vibrate,
             me,
+            is_host: false,
+            host: None,
         }
     }
 }
@@ -1104,5 +1151,46 @@ mod tests {
         assert_eq!((view.buzz.winner.as_deref(), view.buzz.winner_by.as_deref()), (Some("Аня"), Some("Петя")));
         room.claim("ta2".into(), "b", now).unwrap();
         assert_eq!(room.view(Some("ta2"), now).me.unwrap().person.as_deref(), Some("Петя"), "switching seats keeps the name");
+    }
+
+    #[test]
+    fn opens_the_console_only_with_the_host_key() {
+        let (mut room, now) = room();
+        let key = room.host_key().to_string();
+        assert_eq!(key.len(), 16);
+        assert!(room.check_host(&key));
+        assert!(!room.check_host("") && !room.check_host("1234"));
+        assert!(!room.view(None, now).is_host);
+        assert_eq!(room.host_phone_view(now).host, Some(serde_json::Value::Null), "no console until the stage sends one");
+        let v = room.version();
+        room.set_host_view(Some(serde_json::json!({ "phase": "board" })));
+        assert!(room.version() > v);
+        let v = room.version();
+        room.set_host_view(Some(serde_json::json!({ "phase": "board" })));
+        assert_eq!(room.version(), v, "the same console wakes nobody");
+        assert_eq!(room.host_phone_view(now).host.unwrap()["phase"], "board");
+        room.set_enabled(false);
+        assert!(!room.check_host(&key), "a room switched off forgets the old key");
+    }
+
+    #[test]
+    fn takes_only_known_reactions() {
+        assert_eq!(reaction("👏"), Some("👏"));
+        assert_eq!(reaction("<script>"), None);
+        assert_eq!(reaction(""), None);
+    }
+
+    #[test]
+    fn a_pause_holds_presses_but_keeps_who_is_out() {
+        let (mut room, now) = room();
+        room.arm("q1");
+        room.buzz("ta").unwrap();
+        room.reopen(true);
+        room.set_stage(StageInfo { roster: roster(), paused: true, ..StageInfo::default() });
+        assert_eq!(room.buzz("tb"), Err(Reject::NotOpen));
+        assert_eq!(room.view(Some("tb"), now).buzz.state, BuzzState::Closed);
+        room.set_stage(StageInfo { roster: roster(), ..StageInfo::default() });
+        assert_eq!(room.buzz("ta"), Err(Reject::Excluded), "who answered wrong stays out after the pause");
+        assert_eq!(room.buzz("tb"), Ok(1));
     }
 }

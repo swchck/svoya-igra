@@ -5,14 +5,16 @@ import { t } from '@/i18n'
 import { useGamesStore } from '@/stores/games'
 import { endTour } from '@/tour/state'
 import { isDesktop, isMainWindow, onOpenedFiles } from '@/platform'
+import { installAppMenu } from '@/appMenu'
 
-/** Desktop-only wiring of the main window: files opened through the OS. */
+/** Desktop-only wiring of the main window: files opened through the OS and the app menu. */
 export function useDesktopIntegration() {
   // host windows run the same app; they must not race the main one for opened files
   if (!isDesktop || !isMainWindow()) return
   const router = useRouter()
   const store = useGamesStore()
   let stop: (() => void) | undefined
+  installAppMenu(router)
 
   async function importOpened(files: File[]) {
     // someone who opened a game file has come for that game, not for a tour

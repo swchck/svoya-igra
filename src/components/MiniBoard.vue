@@ -25,17 +25,17 @@ const cols = computed(() => Math.max(1, ...rows.value))
   aspect-ratio: 16 / 10;
   padding: 8px;
   border-radius: 14px;
-  background: oklch(0.14 0.1 274 / 0.7);
-  border: 1px solid oklch(1 0 0 / 0.08);
+  background: var(--well);
+  border: 1px solid oklch(var(--tint) 0 0 / 0.08);
 }
 .theme {
   border-radius: 4px;
-  background: linear-gradient(135deg, oklch(0.34 0.2 290), oklch(0.26 0.18 275));
+  background: linear-gradient(135deg, var(--theme-top), var(--theme-bottom));
 }
 .cell {
   border-radius: 4px;
   background: linear-gradient(180deg, var(--tile), var(--tile-deep));
-  box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.08);
+  box-shadow: inset 0 0 0 1px oklch(var(--tint) 0 0 / 0.08);
   position: relative;
 }
 .cell::after {
@@ -43,11 +43,11 @@ const cols = computed(() => Math.max(1, ...rows.value))
   position: absolute;
   inset: 35% 30%;
   border-radius: 2px;
-  background: var(--gold);
+  background: var(--value, var(--gold));
   opacity: 0.85;
 }
 .cell.empty {
-  background: oklch(0.2 0.12 272 / 0.5);
+  background: var(--played);
 }
 .cell.empty::after {
   display: none;

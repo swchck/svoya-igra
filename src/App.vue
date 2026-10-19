@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { defineAsyncComponent, watchEffect } from 'vue'
-import { RouterView } from 'vue-router'
+import { RouterView, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
 import ConfirmHost from '@/components/ConfirmHost.vue'
 import { useDesktopIntegration } from '@/composables/useDesktopIntegration'
 import { syncMotionClass } from '@/lib/motion'
+import { syncThemeClass } from '@/lib/theme'
 import { tour } from '@/tour/state'
 import { isMainWindow } from '@/platform'
 import 'vue-sonner/style.css'
@@ -24,6 +25,7 @@ watchEffect(() => {
 
 useDesktopIntegration()
 syncMotionClass()
+syncThemeClass(useRouter())
 </script>
 
 <template>

@@ -448,6 +448,29 @@ input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-app
 }
 #offline::before { content: ''; flex: none; width: 10px; height: 10px; border-radius: 50%; background: #fff; animation: blink 1s ease-in-out infinite; }
 
+/* the host console: the stage sends the text and buttons, this only lays them out */
+.h-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.h-badge { padding: 3px 12px; border-radius: 999px; background: var(--gold); color: var(--night); font-size: 13px; font-weight: 700; }
+.h-heading { font-family: var(--display); font-size: 20px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--gold); }
+.h-q { margin: 0; font-size: 18px; line-height: 1.35; white-space: pre-line; }
+.h-a { margin: 0; font-size: 20px; }
+.h-a b { color: var(--gold); }
+.h-notes { margin: 0; padding: 10px 12px; border-radius: 12px; background: rgba(35, 227, 250, 0.1); color: var(--cyan); font-size: 15px; white-space: pre-line; }
+.h-rows { display: grid; gap: 10px; }
+.h-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 16px; background: var(--glass); border: 1px solid var(--line); border-left: 6px solid var(--pc, var(--gold)); }
+.h-row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 17px; font-weight: 700; }
+.h-row .pts { font-size: 22px; }
+.h-row .btn { min-height: 48px; padding: 0 14px; font-size: 18px; }
+.h-actions, .h-tools { display: grid; gap: 10px; }
+.h-tools { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+.btn.good { color: var(--night); background: var(--cyan); box-shadow: 0 4px 0 #0d8a99; }
+.btn.bad { color: #fff; background: var(--magenta); box-shadow: 0 4px 0 #8a0f58; }
+.btn.good:active, .btn.bad:active { transform: translateY(3px); box-shadow: none; }
+.reacts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.react { min-height: 84px; border-radius: 22px; border: 1px solid var(--line); background: var(--glass); font-size: 40px; transition: transform 0.12s ease; }
+.react:active { transform: scale(0.9); }
+.pop { position: absolute; font-size: 44px; animation: pop-up 1.1s ease-out forwards; }
+@keyframes pop-up { from { transform: translate(-50%, 0) scale(0.8); opacity: 1; } to { transform: translate(-50%, -160px) scale(1.3); opacity: 0; } }
 #fx { position: fixed; inset: 0; z-index: 30; overflow: hidden; pointer-events: none; }
 .bit { position: absolute; width: 8px; height: 13px; border-radius: 2px; animation: confetti var(--t, 1.4s) cubic-bezier(0.15, 0.7, 0.4, 1) forwards; }
 .bit.round { width: 10px; height: 10px; border-radius: 50%; }
@@ -563,6 +586,33 @@ input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-app
       <button class="btn gold" type="submit" data-t="join"></button>
     </form>
     <p class="muted" id="join-closed" data-t="joinClosed" hidden></p>
+    <button class="btn tile" id="watch" type="button" data-t="watch"></button>
+  </section>
+
+  <section id="s-host" hidden>
+    <div class="h-head"><span class="h-badge" data-t="hostBadge"></span><span class="h-heading" id="h-heading"></span></div>
+    <p class="lead" id="h-paused" data-t="paused" hidden></p>
+    <div class="glass stack" id="h-question" hidden>
+      <p class="h-q" id="h-text"></p>
+      <p class="h-a"><span class="muted" data-t="hostAnswer"></span> <b id="h-answer"></b></p>
+      <p class="muted" id="h-accepted" hidden></p>
+      <p class="h-notes" id="h-notes" hidden></p>
+    </div>
+    <p class="lead" id="h-status" aria-live="polite"></p>
+    <div class="board" id="h-board" hidden></div>
+    <div class="h-rows" id="h-rows"></div>
+    <div class="h-actions" id="h-actions"></div>
+    <p class="muted" id="h-note" hidden></p>
+    <div class="h-tools" id="h-tools"></div>
+    <p class="err" id="host-error" hidden></p>
+  </section>
+
+  <section id="s-watch" hidden>
+    <h1 class="shine" data-t="watchTitle"></h1>
+    <div class="h-rows" id="w-rows"></div>
+    <p class="muted" data-t="watchHint"></p>
+    <div class="reacts" id="reacts"></div>
+    <button class="link" id="w-back" type="button" data-t="watchBack"></button>
   </section>
 
   <section id="s-play" hidden>
@@ -674,6 +724,8 @@ var STRINGS = {
     answerTitle: 'Ваш ответ', answerSend: 'Отправить', answerDone: 'Ответ отправлен. Можно исправить, пока идёт время.',
     askTitle: 'Вопрос для всех', askPick: 'Выберите ответ', askClosed: 'Ответы приняты. Смотрите на экран!', askMissed: 'Время на ответ вышло.',
     finalOut: 'В финале вы не играете. Болейте за остальных!', offline: 'Нет связи с игрой. Переподключаемся…',
+    hostBadge: 'Пульт ведущего', hostAnswer: 'Ответ:', hostAlso: 'Также: {list}', hostWait: 'Ждём сцену…', paused: 'Пауза', badHost: 'Код пульта устарел. Откройте новый на экране «Телефоны».',
+    watch: 'Смотреть как зритель', watchTitle: 'Счёт', watchHint: 'Поддержите игроков: реакции появятся на большом экране.', watchBack: 'Я тоже играю',
     full: 'В комнате нет мест.', badName: 'Введите имя.', badChoice: 'Такого варианта нет.', notOpen: 'Сейчас нельзя.', notEligible: 'Вы не играете в финале.', error: 'Что-то пошло не так.'
   },
   en: {
@@ -691,6 +743,8 @@ var STRINGS = {
     answerTitle: 'Your answer', answerSend: 'Send', answerDone: 'Answer sent. You can change it while time runs.',
     askTitle: 'Question for all', askPick: 'Pick an answer', askClosed: 'Answers are in. Watch the big screen!', askMissed: 'Time to answer is over.',
     finalOut: 'You sit out the final. Cheer for the others!', offline: 'Lost connection to the game. Reconnecting…',
+    hostBadge: 'Host console', hostAnswer: 'Answer:', hostAlso: 'Also: {list}', hostWait: 'Waiting for the stage…', paused: 'Paused', badHost: 'This console code is out of date. Open the new one on the Phones screen.',
+    watch: 'Watch as a spectator', watchTitle: 'Score', watchHint: 'Cheer the players on: reactions show on the big screen.', watchBack: 'I play too',
     full: 'The room is full.', badName: 'Enter a name.', badChoice: 'No such choice.', notOpen: 'Not right now.', notEligible: 'You are not in the final.', error: 'Something went wrong.'
   },
   sr: {
@@ -708,6 +762,8 @@ var STRINGS = {
     answerTitle: 'Vaš odgovor', answerSend: 'Pošalji', answerDone: 'Odgovor poslat. Možete ga ispraviti dok vreme teče.',
     askTitle: 'Pitanje za sve', askPick: 'Izaberite odgovor', askClosed: 'Odgovori su primljeni. Pratite glavni ekran!', askMissed: 'Vreme za odgovor je isteklo.',
     finalOut: 'Ne igrate u finalu. Navijajte za ostale!', offline: 'Nema veze sa igrom. Ponovo se povezujemo…',
+    hostBadge: 'Pult voditelja', hostAnswer: 'Odgovor:', hostAlso: 'Takođe: {list}', hostWait: 'Čekamo scenu…', paused: 'Pauza', badHost: 'Kod pulta je zastareo. Otvorite novi na ekranu „Telefoni“.',
+    watch: 'Gledaj kao gledalac', watchTitle: 'Rezultat', watchHint: 'Navijajte za igrače: reakcije se pojavljuju na velikom ekranu.', watchBack: 'I ja igram',
     full: 'Soba je puna.', badName: 'Unesite ime.', badChoice: 'Nema takvog odgovora.', notOpen: 'Ne sada.', notEligible: 'Ne igrate u finalu.', error: 'Nešto nije u redu.'
   }
 };
@@ -777,6 +833,11 @@ function fmt(n) { return String(n).replace('-', '−'); }
 
 var params = new URLSearchParams(location.search);
 var code = (params.get('r') || '').replace(/\D/g, '').slice(0, 4);
+// the host's phone carries the console key; it shows the console and never a buzzer
+var hostKey = (params.get('h') || '').replace(/[^0-9a-f]/g, '').slice(0, 32);
+var WATCH_PREFIX = 'svoya-igra:lan-watch:';
+var watching = false;
+var REACTIONS = ['👏', '🔥', '😂', '😮', '❤️', '🎉'];
 var TOKEN_PREFIX = 'svoya-igra:lan:';
 var token = '';
 var view = null;
@@ -811,13 +872,13 @@ function saveToken(value) {
 function screen(name) {
   if (document.body.getAttribute('data-screen') === name) return;
   document.body.setAttribute('data-screen', name);
-  ['s-code', 's-wait', 's-pick', 's-play'].forEach(function (id) { reveal(id, id === name); });
+  ['s-code', 's-wait', 's-pick', 's-play', 's-host', 's-watch'].forEach(function (id) { reveal(id, id === name); });
 }
 
 function errorText(code) {
   return {
     'bad-code': t('badCode'), 'too-many-codes': t('tooMany'), disabled: t('disabled'), full: t('full'),
-    'bad-name': t('badName'), 'join-closed': t('joinClosed'), 'not-open': t('notOpen'), 'not-eligible': t('notEligible'), 'not-your-turn': t('notYourTurn'), 'need-person': t('needPerson'), 'bad-choice': t('badChoice')
+    'bad-name': t('badName'), 'join-closed': t('joinClosed'), 'not-open': t('notOpen'), 'not-eligible': t('notEligible'), 'not-your-turn': t('notYourTurn'), 'need-person': t('needPerson'), 'bad-choice': t('badChoice'), 'bad-host': t('badHost')
   }[code] || t('error');
 }
 
@@ -855,7 +916,7 @@ function poll() {
   var gen = pollGen;
   var ctrl = typeof AbortController === 'function' ? new AbortController() : null;
   pollAbort = ctrl;
-  var url = '/api/poll?r=' + encodeURIComponent(code) + '&t=' + encodeURIComponent(token) + '&v=' + version;
+  var url = '/api/poll?r=' + encodeURIComponent(code) + '&t=' + encodeURIComponent(token) + '&v=' + version + (hostKey ? '&h=' + hostKey : '');
   fetch(url, { cache: 'no-store', signal: ctrl ? ctrl.signal : undefined })
     .then(function (res) {
       return res.json().catch(function () { return {}; }).then(function (data) {
@@ -886,6 +947,23 @@ function apply(next) {
   render();
 }
 
+// a short click under the thumb, so a press is felt even when the screen isn't watched;
+// the context starts on the first tap, as browsers allow sound only after one
+var audio = null;
+function click() {
+  try {
+    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+    var osc = audio.createOscillator();
+    var gain = audio.createGain();
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.12, audio.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + 0.08);
+    osc.connect(gain).connect(audio.destination);
+    osc.start();
+    osc.stop(audio.currentTime + 0.08);
+  } catch (e) {}
+}
+
 function vibrate(pattern) {
   if (navigator.vibrate && (!view || view.vibrate !== false)) navigator.vibrate(pattern);
 }
@@ -908,6 +986,14 @@ function render() {
     swapText($('wait-text'), t('disabled'));
     return;
   }
+  if (hostKey) {
+    renderHost(v);
+    return;
+  }
+  if (!v.me && watching) {
+    renderWatch(v);
+    return;
+  }
   if (!v.me) {
     renderPick(v);
     return;
@@ -924,6 +1010,8 @@ function render() {
   reveal('p-bet', mode === 'bet' && playing);
   reveal('p-answer', mode === 'answer' && playing);
   reveal('p-out', !!mode && !playing);
+  // the next time the board comes up with this player's turn, it buzzes again
+  if (ask || mode || !v.board) wasMyTurn = false;
   if (ask) renderAsk(v);
   else if (!mode && v.board) renderBoard(v);
   else if (!mode) renderBuzz(v);
@@ -1098,7 +1186,11 @@ function confetti(origin) {
 
 var boardKey = '';
 var picking = false;
+var wasMyTurn = false;
 function renderBoard(v) {
+  // the phone is often face down on the table between questions
+  if (v.myTurn && !wasMyTurn) vibrate([40, 80, 40, 80, 120]);
+  wasMyTurn = v.myTurn;
   show('my-pick', v.myTurn);
   var chooser = !v.myTurn && v.chooser ? findSeat(v, function (p) { return p.name === v.chooser; }) : null;
   show('chooser-card', !v.myTurn && !!v.chooser);
@@ -1245,6 +1337,161 @@ function choose(i) {
   api('/api/answer', { token: token, text: String(i) }).catch(function (err) { fail('play-error', err); });
 }
 
+// buttons are rebuilt only when what they say or send changes, so a tap is never lost mid-redraw
+var drawn = {};
+function redraw(id, data, build) {
+  var key = JSON.stringify(data);
+  if (drawn[id] === key) return;
+  drawn[id] = key;
+  var box = $(id);
+  box.textContent = '';
+  build(box);
+}
+var TONES = { primary: 'gold', good: 'good', bad: 'bad', plain: 'tile' };
+function hostButton(a, phase) {
+  var b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'btn ' + (TONES[a.tone] || 'tile');
+  b.textContent = a.label;
+  b.addEventListener('click', function () { command({ name: a.name, args: a.args, phase: phase }, b); });
+  return b;
+}
+function command(cmd, button) {
+  vibrate(15);
+  click();
+  button.disabled = true;
+  show('host-error', false);
+  api('/api/host', { hostKey: hostKey, command: cmd })
+    .catch(function (err) { fail('host-error', err); })
+    .then(function () { button.disabled = false; });
+}
+
+function renderHost(v) {
+  screen('s-host');
+  var h = v.host;
+  $('h-heading').textContent = h && h.heading || v.title || '';
+  show('h-paused', !!(h && h.paused));
+  show('h-question', !!(h && h.question));
+  if (h && h.question) {
+    $('h-text').textContent = h.question.text;
+    $('h-answer').textContent = h.question.answer;
+    show('h-accepted', h.question.accepted.length > 0);
+    $('h-accepted').textContent = t('hostAlso', { list: h.question.accepted.join(' · ') });
+    show('h-notes', !!h.question.notes);
+    $('h-notes').textContent = h.question.notes;
+  }
+  swapText($('h-status'), h ? h.status : t('hostWait'));
+  show('h-note', !!(h && h.note));
+  $('h-note').textContent = h && h.note || '';
+  var phase = h ? h.phase : '';
+  show('h-board', !!(h && h.board));
+  redraw('h-board', h && h.board && [h.board, phase], function (box) {
+    if (!h || !h.board) return;
+    h.board.themes.forEach(function (theme) {
+      var row = document.createElement('div');
+      row.className = 'theme';
+      var plate = document.createElement('div');
+      plate.className = 'plate';
+      plate.textContent = theme.name;
+      row.appendChild(plate);
+      var tiles = document.createElement('div');
+      tiles.className = 'tiles';
+      tiles.style.setProperty('--n', String(Math.max(1, theme.cells.length)));
+      theme.cells.forEach(function (cell) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'tile';
+        b.textContent = String(cell.value);
+        b.disabled = cell.played;
+        b.addEventListener('click', function () { command({ name: 'pick', args: [cell.id], phase: phase }, b); });
+        tiles.appendChild(b);
+      });
+      row.appendChild(tiles);
+      box.appendChild(row);
+    });
+  });
+  redraw('h-rows', h && [h.rows, phase], function (box) {
+    if (!h) return;
+    h.rows.forEach(function (r) {
+      var row = document.createElement('div');
+      row.className = 'h-row';
+      row.style.setProperty('--pc', r.color);
+      var name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = r.name;
+      var pts = document.createElement('span');
+      pts.className = 'pts' + (r.score < 0 ? ' neg' : '');
+      pts.textContent = fmt(r.score);
+      row.appendChild(name);
+      row.appendChild(pts);
+      r.actions.forEach(function (a) { row.appendChild(hostButton(a, phase)); });
+      box.appendChild(row);
+    });
+  });
+  redraw('h-actions', h && [h.actions, phase], function (box) {
+    if (h) h.actions.forEach(function (a) { box.appendChild(hostButton(a, phase)); });
+  });
+  redraw('h-tools', h && [h.tools, phase], function (box) {
+    if (h) h.tools.forEach(function (a) { box.appendChild(hostButton(a, phase)); });
+  });
+}
+
+function renderWatch(v) {
+  screen('s-watch');
+  var ranked = v.roster.map(function (p, i) { return { p: p, color: seatColor(p, i) }; });
+  ranked.sort(function (a, b) { return b.p.score - a.p.score; });
+  redraw('w-rows', ranked, function (box) {
+    ranked.forEach(function (r) {
+      var row = document.createElement('div');
+      row.className = 'h-row';
+      row.style.setProperty('--pc', r.color);
+      var name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = (r.p.avatar ? r.p.avatar + ' ' : '') + r.p.name;
+      var pts = document.createElement('span');
+      pts.className = 'pts' + (r.p.score < 0 ? ' neg' : '');
+      pts.textContent = fmt(r.p.score);
+      row.appendChild(name);
+      row.appendChild(pts);
+      box.appendChild(row);
+    });
+  });
+}
+
+function react(button, emoji) {
+  vibrate(10);
+  if (motion.matches) {
+    var r = button.getBoundingClientRect();
+    var pop = document.createElement('span');
+    pop.className = 'pop';
+    pop.textContent = emoji;
+    pop.style.left = r.left + r.width / 2 + 'px';
+    pop.style.top = r.top + 'px';
+    pop.addEventListener('animationend', function () { if (pop.parentNode) pop.parentNode.removeChild(pop); });
+    $('fx').appendChild(pop);
+  }
+  api('/api/react', { emoji: emoji }).catch(function () {});
+}
+REACTIONS.forEach(function (emoji) {
+  var b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'react';
+  b.textContent = emoji;
+  b.addEventListener('click', function () { react(b, emoji); });
+  $('reacts').appendChild(b);
+});
+
+function setWatching(on) {
+  watching = on;
+  storage(function () {
+    if (on) localStorage.setItem(WATCH_PREFIX + code, '1');
+    else localStorage.removeItem(WATCH_PREFIX + code);
+  });
+  if (view) render();
+}
+$('watch').addEventListener('click', function () { setWatching(true); });
+$('w-back').addEventListener('click', function () { setWatching(false); });
+
 function fail(id, err) {
   var el = $(id);
   el.textContent = errorText(err && err.message);
@@ -1287,6 +1534,7 @@ $('buzzer').addEventListener('pointerdown', function (e) {
     $('buzz-wrap').appendChild(ring);
   }
   vibrate(30);
+  click();
   api('/api/buzz', { token: token })
     .catch(function (err) { if (err.message !== 'not-open') fail('play-error', err); })
     .then(function () { b.classList.remove('pressed'); });
@@ -1365,6 +1613,7 @@ document.addEventListener('visibilitychange', function () {
 
 function start() {
   loadToken();
+  watching = !hostKey && storage(function () { return localStorage.getItem(WATCH_PREFIX + code); }) === '1';
   view = null;
   version = 0;
   screen('s-wait');

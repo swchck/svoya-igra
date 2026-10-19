@@ -1,4 +1,4 @@
-import { computed, onScopeDispose, ref, watch } from 'vue'
+import { computed, onScopeDispose, ref, watch, type WatchStopHandle } from 'vue'
 import type { PlaySession } from '@/composables/usePlaySession'
 import { playSound } from './sounds'
 import { prefs } from '@/prefs'
@@ -10,10 +10,13 @@ import {
   closeBuzz,
   emptyLanStatus,
   fixedRoomCode,
+  onLanHost,
   onLanJoin,
   onLanPick,
+  onLanReaction,
   onLanStatus,
   reopenBuzz,
+  setHostView,
   stageInfo,
   startLan,
   stopLan,
@@ -27,18 +30,34 @@ function quietly(p: Promise<unknown>): void {
   p.catch((err) => console.warn('LAN room:', err))
 }
 
+/** What the stage does with the host's phone and the spectators. */
+export interface LanExtras {
+  /** The console for the host's phone; read only while the room runs. */
+  console?: () => unknown
+  /** A command from the host's phone, unchecked: shaped like the host window's, or anything. */
+  command?: (command: unknown) => void
+  reaction?: (emoji: string) => void
+}
+
 /**
  * Runs the phone buzzers for a stage: keeps the phones in step with the session, opens and
  * closes the buttons with each question, adds players who join by name and fills in final
- * bets sent from phones. The room stops with the stage.
+ * bets sent from phones. The host's phone gets its console and spectators' reactions come
+ * through. The room stops with the stage.
  */
-export function useLanRoom(session: PlaySession, title: () => string, pick: (questionId: string) => void = session.pick) {
+export function useLanRoom(
+  session: PlaySession,
+  title: () => string,
+  pick: (questionId: string) => void = session.pick,
+  extras: LanExtras = {},
+) {
   const { state, players, round } = session
   const info = ref<LanInfo | null>(null)
   const status = ref<LanStatus>(emptyLanStatus())
   const starting = ref(false)
   let unlisten: (() => void)[] = []
   let lastSync = ''
+  let stopConsole: WatchStopHandle | undefined
   // bets already copied into the session, so the host's own edits are not overwritten
   let appliedBets: Record<string, number> = {}
 
@@ -57,6 +76,7 @@ export function useLanRoom(session: PlaySession, title: () => string, pick: (que
         chooserId: state.chooserId,
         activeQuestionId: state.activeQuestionId,
         groupVerdicts: state.groupVerdicts,
+        pause: state.pause,
       },
       title(),
       round.value,
@@ -104,10 +124,25 @@ export function useLanRoom(session: PlaySession, title: () => string, pick: (que
           else if (state.phase === 'final-themes' && session.finalPicker.value === p.playerId) session.removeFinalTheme(p.questionId)
         }),
       )
+      if (extras.command) unlisten.push(await onLanHost(extras.command))
+      if (extras.reaction) unlisten.push(await onLanReaction(extras.reaction))
       info.value = await startLan(prefs.fixedRoomCode ? fixedRoomCode() : null)
       lastSync = ''
       sync()
       syncBuzz()
+      // watched only from here: the getter reads stage state set up after this composable
+      if (extras.console) {
+        let last = ''
+        stopConsole = watch(
+          () => JSON.stringify(extras.console!()),
+          (json) => {
+            if (json === last || !info.value) return
+            last = json
+            quietly(setHostView(JSON.parse(json)))
+          },
+          { immediate: true },
+        )
+      }
     } catch (err) {
       unlisten.forEach((f) => f())
       unlisten = []
@@ -121,6 +156,8 @@ export function useLanRoom(session: PlaySession, title: () => string, pick: (que
   function stop() {
     unlisten.forEach((f) => f())
     unlisten = []
+    stopConsole?.()
+    stopConsole = undefined
     if (!info.value) return
     info.value = null
     status.value = emptyLanStatus()
@@ -154,7 +191,7 @@ export function useLanRoom(session: PlaySession, title: () => string, pick: (que
   }
 
   watch(
-    [() => state.phase, players, title, () => state.teams, () => state.chooserId, () => state.played, () => state.activeQuestionId, () => !!state.groupVerdicts, () => state.finalRemoved, round, () => prefs.phoneVibration],
+    [() => state.phase, players, title, () => state.teams, () => state.chooserId, () => state.played, () => state.activeQuestionId, () => !!state.groupVerdicts, () => state.finalRemoved, round, () => prefs.phoneVibration, () => !!state.pause],
     sync,
     { deep: true },
   )

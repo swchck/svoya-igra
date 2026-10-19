@@ -99,8 +99,8 @@ const textShare = computed(() => {
   padding: 0.3em 1em;
 }
 .topic {
-  background: oklch(0.28 0.18 285);
-  color: var(--foreground);
+  background: var(--theme-bottom);
+  color: var(--on-tile, var(--foreground));
 }
 .holder {
   background: var(--cyan);
@@ -117,6 +117,11 @@ const textShare = computed(() => {
   line-height: 1.18;
   text-shadow: 0 4px 24px oklch(0.1 0.12 274 / 0.6);
   animation: text-in 0.6s 0.15s ease-out both;
+}
+/* glows meant for a dark room only blur letters on white */
+.light-surface .question-text,
+.light-surface .answer-text {
+  text-shadow: none;
 }
 .answer-label {
   flex: none;
@@ -183,7 +188,7 @@ const textShare = computed(() => {
   min-width: 0;
   padding: 0.45em 0.8em;
   border-radius: 0.6em;
-  border: 1px solid oklch(1 0 0 / 0.18);
+  border: 1px solid oklch(var(--tint) 0 0 / 0.18);
   background: linear-gradient(180deg, var(--tile), var(--tile-deep));
   text-align: left;
   transition: opacity 0.4s ease, transform 0.4s ease, box-shadow 0.4s ease;
