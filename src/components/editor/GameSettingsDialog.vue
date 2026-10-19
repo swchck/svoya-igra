@@ -211,7 +211,7 @@ function pickLook(look: StageLook) {
 }
 .looks {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 .look {
@@ -256,7 +256,7 @@ function pickLook(look: StageLook) {
   display: grid;
   place-items: center;
   background: linear-gradient(180deg, var(--tile), var(--tile-deep));
-  color: var(--value, var(--gold));
+  color: var(--gold);
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 12px;

@@ -40,9 +40,6 @@ watchEffect(async () => {
 .backdrop.dim {
   filter: brightness(0.7) saturate(0.9);
 }
-.light-surface .backdrop.dim {
-  filter: none;
-}
 /* two stage spotlights sweeping slowly from the top corners */
 .beam {
   position: absolute;
@@ -111,10 +108,6 @@ watchEffect(async () => {
 .pictured .beam,
 .pictured .floor,
 .pictured .bulbs,
-.light-surface .beam,
-.light-surface .floor,
-.light-surface .bulbs,
-.light-surface .vignette,
 [data-look='classic'] .beam {
   display: none;
 }

@@ -590,7 +590,6 @@ onUnmounted(() => {
   padding: 2px 10px;
   border-radius: 999px;
   background: var(--theme-top);
-  color: var(--on-tile, var(--foreground));
 }
 .amount {
   padding: 2px 12px;

@@ -85,7 +85,7 @@ export default {
     },
     looks: {
       title: 'Stage styles',
-      text: 'A TV studio, a classic show, neon, or a light style for a projector in a lit room. Put up your own background, and switch the app itself to light.',
+      text: 'A TV studio, a classic show with flat blue screens, or neon. Put up your own background picture instead of the set.',
     },
     league: {
       title: 'Results, diplomas and a league',

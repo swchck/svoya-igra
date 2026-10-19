@@ -170,7 +170,7 @@ watch(
   white-space: nowrap;
   font-size: calc(clamp(14px, 1.4vw, 20px) * var(--stage-scale, 1));
   font-weight: 600;
-  color: color-mix(in oklch, var(--pc) 70%, var(--on-tile, var(--foreground)));
+  color: color-mix(in oklch, var(--pc) 70%, var(--foreground));
 }
 .avatar {
   margin-right: 0.35em;
@@ -180,8 +180,8 @@ watch(
   font-size: calc(clamp(28px, 3.4vw, 50px) * var(--stage-scale, 1));
   font-weight: 700;
   line-height: 1;
-  color: var(--value, var(--gold));
-  text-shadow: 0 0 18px color-mix(in oklch, var(--value, var(--gold)) 45%, transparent);
+  color: var(--gold);
+  text-shadow: 0 0 18px color-mix(in oklch, var(--gold) 45%, transparent);
 }
 .negative .score {
   color: var(--magenta);

@@ -43,7 +43,7 @@ const cols = computed(() => Math.max(1, ...rows.value))
   position: absolute;
   inset: 35% 30%;
   border-radius: 2px;
-  background: var(--value, var(--gold));
+  background: var(--gold);
   opacity: 0.85;
 }
 .cell.empty {

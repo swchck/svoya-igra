@@ -157,7 +157,7 @@ const columns = computed(() => Math.max(1, ...props.round.themes.map((th) => th.
   font-family: var(--font-display);
   font-weight: 700;
   line-height: 1;
-  color: var(--value, var(--gold));
+  color: var(--gold);
   font-size: calc(clamp(16px, min(var(--cell-h) * 0.48, var(--cell-w) * 0.36), 88px) * var(--stage-scale, 1));
   text-shadow: 0 0 22px color-mix(in oklch, var(--gold) 50%, transparent), 0 3px 0 oklch(0.3 0.12 60 / 0.8);
 }

@@ -482,7 +482,7 @@ function dropOnTheme(index: number) {
   font-size: 22px;
   font-weight: 700;
   line-height: 1;
-  color: var(--value, var(--gold));
+  color: var(--gold);
   text-shadow: 0 2px 0 oklch(0.3 0.12 60 / 0.7);
 }
 .record {

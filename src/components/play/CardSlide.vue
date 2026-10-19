@@ -100,7 +100,7 @@ const textShare = computed(() => {
 }
 .topic {
   background: var(--theme-bottom);
-  color: var(--on-tile, var(--foreground));
+  color: var(--foreground);
 }
 .holder {
   background: var(--cyan);
@@ -117,11 +117,6 @@ const textShare = computed(() => {
   line-height: 1.18;
   text-shadow: 0 4px 24px oklch(0.1 0.12 274 / 0.6);
   animation: text-in 0.6s 0.15s ease-out both;
-}
-/* glows meant for a dark room only blur letters on white */
-.light-surface .question-text,
-.light-surface .answer-text {
-  text-shadow: none;
 }
 .answer-label {
   flex: none;

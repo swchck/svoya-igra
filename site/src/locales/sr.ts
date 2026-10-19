@@ -85,7 +85,7 @@ export default {
     },
     looks: {
       title: 'Stilovi scene',
-      text: 'TV studio, klasična emisija, neon ili svetli stil za projektor u osvetljenoj sali. Možete staviti svoju pozadinu, a sam program prebaciti na svetlu temu.',
+      text: 'TV studio, klasična emisija sa ravnim plavim ekranima ili neon. Umesto dekora možete staviti svoju pozadinsku sliku.',
     },
     league: {
       title: 'Rezultati, diplome i liga',
