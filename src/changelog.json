@@ -1,5 +1,23 @@
 [
   {
+    "version": "0.5.2",
+    "date": "2026-10-19",
+    "notes": {
+      "ru": [
+        "Логотип и другие загруженные картинки, звуки и видео снова видны после перезапуска программы.",
+        "Светофор на macOS теперь ровно по центру верхних панелей."
+      ],
+      "en": [
+        "The logo and other uploaded pictures, sounds and videos show again after the app restarts.",
+        "The macOS window buttons now sit right in the middle of the top bars."
+      ],
+      "sr": [
+        "Logotip i druge otpremljene slike, zvuci i video ponovo se vide posle ponovnog pokretanja programa.",
+        "Dugmad prozora na macOS-u sada stoje tačno u sredini gornjih traka."
+      ]
+    }
+  },
+  {
     "version": "0.5.1",
     "date": "2026-10-19",
     "notes": {
