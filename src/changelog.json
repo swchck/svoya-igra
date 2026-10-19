@@ -15,7 +15,15 @@
         "Своё время на ответ у вопроса, правила раунда и комментарии к темам на заставке раунда.",
         "Запись звука с микрофона, повторное использование файлов игры и картинки, размытые до ответа.",
         "Статистика вопросов после партий, оценка длительности игры и новые предупреждения перед игрой.",
-        "Программа сама находит новые версии, предлагает обновиться и рассказывает, что нового."
+        "Программа сама находит новые версии, предлагает обновиться и рассказывает, что нового.",
+        "Двенадцать стилей сцены: студия, классика, неон, ретро-шоу, новогодний, мел и доска, пиксели со звуками 8 бит, нуар, космос, Хэллоуин, высокий контраст и фирменный в цветах логотипа. Можно поставить свой фон.",
+        "Предпросмотр сцены в редакторе: заставка, табло, вопрос и ответ в стиле игры.",
+        "Пауза и перерыв на 5–15 минут с обратным отсчётом, счётом и QR-кодом для опоздавших.",
+        "Пульт ведущего на телефоне, зрители с реакциями на экране, звук и вспышка цвета при нажатии, вибрация, когда очередь выбирать.",
+        "Итоги картинкой, дипломы для печати и лига из нескольких вечеров.",
+        "Незаконченная партия ждёт на главном экране, проверка всех медиа перед игрой и подсказка по горячим клавишам.",
+        "Экран вопроса стал проще: тип выбирается списком, редкие поля свёрнуты, а редактор открывается быстрее.",
+        "Исправления: пауза больше не сбрасывает очередь нажатий, кнопки в шапке редактора не вылезают за край, светофор на macOS снова по центру."
       ],
       "en": [
         "New kinds of questions: no risk, all in, and a question for all that everyone answers at once.",
@@ -29,7 +37,15 @@
         "A question's own answer time, round rules, and category comments on the round intro.",
         "Recording sound from the microphone, reusing the game's files, and pictures blurred until the answer.",
         "Question statistics after games, an estimate of how long the game takes, and new warnings before playing.",
-        "The app finds new versions on its own, offers to update and tells what's new."
+        "The app finds new versions on its own, offers to update and tells what's new.",
+        "Twelve stage styles: studio, classic, neon, retro show, holidays, chalkboard, pixels with 8-bit sounds, noir, space, Halloween, high contrast and a brand style in your logo's colors. You can also set your own background.",
+        "A stage preview in the editor: the opening, the board, a question and its answer in the game's style.",
+        "Pause and 5–15 minute breaks with a countdown, the score and a QR code for latecomers.",
+        "A host console on a phone, spectators with reactions on the stage, a sound and a color flash on each press, and vibration when it's a player's turn to pick.",
+        "Results as a picture, printable diplomas and a league across several evenings.",
+        "An unfinished game waits on the home screen, a check of all media before playing and a hotkeys overview.",
+        "A calmer question screen: the kind is a list, rarely used fields fold away, and the editor opens faster.",
+        "Fixes: pausing no longer clears who buzzed, editor header buttons no longer spill off the edge, and the macOS window buttons are centered again."
       ],
       "sr": [
         "Nove vrste pitanja: bez rizika, va bank i pitanje za sve, na koje svi odgovaraju odjednom.",
@@ -43,7 +59,15 @@
         "Posebno vreme za odgovor na pitanje, pravila runde i komentari tema na najavi runde.",
         "Snimanje zvuka mikrofonom, ponovna upotreba fajlova igre i slike zamućene do odgovora.",
         "Statistika pitanja posle partija, procena trajanja igre i nova upozorenja pre igre.",
-        "Program sam pronalazi nove verzije, nudi ažuriranje i govori šta je novo."
+        "Program sam pronalazi nove verzije, nudi ažuriranje i govori šta je novo.",
+        "Dvanaest stilova scene: studio, klasika, neon, retro šou, novogodišnji, kreda i tabla, pikseli sa zvucima od 8 bita, noar, svemir, Noć veštica, visok kontrast i firmeni u bojama logotipa. Možete staviti i svoju pozadinu.",
+        "Pregled scene u uređivaču: uvod, tabla, pitanje i odgovor u stilu igre.",
+        "Pauza i odmor od 5–15 minuta sa odbrojavanjem, rezultatom i QR kodom za one koji kasne.",
+        "Pult voditelja na telefonu, gledaoci sa reakcijama na ekranu, zvuk i bljesak boje pri pritisku i vibracija kada je red na igrača da bira.",
+        "Rezultati kao slika, diplome za štampu i liga od više večeri.",
+        "Nezavršena partija čeka na početnom ekranu, provera svih medija pre igre i pregled prečica.",
+        "Jednostavniji ekran pitanja: tip se bira sa liste, retka polja su sklopljena, a uređivač se brže otvara.",
+        "Ispravke: pauza više ne briše red pritisaka, dugmad u zaglavlju uređivača više ne izlaze van ivice, a dugmad prozora na macOS-u su ponovo centrirana."
       ]
     }
   },
