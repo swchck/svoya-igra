@@ -149,6 +149,7 @@ export default {
     },
     value: 'Vrednost',
     valueHint: 'Upišite bilo koji broj ili izaberite uobičajen.',
+    presets: 'Uobičajene vrednosti',
     catValue: 'Vrednost mačke',
     seconds: 'Vreme, s',
     secondsHint: 'Posebno vreme za ovo pitanje. Prazno: kao u rundi ili igri, 0: bez tajmera.',
@@ -212,6 +213,9 @@ export default {
     rejectedPlaceholder: 'Blizak, ali netačan odgovor, pa Enter',
     notes: 'Beleška',
     notesPlaceholder: 'Izvor, kako priznati, šta ispričati posle odgovora. Igrači ovo ne vide.',
+    summaryAccepted: 'priznaje se: {n}',
+    summaryRejected: 'ne priznaje se: {n}',
+    summaryNotes: 'beleška',
   },
   clipboard: {
     themeCopied: 'Tema je kopirana. Nalepite je iz menija runde u ovoj ili drugoj igri.',

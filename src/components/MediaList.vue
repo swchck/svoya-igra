@@ -12,6 +12,8 @@ const props = defineProps<{
   modelValue?: MediaItem[]
   /** Pictures here may be blurred until the answer. */
   blurrable?: boolean
+  /** Adding takes one slim row instead of a drop area. */
+  compact?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -154,7 +156,7 @@ function onPaste(e: ClipboardEvent) {
         />
       </li>
     </ul>
-    <MediaAddZone :dropping="dropping" @files="addFiles" @link="addLink" @reuse="(m) => append([{ id: uid('mi_'), url: m.url, kind: m.kind, ...(m.mode && { mode: m.mode }) }])" />
+    <MediaAddZone :dropping="dropping" :compact="compact" @files="addFiles" @link="addLink" @reuse="(m) => append([{ id: uid('mi_'), url: m.url, kind: m.kind, ...(m.mode && { mode: m.mode }) }])" />
   </section>
 </template>
 

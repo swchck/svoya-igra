@@ -44,20 +44,26 @@ async function mountDialog(q: Question = makeEmptyQuestion(100)) {
 }
 
 describe('QuestionDialog', () => {
-  it('picks a preset value', async () => {
+  it('picks a preset value from the value menu', async () => {
     const { question, body } = await mountDialog()
 
-    await body.findAll('.preset').find((b) => b.text() === '500')!.trigger('click')
+    await body.find('[aria-label="Обычные стоимости"]').trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    await body.findAll('.preset-item').find((b) => b.text() === '500')!.trigger('click')
 
     expect(question.value.value).toBe(500)
   })
 
-  it('shows the cat price only for cat in a bag', async () => {
-    const { body } = await mountDialog()
+  it('switches the kind from its menu and shows the cat price only for cat in a bag', async () => {
+    const { question, body } = await mountDialog()
     expect(body.findAll('.value-input')).toHaveLength(1)
 
-    await body.find('.kind.cat-in-bag').trigger('click')
+    await body.find('.kind-pick').trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    await body.findAll('[role="menuitemradio"]').find((b) => b.text().includes('Кот в мешке'))!.trigger('click')
+    await flushPromises()
 
+    expect(question.value.kind).toBe('cat-in-bag')
     expect(body.findAll('.value-input')).toHaveLength(2)
   })
 

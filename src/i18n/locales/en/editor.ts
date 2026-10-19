@@ -149,6 +149,7 @@ export default {
     },
     value: 'Value',
     valueHint: 'Type any number or pick a common one.',
+    presets: 'Common values',
     catValue: 'Cat value',
     seconds: 'Time, s',
     secondsHint: 'This question’s own time. Empty: as in the round or game, 0: no timer.',
@@ -212,6 +213,9 @@ export default {
     rejectedPlaceholder: 'A close but wrong answer, then Enter',
     notes: 'Note',
     notesPlaceholder: 'Source, how to judge, what to tell after the answer. Players never see it.',
+    summaryAccepted: 'accept: {n}',
+    summaryRejected: 'reject: {n}',
+    summaryNotes: 'a note',
   },
   clipboard: {
     themeCopied: 'Theme copied. Paste it from the round menu in this or another game.',

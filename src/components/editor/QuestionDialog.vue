@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, Copy, CopyPlus, MonitorPlay, PencilLine, Trash2 } from '@lucide/vue'
+import { ArrowLeft, ArrowRight, ChevronDown, ChevronLeft, ChevronRight, Copy, CopyPlus, MonitorPlay, PencilLine, Trash2 } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 import { useBoardClipboard } from '@/composables/useBoardClipboard'
 import type { QuestionRecord } from '@/play/questionStats'
-import type { Question } from '@/types'
+import type { Question, QuestionKind } from '@/types'
 import { KINDS, kindInfo } from '@/game/kinds'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import IconButton from '@/components/IconButton.vue'
 import NumberInput from '@/components/NumberInput.vue'
 import MediaList from '@/components/MediaList.vue'
@@ -51,7 +51,8 @@ function toggleDraft() {
 }
 
 const PRESETS = [100, 200, 300, 400, 500, 1000]
-const kindHint = computed(() => t(`editor.dialog.kinds.${kindInfo(question.value.kind).key}.hint`))
+const kind = computed(() => kindInfo(question.value.kind))
+const kindHint = computed(() => t(`editor.dialog.kinds.${kind.value.key}.hint`))
 
 // Alt+arrows is word movement inside a text field, so there it needs Ctrl or Cmd as well
 function onKeydown(e: KeyboardEvent) {
@@ -84,78 +85,78 @@ function onKeydown(e: KeyboardEvent) {
       </header>
 
       <div class="body">
-        <div class="settings" data-tour="q-settings">
-          <div class="kind-box">
-            <div class="kinds" role="radiogroup" :aria-label="t('editor.dialog.kindLabel')">
-              <button
-                v-for="k in KINDS"
-                :key="k.kind"
-                type="button"
-                role="radio"
-                class="kind"
-                :class="[k.kind, { on: question.kind === k.kind }]"
-                :aria-checked="question.kind === k.kind"
-                @click="question.kind = k.kind"
-              >
-                <component :is="k.icon" class="size-4" />{{ t(`editor.dialog.kinds.${k.key}.label`) }}
+        <div class="toolbar" data-tour="q-settings">
+          <DropdownMenu>
+            <DropdownMenuTrigger as-child>
+              <button type="button" class="kind-pick" :class="kind.kind" :title="kindHint">
+                <span class="sr-only">{{ t('editor.dialog.kindLabel') }}:</span>
+                <component :is="kind.icon" class="size-4" />{{ t(`editor.dialog.kinds.${kind.key}.label`) }}<ChevronDown class="size-4 opacity-60" />
               </button>
-            </div>
-            <p class="hint">{{ kindHint }}</p>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" class="w-80">
+              <DropdownMenuRadioGroup :model-value="kind.kind" @update:model-value="(v) => (question.kind = v as QuestionKind)">
+                <DropdownMenuRadioItem v-for="k in KINDS" :key="k.kind" :value="k.kind" class="items-start">
+                  <component :is="k.icon" class="mt-0.5 size-4" />
+                  <span class="grid gap-0.5">
+                    <span class="font-medium">{{ t(`editor.dialog.kinds.${k.key}.label`) }}</span>
+                    <span class="text-xs text-muted-foreground">{{ t(`editor.dialog.kinds.${k.key}.hint`) }}</span>
+                  </span>
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <div class="field" :title="t('editor.dialog.valueHint')">
+            <span class="field-label">{{ t('editor.dialog.value') }}</span>
+            <NumberInput v-model="question.value" class="value-input" :min="1" :step="100" :step-snapping="false" :aria-label="t('editor.dialog.value')" />
+            <DropdownMenu>
+              <DropdownMenuTrigger as-child>
+                <Button variant="ghost" size="icon-sm" :aria-label="t('editor.dialog.presets')" :title="t('editor.dialog.presets')"><ChevronDown /></Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" class="min-w-28">
+                <DropdownMenuItem v-for="p in PRESETS" :key="p" class="preset-item" :class="{ on: question.value === p }" @select="question.value = p">{{ p }}</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
-          <div class="grid gap-2" :title="t('editor.dialog.valueHint')">
-            <Label as="span">{{ t('editor.dialog.value') }}</Label>
-            <div class="flex flex-wrap items-center gap-2">
-              <NumberInput v-model="question.value" class="value-input" :min="1" :step="100" :step-snapping="false" />
-              <button
-                v-for="p in PRESETS"
-                :key="p"
-                type="button"
-                class="preset"
-                :class="{ on: question.value === p }"
-                @click="question.value = p"
-              >{{ p }}</button>
-            </div>
+          <div v-if="question.kind === 'cat-in-bag'" class="field">
+            <span class="field-label">{{ t('editor.dialog.catValue') }}</span>
+            <NumberInput v-model="question.catValue" class="value-input" :min="1" :step="100" :step-snapping="false" :placeholder="String(question.value)" :aria-label="t('editor.dialog.catValue')" />
           </div>
 
-          <div class="grid gap-2">
-            <Label as="span">{{ t('editor.dialog.status') }}</Label>
-            <p v-if="record" class="record-line">{{ t('editor.stats.line', { plays: t('editor.stats.plays', record.plays), answered: record.answered }) }}<template v-if="record.wrong">, {{ t('editor.stats.wrong', record.wrong) }}</template></p>
-            <button type="button" class="draft-toggle" :class="{ on: question.draft }" :aria-pressed="!!question.draft" :title="t('editor.dialog.draftHint')" @click="toggleDraft">
-              <PencilLine class="size-4" />{{ t('editor.dialog.draft') }}
-            </button>
+          <div class="field" :title="t('editor.dialog.secondsHint')">
+            <span class="field-label">{{ t('editor.dialog.seconds') }}</span>
+            <NumberInput v-model="question.seconds" class="seconds-input" :min="0" :step="5" :placeholder="t('editor.dialog.secondsInherit')" :aria-label="t('editor.dialog.seconds')" />
           </div>
 
-          <div class="grid gap-2" :title="t('editor.dialog.secondsHint')">
-            <Label as="span">{{ t('editor.dialog.seconds') }}</Label>
-            <NumberInput v-model="question.seconds" class="seconds-input" :min="0" :step="5" :placeholder="t('editor.dialog.secondsInherit')" />
-          </div>
-
-          <div v-if="question.kind === 'cat-in-bag'" class="grid gap-2">
-            <Label>{{ t('editor.dialog.catValue') }}</Label>
-            <NumberInput v-model="question.catValue" class="value-input" :min="1" :step="100" :step-snapping="false" :placeholder="String(question.value)" />
-          </div>
         </div>
+        <p v-if="kind.kind !== 'normal'" class="hint kind-hint">{{ kindHint }}</p>
 
         <div class="cols">
           <section class="col" :aria-label="t('editor.dialog.question')">
             <h3 class="col-title">{{ t('editor.dialog.question') }}</h3>
             <MarkdownEditor v-model="question.text" data-tour="q-text" :label="t('editor.dialog.question')" :placeholder="t('editor.dialog.questionPlaceholder')" />
-            <MediaList v-model="question.media" data-tour="q-media" blurrable :label="t('editor.dialog.questionMedia')" />
-            <OptionsEditor v-model="question" />
-            <HintsEditor v-model="question" />
+            <MediaList v-model="question.media" data-tour="q-media" blurrable compact :label="t('editor.dialog.questionMedia')" />
+            <div class="extras">
+              <OptionsEditor v-model="question" />
+              <HintsEditor v-model="question" />
+            </div>
           </section>
           <section class="col answer" :aria-label="t('editor.dialog.answer')">
             <h3 class="col-title">{{ t('editor.dialog.answer') }}</h3>
             <MarkdownEditor v-model="question.answer" display :label="t('editor.dialog.answer')" :placeholder="t('editor.dialog.answerPlaceholder')" />
-            <MediaList v-model="question.answerMedia" :label="t('editor.dialog.answerMedia')" />
-            <HostFields v-model="question" />
+            <MediaList v-model="question.answerMedia" compact :label="t('editor.dialog.answerMedia')" />
+            <HostFields :key="question.id" v-model="question" />
           </section>
         </div>
       </div>
 
       <footer class="foot">
         <Button variant="secondary" @click="$emit('preview')"><MonitorPlay />{{ t('editor.dialog.preview') }}</Button>
+        <button type="button" class="draft-toggle" :class="{ on: question.draft }" :aria-pressed="!!question.draft" :title="t('editor.dialog.draftHint')" @click="toggleDraft">
+          <PencilLine class="size-4" />{{ t('editor.dialog.draft') }}
+        </button>
+        <span v-if="record" class="record-line">{{ t('editor.stats.line', { plays: t('editor.stats.plays', record.plays), answered: record.answered }) }}<template v-if="record.wrong">, {{ t('editor.stats.wrong', record.wrong) }}</template></span>
         <span class="flex-1" />
         <IconButton :label="t('editor.dialog.duplicate')" @click="$emit('duplicate')"><CopyPlus /></IconButton>
         <IconButton :label="t('editor.dialog.copy')" @click="copyQuestion"><Copy /></IconButton>
@@ -215,50 +216,66 @@ function onKeydown(e: KeyboardEvent) {
   gap: clamp(10px, 2vh, 18px);
   padding: clamp(10px, 2vh, 18px) 20px;
 }
-.settings {
+.toolbar {
   flex: none;
   display: flex;
   flex-wrap: wrap;
-  gap: 12px 24px;
-  align-items: start;
-}
-.kind-box {
-  flex: 1 1 320px;
-}
-.kinds {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-}
-.kind {
-  display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 40px;
-  padding: 6px 8px;
-  border-radius: 12px;
-  border: 1px solid oklch(var(--tint) 0 0 / 0.12);
-  background: var(--well);
-  color: var(--muted-foreground);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s ease;
+  gap: 8px 18px;
 }
-.kind:hover {
-  color: var(--foreground);
-}
-.kind.on {
+.kind-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 10px 0 12px;
+  border-radius: 10px;
+  border: 0;
+  background: var(--gold);
   color: var(--night);
-  border-color: transparent;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
 }
-.kind.normal.on { background: var(--gold); }
-.kind.auction.on { background: oklch(0.78 0.15 70); }
-.kind.cat-in-bag.on { background: var(--magenta); color: white; }
-.kind.no-risk.on { background: oklch(0.72 0.14 160); }
-.kind.all-in.on { background: oklch(0.7 0.19 40); }
-.kind.for-all.on { background: var(--cyan); }
+.kind-pick.auction { background: oklch(0.78 0.15 70); }
+.kind-pick.cat-in-bag { background: var(--magenta); color: white; }
+.kind-pick.no-risk { background: oklch(0.72 0.14 160); }
+.kind-pick.all-in { background: oklch(0.7 0.19 40); }
+.kind-pick.for-all { background: var(--cyan); }
+.field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.field-label {
+  font-size: 13px;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+.kind-hint {
+  margin-top: -4px;
+}
+.preset-item {
+  font-family: var(--font-display);
+  font-size: 15px;
+}
+.preset-item.on {
+  color: var(--gold);
+}
+.extras {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+}
+.extras > :deep(*) {
+  flex: 1 1 100%;
+}
+/* while both are still just their add buttons, they share one row */
+.extras > :deep(.options:has(> button:only-child)),
+.extras > :deep(.hints:has(> button:only-child)) {
+  flex: 0 0 auto;
+}
 .hint {
   margin: 6px 0 0;
   font-size: 13px;
@@ -299,27 +316,6 @@ function onKeydown(e: KeyboardEvent) {
 .value-input :deep(input) {
   font-family: var(--font-display);
   font-size: 18px;
-  color: var(--gold);
-}
-.preset {
-  height: 32px;
-  min-width: 48px;
-  padding: 0 10px;
-  border-radius: 10px;
-  border: 1px solid oklch(var(--tint) 0 0 / 0.12);
-  background: transparent;
-  color: var(--muted-foreground);
-  font-family: var(--font-display);
-  font-size: 15px;
-  cursor: pointer;
-}
-.preset:hover {
-  color: var(--gold);
-  border-color: color-mix(in oklch, var(--gold) 50%, transparent);
-}
-.preset.on {
-  background: color-mix(in oklch, var(--gold) 18%, transparent);
-  border-color: var(--gold);
   color: var(--gold);
 }
 .cols {

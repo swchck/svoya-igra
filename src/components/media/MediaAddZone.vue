@@ -13,7 +13,8 @@ import { Input } from '@/components/ui/input'
 import IconButton from '@/components/IconButton.vue'
 
 const { t } = useI18n()
-defineProps<{ dropping?: boolean }>()
+/** `compact` is one row of buttons; the drop hint shows only while something is dragged over. */
+defineProps<{ dropping?: boolean; compact?: boolean }>()
 const emit = defineEmits<{
   (e: 'files', files: File[]): void
   (e: 'link', url: string): void
@@ -61,7 +62,7 @@ function submit() {
 </script>
 
 <template>
-  <div class="zone" :class="{ dropping }" tabindex="0" role="group" :aria-label="t('media.add.label')">
+  <div class="zone" :class="{ dropping, compact }" tabindex="0" role="group" :aria-label="t('media.add.label')" :title="compact ? t('media.add.hint', { key: pasteKey }) : undefined">
     <form v-if="linking" class="flex w-full items-center gap-2" @submit.prevent="submit" @keydown.esc.stop="linking = false">
       <Input
         ref="linkInput"
@@ -80,9 +81,11 @@ function submit() {
       <Button size="sm" variant="destructive" @click="recorder.stop"><Square />{{ t('media.add.record.stop') }}</Button>
     </div>
     <template v-else>
-      <ImagePlus class="size-5 text-muted-foreground" aria-hidden="true" />
-      <p class="hint">{{ t('media.add.hint', { key: pasteKey }) }}</p>
-      <div class="flex gap-2">
+      <template v-if="!compact || dropping">
+        <ImagePlus class="size-5 text-muted-foreground" aria-hidden="true" />
+        <p class="hint">{{ t('media.add.hint', { key: pasteKey }) }}</p>
+      </template>
+      <div v-if="!dropping || !compact" class="flex flex-wrap justify-center gap-2">
         <Button size="sm" variant="secondary" @click="fileInput?.click()"><FolderOpen />{{ t('media.add.file') }}</Button>
         <Button size="sm" variant="secondary" @click="openLink"><LinkIcon />{{ t('media.add.link') }}</Button>
         <Button v-if="canRecord" size="sm" variant="secondary" :title="t('media.add.record.hint')" @click="recorder.start"><Mic />{{ t('media.add.record.start') }}</Button>
@@ -162,6 +165,20 @@ function submit() {
 }
 .zone.dropping {
   border-color: var(--cyan);
+}
+.zone.compact {
+  flex-direction: row;
+  justify-content: flex-start;
+  padding: 6px;
+  border-width: 1px;
+}
+.zone.compact:not(.dropping) :deep(button) {
+  background: transparent;
+}
+.zone.compact.dropping {
+  justify-content: center;
+  padding: 18px;
+  background: color-mix(in oklch, var(--cyan) 8%, transparent);
 }
 .hint {
   margin: 0;
